@@ -1,7 +1,52 @@
+import { useState } from "react";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter } from "@/components/common/Modal";
-import { FormField, TextInput, TextArea, SelectInput } from "@/components/common/FormFields";
+import { FormField, TextInput } from "@/components/common/FormFields";
+import { ApiError } from "@/lib/api";
+import { createCounselor } from "@/lib/counselors";
+import { useAppContext } from "@/app/app-context";
+
+function deriveInitials(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export function AddCounselorModal({ onClose }: { onClose: () => void }) {
+  const { bumpCounselorsVersion } = useAppContext();
+  const [name, setName] = useState("");
+  const [initials, setInitials] = useState("");
+  const [role, setRole] = useState("Licensed Counselor");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    if (!name.trim()) {
+      setError("Name is required.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await createCounselor({
+        name: name.trim(),
+        initials: (initials.trim() || deriveInitials(name)).toUpperCase(),
+        role: role.trim(),
+        avatar_url: avatarUrl.trim(),
+      });
+      bumpCounselorsVersion();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Unable to add counselor. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <ModalOverlay onClose={onClose}>
       <ModalCard>
@@ -18,25 +63,32 @@ export function AddCounselorModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <div className="flex flex-col gap-[16px]">
+          <FormField label="Full Name" required>
+            <TextInput placeholder="e.g. Dr. Chen" value={name} onChange={setName} />
+          </FormField>
           <div className="flex gap-[16px] flex-wrap">
-            <div className="flex-1 min-w-[180px]"><FormField label="First Name"><TextInput placeholder="First name" /></FormField></div>
-            <div className="flex-1 min-w-[180px]"><FormField label="Last Name"><TextInput placeholder="Last name" /></FormField></div>
+            <div className="flex-1 min-w-[180px]">
+              <FormField label="Initials">
+                <TextInput placeholder={name ? deriveInitials(name) : "DC"} value={initials} onChange={setInitials} />
+              </FormField>
+            </div>
+            <div className="flex-1 min-w-[180px]">
+              <FormField label="Role">
+                <TextInput placeholder="e.g. Licensed Counselor" value={role} onChange={setRole} />
+              </FormField>
+            </div>
           </div>
-          <div className="flex gap-[16px] flex-wrap">
-            <div className="flex-1 min-w-[180px]"><FormField label="Email"><TextInput placeholder="name@torchrecovery.com" /></FormField></div>
-            <div className="flex-1 min-w-[180px]"><FormField label="Phone"><TextInput placeholder="+1 (555) 000-0000" /></FormField></div>
-          </div>
-          <div className="flex gap-[16px] flex-wrap">
-            <div className="flex-1 min-w-[180px]"><FormField label="Specialization"><SelectInput options={["Addiction, Trauma", "CBT / DBT", "Family Therapy", "Grief Counseling"]} /></FormField></div>
-            <div className="flex-1 min-w-[180px]"><FormField label="License Number"><TextInput placeholder="e.g. LCSW-9810442" /></FormField></div>
-          </div>
-          <div className="flex gap-[16px] flex-wrap">
-            <div className="flex-1 min-w-[180px]"><FormField label="Status"><SelectInput options={["Active", "Inactive", "Pending License"]} /></FormField></div>
-            <div className="flex-1 min-w-[180px]" />
-          </div>
-          <FormField label="Notes / Credentials"><TextArea placeholder="Specializations, credentials, or notes..." rows={3} /></FormField>
+          <FormField label="Avatar URL">
+            <TextInput placeholder="https://..." value={avatarUrl} onChange={setAvatarUrl} />
+          </FormField>
+          {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
         </div>
-        <ModalFooter onCancel={onClose} onConfirm={onClose} confirmLabel="Add Counselor" />
+        <ModalFooter
+          onCancel={onClose}
+          onConfirm={handleSubmit}
+          confirmLabel={submitting ? "Adding..." : "Add Counselor"}
+          confirmDisabled={submitting}
+        />
       </ModalCard>
     </ModalOverlay>
   );

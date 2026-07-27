@@ -2,7 +2,8 @@ import svgPaths from "./svg-paths";
 
 export const EyeIcon = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <path d={svgPaths.p6cb3200} stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" />
+    <path d={svgPaths.p6cb3200} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
+    <circle cx="7" cy="7" r="1.75" stroke="currentColor" strokeWidth="1.5" />
   </svg>
 );
 

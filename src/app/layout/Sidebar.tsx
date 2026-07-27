@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Lightbulb, SlidersHorizontal } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
@@ -11,6 +12,10 @@ import {
   AlertCircleIcon,
   CircleXIcon,
 } from "@/components/icons";
+import { useAppContext } from "@/app/app-context";
+import { getUserStats } from "@/lib/users";
+import { getSupportGroupStats } from "@/lib/supportGroups";
+import { getCounselorStats } from "@/lib/counselors";
 
 interface NavItemProps {
   to: string;
@@ -70,9 +75,57 @@ function NavSection({ label, children, lightMode = false }: { label: string; chi
 
 interface SidebarProps { pathname: string; lightMode: boolean; }
 
+function initials(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return "?";
+  return trimmed.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+}
+
 export function Sidebar({ pathname, lightMode }: SidebarProps) {
+  const { user, usersVersion, groupsVersion, counselorsVersion } = useAppContext();
   const is = (path: string) => pathname === path;
   const iconColor = (path: string) => is(path) ? "#F37422" : lightMode ? "#2C241D" : "#8A8073";
+
+  const [usersCount, setUsersCount] = useState<number | null>(null);
+  const [groupsCount, setGroupsCount] = useState<number | null>(null);
+  const [counselorsCount, setCounselorsCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getUserStats()
+      .then((stats) => {
+        if (!cancelled) setUsersCount(stats.total_users);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [usersVersion]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSupportGroupStats()
+      .then((stats) => {
+        if (!cancelled) setGroupsCount(stats.total_groups);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [groupsVersion]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCounselorStats()
+      .then((stats) => {
+        if (!cancelled) setCounselorsCount(stats.total_counselors);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [counselorsVersion]);
+
   return (
     <div className={`w-[240px] flex-shrink-0 flex flex-col justify-between h-full relative transition-colors duration-200 ${lightMode ? "bg-[#f5f1eb]" : "bg-[var(--app-bg)]"}`}>
       <div className={`absolute inset-0 border-r pointer-events-none ${lightMode ? "border-[rgba(54,43,31,0.12)]" : "border-[var(--app-border-soft)]"}`} />
@@ -90,18 +143,18 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
         {/* Nav */}
         <div className="px-[16px] flex flex-col gap-[24px] pb-4">
           <NavSection label="MANAGEMENT" lightMode={lightMode}>
-            <NavItem to="/users" icon={<UsersNavIcon color={iconColor("/users")} />} label="Users" badge="2,847" active={is("/users")} lightMode={lightMode} />
-            <NavItem to="/counselors" icon={<UsersNavIcon color={iconColor("/counselors")} />} label="Counselors" badge="18" active={is("/counselors")} lightMode={lightMode} />
-            <NavItem to="/support-groups" icon={<MessageCircleIcon color={iconColor("/support-groups")} />} label="Support Groups" badge="84" active={is("/support-groups")} lightMode={lightMode} />
-            <NavItem to="/resources/real-world" icon={<CalendarIcon color={iconColor("/resources/real-world")} />} label="Real World Resources" badge="84" active={is("/resources/real-world")} lightMode={lightMode} />
+            <NavItem to="/users" icon={<UsersNavIcon color={iconColor("/users")} />} label="Users" badge={usersCount ?? undefined} active={is("/users")} lightMode={lightMode} />
+            <NavItem to="/counselors" icon={<UsersNavIcon color={iconColor("/counselors")} />} label="Counselors" badge={counselorsCount ?? undefined} active={is("/counselors")} lightMode={lightMode} />
+            <NavItem to="/support-groups" icon={<MessageCircleIcon color={iconColor("/support-groups")} />} label="Support Groups" badge={groupsCount ?? undefined} active={is("/support-groups")} lightMode={lightMode} />
+            <NavItem to="/resources/real-world" icon={<CalendarIcon color={iconColor("/resources/real-world")} />} label="Real World Resources" active={is("/resources/real-world")} lightMode={lightMode} />
             <NavItem to="/resources/in-app" icon={<FileIcon color={iconColor("/resources/in-app")} />} label="In-App Resources" active={is("/resources/in-app")} lightMode={lightMode} />
             <NavItem to="/treatment-plans" icon={<ClipboardIcon color={iconColor("/treatment-plans")} />} label="Treatment Plans" active={is("/treatment-plans")} lightMode={lightMode} />
           </NavSection>
 
           <NavSection label="ANALYTICS" lightMode={lightMode}>
             <NavItem to="/aggregate-data" icon={<ChartColumnIcon color={iconColor("/aggregate-data")} />} label="Aggregate Data" active={is("/aggregate-data")} lightMode={lightMode} />
-            <NavItem to="/relapse-signals" icon={<AlertCircleIcon color={iconColor("/relapse-signals")} />} label="Relapse Signals" badge="12" active={is("/relapse-signals")} lightMode={lightMode} />
-            <NavItem to="/insights" icon={<Lightbulb size={14} strokeWidth={1.7} color={iconColor("/insights")} />} label="Insights" badge="5" active={is("/insights")} lightMode={lightMode} />
+            <NavItem to="/relapse-signals" icon={<AlertCircleIcon color={iconColor("/relapse-signals")} />} label="Relapse Signals" active={is("/relapse-signals")} lightMode={lightMode} />
+            <NavItem to="/insights" icon={<Lightbulb size={14} strokeWidth={1.7} color={iconColor("/insights")} />} label="Insights" active={is("/insights")} lightMode={lightMode} />
           </NavSection>
 
           <NavSection label="SYSTEM" lightMode={lightMode}>
@@ -116,11 +169,11 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
         <div className={`absolute inset-0 border-t pointer-events-none ${lightMode ? "border-[rgba(54,43,31,0.12)]" : "border-[var(--app-border-soft)]"}`} />
         <NavLink to="/profile" className="w-full flex items-center gap-[10px] p-[16px] text-left cursor-pointer hover:bg-[var(--app-hover)] transition-colors">
           <div className="w-[32px] h-[32px] rounded-full bg-[#f37422] flex items-center justify-center flex-shrink-0">
-            <span className="font-['Figtree'] font-bold text-white text-[11px]">SA</span>
+            <span className="font-['Figtree'] font-bold text-white text-[11px]">{user ? initials(user.full_name || user.email) : "…"}</span>
           </div>
           <div>
-            <p className={`font-['Figtree'] font-semibold text-[12px] leading-tight ${lightMode ? "text-[#29231d]" : "text-[var(--app-text)]"}`}>Sarah A.</p>
-            <p className={`font-['JetBrains_Mono'] font-normal text-[10px] leading-tight ${lightMode ? "text-[#84796d]" : "text-[var(--app-muted)]"}`}>Super Admin</p>
+            <p className={`font-['Figtree'] font-semibold text-[12px] leading-tight ${lightMode ? "text-[#29231d]" : "text-[var(--app-text)]"}`}>{user?.full_name.trim() || user?.email || "Loading..."}</p>
+            <p className={`font-['JetBrains_Mono'] font-normal text-[10px] leading-tight ${lightMode ? "text-[#84796d]" : "text-[var(--app-muted)]"}`}>{user ? (user.is_superuser ? "Super Admin" : user.is_staff ? "Staff" : "User") : ""}</p>
           </div>
         </NavLink>
       </div>

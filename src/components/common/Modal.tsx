@@ -35,14 +35,28 @@ export function ModalHeader({ title, onClose }: { title: string; onClose: () => 
   );
 }
 
-export function ModalFooter({ onCancel, onConfirm, confirmLabel }: { onCancel: () => void; onConfirm: () => void; confirmLabel: string }) {
+export function ModalFooter({
+  onCancel,
+  onConfirm,
+  confirmLabel,
+  confirmDisabled,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+  confirmLabel: string;
+  confirmDisabled?: boolean;
+}) {
   return (
     <div className="flex items-center justify-end gap-[16px] mt-[28px]">
       <button onClick={onCancel} className="relative px-[24px] py-[12px] rounded-[12px] font-['Figtree'] font-semibold text-[var(--app-muted)] text-[15px] cursor-pointer hover:text-[var(--app-text)] transition-colors">
         <div className="absolute inset-0 rounded-[12px] border border-[var(--app-border)] pointer-events-none" />
         Cancel
       </button>
-      <button onClick={onConfirm} className="px-[24px] py-[12px] rounded-[12px] bg-[#f37422] font-['Figtree'] font-semibold text-white text-[15px] shadow-[0_4px_8px_rgba(243,116,34,0.25)] hover:bg-[#e06820] transition-colors cursor-pointer">
+      <button
+        onClick={onConfirm}
+        disabled={confirmDisabled}
+        className="px-[24px] py-[12px] rounded-[12px] bg-[#f37422] font-['Figtree'] font-semibold text-white text-[15px] shadow-[0_4px_8px_rgba(243,116,34,0.25)] hover:bg-[#e06820] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+      >
         {confirmLabel}
       </button>
     </div>

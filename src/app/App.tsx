@@ -15,7 +15,7 @@ import {
   PlaceholderPage,
   ProfilePage,
   LoginPage,
-} from "@/pages";
+} from "../pages";
 import { RouterProvider } from "react-router-dom";
 
 function renderPage(pageKey: AppPageKey) {
