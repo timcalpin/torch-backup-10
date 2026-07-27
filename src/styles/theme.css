@@ -193,6 +193,10 @@
   --app-hover: rgba(244, 237, 227, 0.04);
   --app-scrollbar-thumb: rgba(244, 237, 227, 0.15);
   --app-scrollbar-thumb-hover: rgba(244, 237, 227, 0.28);
+  /* Native <input type="date"/"time"> pickers (calendar/clock glyph + text)
+     render using the OS light-mode palette by default, making them
+     invisible against our dark surfaces unless color-scheme is set. */
+  color-scheme: dark;
 }
 
 .app-shell[data-theme="light"] {
@@ -206,6 +210,7 @@
   --app-hover: rgba(54, 43, 31, 0.055);
   --app-scrollbar-thumb: rgba(54, 43, 31, 0.15);
   --app-scrollbar-thumb-hover: rgba(54, 43, 31, 0.28);
+  color-scheme: light;
 }
 
 /* Transparent-track scrollbars — the default OS scrollbar (light box) clashes

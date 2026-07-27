@@ -36,6 +36,7 @@ export type Modal =
   | "new-plan"
   | "add-content"
   | "add-literature"
+  | "add-resource"
   | "export-insights";
 
 interface AppContextValue {
@@ -55,6 +56,16 @@ interface AppContextValue {
   bumpGroupsVersion: () => void;
   counselorsVersion: number;
   bumpCounselorsVersion: () => void;
+  contentVersion: number;
+  bumpContentVersion: () => void;
+  literatureVersion: number;
+  bumpLiteratureVersion: () => void;
+  resourcesVersion: number;
+  bumpResourcesVersion: () => void;
+  eventsVersion: number;
+  bumpEventsVersion: () => void;
+  treatmentPlansVersion: number;
+  bumpTreatmentPlansVersion: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -70,6 +81,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [usersVersion, setUsersVersion] = useState(0);
   const [groupsVersion, setGroupsVersion] = useState(0);
   const [counselorsVersion, setCounselorsVersion] = useState(0);
+  const [contentVersion, setContentVersion] = useState(0);
+  const [literatureVersion, setLiteratureVersion] = useState(0);
+  const [resourcesVersion, setResourcesVersion] = useState(0);
+  const [eventsVersion, setEventsVersion] = useState(0);
+  const [treatmentPlansVersion, setTreatmentPlansVersion] = useState(0);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -146,6 +162,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     bumpGroupsVersion: () => setGroupsVersion((v) => v + 1),
     counselorsVersion,
     bumpCounselorsVersion: () => setCounselorsVersion((v) => v + 1),
+    contentVersion,
+    bumpContentVersion: () => setContentVersion((v) => v + 1),
+    literatureVersion,
+    bumpLiteratureVersion: () => setLiteratureVersion((v) => v + 1),
+    resourcesVersion,
+    bumpResourcesVersion: () => setResourcesVersion((v) => v + 1),
+    eventsVersion,
+    bumpEventsVersion: () => setEventsVersion((v) => v + 1),
+    treatmentPlansVersion,
+    bumpTreatmentPlansVersion: () => setTreatmentPlansVersion((v) => v + 1),
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

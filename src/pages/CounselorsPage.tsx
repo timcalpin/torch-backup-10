@@ -17,6 +17,7 @@ import {
   getCounselorStats,
   updateCounselor,
   deleteCounselor,
+  counselorDisplayName,
   type ApiCounselor,
   type CounselorStats,
 } from "@/lib/counselors";
@@ -33,7 +34,7 @@ interface DisplayCounselor {
 function toDisplayCounselor(counselor: ApiCounselor): DisplayCounselor {
   return {
     id: counselor.id,
-    name: counselor.name.trim() || "Unnamed counselor",
+    name: counselorDisplayName(counselor),
     initials: counselor.initials || "—",
     role: counselor.role,
     avatarUrl: counselor.avatar_url,

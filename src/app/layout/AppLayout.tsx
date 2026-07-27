@@ -8,6 +8,7 @@ import {
   AddCounselorModal,
   NewPlanModal,
   AddContentModal,
+  AddResourceModal,
   ExportInsightsModal,
 } from "@/components/modals";
 
@@ -27,6 +28,7 @@ export function AppLayout() {
       {modal === "add-counselor"   && <AddCounselorModal onClose={close} />}
       {modal === "new-plan"        && <NewPlanModal onClose={close} />}
       {modal === "add-content"     && <AddContentModal onClose={close} />}
+      {modal === "add-resource"    && <AddResourceModal onClose={close} />}
       {modal === "export-insights" && <ExportInsightsModal onClose={close} />}
     </div>
   );

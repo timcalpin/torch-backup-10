@@ -35,12 +35,14 @@ const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const method = (options.method ?? "GET").toUpperCase();
   const csrfToken = UNSAFE_METHODS.has(method) ? getCookie("csrftoken") : null;
+  const isFormData = options.body instanceof FormData;
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      // FormData sets its own multipart boundary — let the browser fill it in.
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
       ...options.headers,
     },

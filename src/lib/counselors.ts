@@ -10,6 +10,16 @@ export interface ApiCounselor {
   patients_count: number;
 }
 
+// Some existing therapist rows have no first/last name on record, which makes
+// `name` an empty string — fall back to initials/role so dropdowns and lists
+// never render blank, indistinguishable entries.
+export function counselorDisplayName(counselor: ApiCounselor): string {
+  const trimmed = counselor.name.trim();
+  if (trimmed) return trimmed;
+  if (counselor.initials) return `${counselor.initials} — ${counselor.role || "Counselor"}`;
+  return counselor.role || "Unnamed counselor";
+}
+
 export function listCounselors(): Promise<PaginatedResponse<ApiCounselor>> {
   return apiFetch<PaginatedResponse<ApiCounselor>>("/api/v1/admin/counselors/");
 }
