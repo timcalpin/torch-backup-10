@@ -1,3 +1,5 @@
+import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./tokens";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 export const UNAUTHORIZED_EVENT = "api:unauthorized";
@@ -25,34 +27,66 @@ function extractErrorMessage(body: unknown, fallback: string): string {
   return fallback;
 }
 
-function getCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
+// A burst of parallel calls can all 401 at once; they share this single
+// in-flight refresh instead of each spending the (rotating) refresh token.
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refresh = getRefreshToken();
+  if (!refresh) return null;
+
+  refreshInFlight ??= (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/token/refresh/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh }),
+      });
+      if (!response.ok) return null;
+      const tokens = (await response.json()) as { access: string; refresh?: string };
+      setTokens(tokens);
+      return tokens.access;
+    } catch {
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
 }
 
-const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-
-export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const method = (options.method ?? "GET").toUpperCase();
-  const csrfToken = UNSAFE_METHODS.has(method) ? getCookie("csrftoken") : null;
+function buildRequest(path: string, options: RequestInit, token: string | null): Promise<Response> {
   const isFormData = options.body instanceof FormData;
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  return fetch(`${API_BASE_URL}${path}`, {
     ...options,
-    credentials: "include",
     headers: {
       // FormData sets its own multipart boundary — let the browser fill it in.
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
-      ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
+}
+
+export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  let response = await buildRequest(path, options, getAccessToken());
+
+  // Access tokens are short-lived: on the first 401, trade the refresh token
+  // for a new one and replay the request once.
+  if (response.status === 401 && getRefreshToken()) {
+    const access = await refreshAccessToken();
+    if (access) {
+      response = await buildRequest(path, options, access);
+    }
+  }
 
   const isJson = response.headers.get("content-type")?.includes("application/json");
   const body = isJson ? await response.json().catch(() => null) : null;
 
   if (!response.ok) {
     if (response.status === 401) {
+      clearTokens();
       window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
     }
     throw new ApiError(response.status, extractErrorMessage(body, response.statusText), body);

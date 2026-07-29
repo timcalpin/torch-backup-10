@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { ApiError, UNAUTHORIZED_EVENT } from "../lib/api";
 import { login as loginRequest, logout as logoutRequest, getMe, type AdminUser } from "../lib/auth";
+import { clearTokens, getAccessToken } from "../lib/tokens";
 
 const AUTH_STORAGE_KEY = "torch-admin-auth";
 
@@ -72,7 +73,9 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const storedAuth = readStoredAuth();
-  const [authenticated, setAuthenticated] = useState(storedAuth !== null);
+  // The JWT is the source of truth for "signed in"; the cached profile is only
+  // there so a reload paints without waiting on /me/.
+  const [authenticated, setAuthenticated] = useState(getAccessToken() !== null);
   const [user, setUser] = useState<AdminUser | null>(storedAuth?.user ?? null);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -91,11 +94,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
-  // The session lives in an httpOnly cookie we can't read, so a 401 from any
-  // API call (session expired/revoked server-side) is the only reliable
-  // signal that we should drop back to the login page.
+  // A 401 that survived the automatic token refresh means the refresh token is
+  // gone too (expired, blacklisted, or rotated away) — drop back to login.
   useEffect(() => {
     const handleUnauthorized = () => {
+      clearTokens();
       writeStoredAuth(null);
       setAuthenticated(false);
       setUser(null);
@@ -104,9 +107,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
   }, []);
 
-  // On reload, the session cookie is still valid but this cached profile may
-  // be stale (or missing, since the login response doesn't reliably include
-  // one) — refresh it from /me/ once on mount.
+  // On reload the stored token is still valid but the cached profile may be
+  // stale — refresh it from /me/ once on mount.
   useEffect(() => {
     if (!authenticated) return;
     getMe()
@@ -121,8 +123,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLoginLoading(true);
     setLoginError(null);
     try {
-      await loginRequest(email, password);
-      const me = await getMe();
+      const { user: me } = await loginRequest(email, password);
       setUser(me);
       setAuthenticated(true);
       writeStoredAuth({ user: me });

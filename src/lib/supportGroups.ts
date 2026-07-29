@@ -9,7 +9,8 @@ export interface ApiSupportGroup {
   moderator: string | null;
   moderator_name: string | null;
   meeting_day: string;
-  meeting_time: string;
+  // TimeField(null=True) on the server — most groups have no time set.
+  meeting_time: string | null;
   format: string;
   max_capacity: number;
   tags: string[];

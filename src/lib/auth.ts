@@ -1,4 +1,5 @@
 import { apiFetch } from "./api";
+import { clearTokens, getRefreshToken, setTokens } from "./tokens";
 
 export interface AdminUser {
   id: string;
@@ -9,21 +10,33 @@ export interface AdminUser {
 }
 
 export interface LoginResponse {
-  user?: AdminUser;
-  [key: string]: unknown;
+  access: string;
+  refresh: string;
+  user: AdminUser;
 }
 
-export function login(email: string, password: string): Promise<LoginResponse> {
-  return apiFetch<LoginResponse>("/api/v1/admin/login/", {
+export async function login(email: string, password: string): Promise<LoginResponse> {
+  const response = await apiFetch<LoginResponse>("/api/v1/admin/login/", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
+  setTokens(response);
+  return response;
 }
 
-export function logout(): Promise<void> {
-  return apiFetch<void>("/api/v1/admin/logout/", {
-    method: "POST",
-  });
+export async function logout(): Promise<void> {
+  const refresh = getRefreshToken();
+  try {
+    if (refresh) {
+      // Blacklists the refresh token server-side so it can't be rotated again.
+      await apiFetch<void>("/api/v1/admin/logout/", {
+        method: "POST",
+        body: JSON.stringify({ refresh }),
+      });
+    }
+  } finally {
+    clearTokens();
+  }
 }
 
 export function getMe(): Promise<AdminUser> {

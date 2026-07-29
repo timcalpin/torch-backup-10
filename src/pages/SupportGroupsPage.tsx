@@ -21,11 +21,12 @@ import {
   type SupportGroupStats,
 } from "@/lib/supportGroups";
 
+// Keys must match CommunityGroup.Category on the server: recovery/mind/spirit/wellness.
 const GROUP_COLORS: Record<string, { bg: string; text: string; iconColor: string }> = {
   RECOVERY: { bg: "rgba(243,116,34,0.2)", text: "#f37422", iconColor: "#f37422" },
+  MIND: { bg: "rgba(107,138,176,0.2)", text: "#6b8ab0", iconColor: "#6b8ab0" },
   SPIRIT: { bg: "rgba(163,115,143,0.2)", text: "#a3738f", iconColor: "#a3738f" },
   WELLNESS: { bg: "rgba(183,163,110,0.2)", text: "#b7a36e", iconColor: "#b7a36e" },
-  COMMUNITY: { bg: "rgba(107,138,176,0.2)", text: "#6b8ab0", iconColor: "#6b8ab0" },
 };
 
 const FORMAT_COLORS: Record<string, { bg: string; text: string }> = {
@@ -58,7 +59,9 @@ function toDisplayGroup(group: ApiSupportGroup): DisplayGroup {
     category: group.category.toUpperCase(),
     members: group.member_count,
     capacity: group.max_capacity,
-    schedule: `${capitalize(group.meeting_day)} · ${group.meeting_time.slice(0, 5)}`,
+    schedule: group.meeting_time
+      ? `${capitalize(group.meeting_day)} · ${group.meeting_time.slice(0, 5)}`
+      : capitalize(group.meeting_day),
     moderator: group.moderator_name ?? "Unassigned",
     format: group.format.toUpperCase().replace(/[\s-]/g, "_"),
   };
