@@ -17,6 +17,11 @@ export interface ApiUser {
   created_at: string;
 }
 
+export interface CreateUserResponse {
+  user: ApiUser;  
+  temporary_password: string;
+}
+
 export function listUsers(): Promise<PaginatedResponse<ApiUser>> {
   return apiFetch<PaginatedResponse<ApiUser>>("/api/v1/admin/users/");
 }
@@ -43,8 +48,10 @@ export interface CreateUserPayload {
   role: string;
 }
 
-export function createUser(payload: CreateUserPayload): Promise<ApiUser> {
-  return apiFetch<ApiUser>("/api/v1/admin/users/", {
+export function createUser(
+  payload: CreateUserPayload
+): Promise<CreateUserResponse> {
+  return apiFetch<CreateUserResponse>("/api/v1/admin/users/", {
     method: "POST",
     body: JSON.stringify(payload),
   });
