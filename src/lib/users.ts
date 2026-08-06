@@ -17,8 +17,8 @@ export interface ApiUser {
   created_at: string;
 }
 
-export function listUsers(): Promise<PaginatedResponse<ApiUser>> {
-  return apiFetch<PaginatedResponse<ApiUser>>("/api/v1/admin/users/");
+export function listUsers(page: number = 1): Promise<PaginatedResponse<ApiUser>> {
+  return apiFetch<PaginatedResponse<ApiUser>>(`/api/v1/admin/users/?page=${page}`);
 }
 
 export function getUser(id: string): Promise<ApiUser> {
