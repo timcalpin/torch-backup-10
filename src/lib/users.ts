@@ -22,9 +22,14 @@ export interface CreateUserResponse {
   temporary_password: string;
 }
 
-export function listUsers(): Promise<PaginatedResponse<ApiUser>> {
-  return apiFetch<PaginatedResponse<ApiUser>>("/api/v1/admin/users/");
+export interface CreateUserResponse {
+  user: ApiUser;  
+  temporary_password: string;
 }
+
+export function listUsers(page: number = 1): Promise<PaginatedResponse<ApiUser>> {
+  return apiFetch<PaginatedResponse<ApiUser>>(`/api/v1/admin/users/?page=${page}`);
+}  
 
 export function getUser(id: string): Promise<ApiUser> {
   return apiFetch<ApiUser>(`/api/v1/admin/users/${id}/`);

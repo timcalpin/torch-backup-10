@@ -15,7 +15,6 @@ import {
 import { useAppContext } from "@/app/app-context";
 import { getUserStats } from "@/lib/users";
 import { getSupportGroupStats } from "@/lib/supportGroups";
-import { getCounselorStats } from "@/lib/counselors";
 
 interface NavItemProps {
   to: string;
@@ -82,13 +81,12 @@ function initials(name: string): string {
 }
 
 export function Sidebar({ pathname, lightMode }: SidebarProps) {
-  const { user, usersVersion, groupsVersion, counselorsVersion } = useAppContext();
+  const { user, usersVersion, groupsVersion } = useAppContext();
   const is = (path: string) => pathname === path;
   const iconColor = (path: string) => is(path) ? "#F37422" : lightMode ? "#2C241D" : "#8A8073";
 
   const [usersCount, setUsersCount] = useState<number | null>(null);
   const [groupsCount, setGroupsCount] = useState<number | null>(null);
-  const [counselorsCount, setCounselorsCount] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,18 +112,6 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
     };
   }, [groupsVersion]);
 
-  useEffect(() => {
-    let cancelled = false;
-    getCounselorStats()
-      .then((stats) => {
-        if (!cancelled) setCounselorsCount(stats.total_counselors);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [counselorsVersion]);
-
   return (
     <div className={`w-[240px] flex-shrink-0 flex flex-col justify-between h-full relative transition-colors duration-200 ${lightMode ? "bg-[#f5f1eb]" : "bg-[var(--app-bg)]"}`}>
       <div className={`absolute inset-0 border-r pointer-events-none ${lightMode ? "border-[rgba(54,43,31,0.12)]" : "border-[var(--app-border-soft)]"}`} />
@@ -144,7 +130,6 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
         <div className="px-[16px] flex flex-col gap-[24px] pb-4">
           <NavSection label="MANAGEMENT" lightMode={lightMode}>
             <NavItem to="/users" icon={<UsersNavIcon color={iconColor("/users")} />} label="Users" badge={usersCount ?? undefined} active={is("/users")} lightMode={lightMode} />
-            <NavItem to="/counselors" icon={<UsersNavIcon color={iconColor("/counselors")} />} label="Counselors" badge={counselorsCount ?? undefined} active={is("/counselors")} lightMode={lightMode} />
             <NavItem to="/support-groups" icon={<MessageCircleIcon color={iconColor("/support-groups")} />} label="Support Groups" badge={groupsCount ?? undefined} active={is("/support-groups")} lightMode={lightMode} />
             <NavItem to="/resources/real-world" icon={<CalendarIcon color={iconColor("/resources/real-world")} />} label="Real World Resources" active={is("/resources/real-world")} lightMode={lightMode} />
             <NavItem to="/resources/in-app" icon={<FileIcon color={iconColor("/resources/in-app")} />} label="In-App Resources" active={is("/resources/in-app")} lightMode={lightMode} />

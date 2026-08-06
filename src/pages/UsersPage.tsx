@@ -15,6 +15,7 @@ import { ApiError } from "@/lib/api";
 import { listUsers, getUser, getUserStats, updateUser, deleteUser, type ApiUser, type UserStats } from "@/lib/users";
 
 const ROLE_OPTIONS = ["Patient", "Counselor", "Admin", "Super Admin"];
+const PAGE_SIZE = 10;
 
 interface DisplayUser {
   id: string;
@@ -161,6 +162,9 @@ export function UsersPage() {
   const [editUser, setEditUser] = useState<DisplayUser | null>(null);
   const [users, setUsers] = useState<DisplayUser[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrev, setHasPrev] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -172,11 +176,13 @@ export function UsersPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    listUsers()
+    listUsers(page)
       .then((response) => {
         if (cancelled) return;
         setUsers(response.results.map(toDisplayUser));
         setTotalCount(response.count);
+        setHasNext(Boolean(response.next));
+        setHasPrev(Boolean(response.previous));
       })
       .catch((err) => {
         if (cancelled) return;
@@ -188,7 +194,7 @@ export function UsersPage() {
     return () => {
       cancelled = true;
     };
-  }, [usersVersion]);
+  }, [usersVersion, page]);
 
   useEffect(() => {
     let cancelled = false;
@@ -221,6 +227,10 @@ export function UsersPage() {
       setDeletingId(null);
     }
   };
+
+  // Calculate dynamic ranges (1-10, 11-20, etc.)
+  const startItem = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const endItem = Math.min(page * PAGE_SIZE, totalCount);
 
   return (
     <div className="flex-1 min-w-0 overflow-y-auto">
@@ -293,7 +303,35 @@ export function UsersPage() {
               ))}
             </div>
           </div>
+
+          {/* Right-Aligned Pagination Controls with Range in between */}
+          <div className="flex items-center justify-end px-[18px] py-[14px] border-t border-[var(--app-border)]">
+            <div className="flex items-center gap-[10px]">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                disabled={!hasPrev || loading}
+                className="px-[14px] py-[6px] rounded-[6px] font-['Figtree'] font-medium text-[12px] border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text)] disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#f37422] transition-colors"
+              >
+                Previous
+              </button>
+
+              <span className="font-['JetBrains_Mono'] text-[11px] text-[var(--app-muted)] px-[4px]">
+                <strong className="text-[var(--app-text)]">{startItem}–{endItem}</strong>
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={!hasNext || loading}
+                className="px-[14px] py-[6px] rounded-[6px] font-['Figtree'] font-medium text-[12px] border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text)] disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#f37422] transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </TableCard>
+
         {viewUserId && <UserDetailModal userId={viewUserId} onClose={() => setViewUserId(null)} />}
         {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} onSaved={bumpUsersVersion} />}
       </div>
