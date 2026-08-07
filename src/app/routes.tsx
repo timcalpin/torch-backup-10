@@ -6,6 +6,7 @@ export type AppPageKey =
   | "support-groups"
   | "users"
   | "counselors"
+  | "intake-scripts"
   | "resources-real"
   | "resources-app"
   | "treatment-plans"
@@ -57,6 +58,7 @@ export function createAppRouter({ AdminLayout, LoginPage, renderPage }: RouterOp
         { path: "support-groups", element: <PageRoute pageKey="support-groups" renderPage={renderPage} /> },
         { path: "users", element: <PageRoute pageKey="users" renderPage={renderPage} /> },
         { path: "counselors", element: <PageRoute pageKey="counselors" renderPage={renderPage} /> },
+        { path: "intake-scripts", element: <PageRoute pageKey="intake-scripts" renderPage={renderPage} /> },
         { path: "treatment-plans", element: <PageRoute pageKey="treatment-plans" renderPage={renderPage} /> },
         { path: "resources/real-world", element: <PageRoute pageKey="resources-real" renderPage={renderPage} /> },
         { path: "resources/in-app", element: <PageRoute pageKey="resources-app" renderPage={renderPage} /> },
