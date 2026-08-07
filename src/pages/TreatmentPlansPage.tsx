@@ -30,8 +30,14 @@ import {
   updateCounselor,
   deleteCounselor,
   counselorDisplayName,
+  COUNSELOR_STATUSES,
+  COUNSELOR_STATUS_LABELS,
+  COUNSELOR_SPECIALIZATIONS,
+  COUNSELOR_SPECIALIZATION_LABELS,
   type ApiCounselor,
   type CounselorStats,
+  type CounselorStatus,
+  type CounselorSpecialization,
 } from "@/lib/counselors";
 import { buildUniqueOptions } from "@/lib/selectOptions";
 
@@ -51,24 +57,10 @@ function toDisplayStatus(status: ApiTreatmentPlan["status"]): "ACTIVE" | "PENDIN
   return "PENDING";
 }
 
-interface DisplayCounselor {
-  id: string;
-  name: string;
-  initials: string;
-  role: string;
-  avatarUrl: string;
-  patients: number;
-}
-
-function toDisplayCounselor(counselor: ApiCounselor): DisplayCounselor {
-  return {
-    id: counselor.id,
-    name: counselorDisplayName(counselor),
-    initials: counselor.initials || "--",
-    role: counselor.role,
-    avatarUrl: counselor.avatar_url,
-    patients: counselor.patients_count,
-  };
+function toDisplayCounselorStatus(status: CounselorStatus | null | undefined): "ACTIVE" | "PENDING" | "ARCHIVED" {
+  if (status === "active") return "ACTIVE";
+  if (status === "inactive") return "ARCHIVED";
+  return "PENDING"; // pending
 }
 
 function PlanViewToggle({ value, onChange }: { value: TreatmentPlansView; onChange: (view: TreatmentPlansView) => void }) {
@@ -168,7 +160,7 @@ function ViewPlanModal({ planId, onClose }: { planId: string; onClose: () => voi
 }
 
 function CounselorDetailModal({ counselorId, onClose }: { counselorId: string; onClose: () => void }) {
-  const [detail, setDetail] = useState<ApiCounselor | null>(null);
+  const [counselor, setCounselor] = useState<ApiCounselor | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -178,7 +170,7 @@ function CounselorDetailModal({ counselorId, onClose }: { counselorId: string; o
     setError(null);
     getCounselor(counselorId)
       .then((response) => {
-        if (!cancelled) setDetail(response);
+        if (!cancelled) setCounselor(response);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -192,8 +184,6 @@ function CounselorDetailModal({ counselorId, onClose }: { counselorId: string; o
     };
   }, [counselorId]);
 
-  const counselor = detail ? toDisplayCounselor(detail) : null;
-
   return (
     <ModalOverlay onClose={onClose}>
       <ModalCard>
@@ -203,28 +193,40 @@ function CounselorDetailModal({ counselorId, onClose }: { counselorId: string; o
         {!loading && !error && counselor && (
           <div className="flex flex-col gap-[20px]">
             <div className="flex items-center gap-[14px]">
-              {counselor.avatarUrl ? (
-                <img src={counselor.avatarUrl} alt={counselor.name} className="w-[48px] h-[48px] rounded-full flex-shrink-0 object-cover" />
+              {counselor.avatar_url ? (
+                <img
+                  src={counselor.avatar_url}
+                  alt={counselorDisplayName(counselor)}
+                  className="w-[48px] h-[48px] rounded-full flex-shrink-0 object-cover"
+                />
               ) : (
                 <div className="w-[48px] h-[48px] rounded-full bg-[rgba(243,116,34,0.18)] text-[#f37422] font-['Figtree'] font-bold text-[16px] flex items-center justify-center">
-                  {counselor.initials}
+                  {counselor.initials || "--"}
                 </div>
               )}
               <div>
-                <p className="font-['Figtree'] font-bold text-[17px] text-[var(--app-text)]">{counselor.name}</p>
-                <p className="font-['Figtree'] text-[13px] text-[var(--app-muted)]">{counselor.role}</p>
+                <p className="font-['Figtree'] font-bold text-[17px] text-[var(--app-text)]">{counselorDisplayName(counselor)}</p>
+                <p className="font-['Figtree'] text-[13px] text-[var(--app-muted)]">{counselor.specialization_label || counselor.role}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-[12px]">
               {[
-                ["Role", counselor.role],
-                ["Patients assigned", String(counselor.patients)],
+                ["Email", counselor.email || "—"],
+                ["Phone", counselor.phone || "—"],
+                ["License Number", counselor.license_number || "—"],
+                ["Status", counselor.status_label || COUNSELOR_STATUS_LABELS[counselor.status ?? "active"]],
+                ["Specialization", counselor.specialization_label || "—"],
+                ["Patients assigned", String(counselor.patient_count)],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-[9px] bg-[var(--app-surface)] border border-[var(--app-border)] p-[12px]">
                   <p className="font-['JetBrains_Mono'] text-[9px] text-[var(--app-muted)]">{label}</p>
                   <p className="mt-[4px] font-['Figtree'] font-semibold text-[13px] text-[var(--app-text)]">{value}</p>
                 </div>
               ))}
+            </div>
+            <div>
+              <p className="font-['JetBrains_Mono'] text-[9px] text-[var(--app-muted)] mb-[6px]">NOTES / CREDENTIALS</p>
+              <p className="font-['Figtree'] text-[13px] text-[var(--app-text)] whitespace-pre-wrap">{counselor.notes_credentials || "No notes recorded yet."}</p>
             </div>
           </div>
         )}
@@ -234,20 +236,44 @@ function CounselorDetailModal({ counselorId, onClose }: { counselorId: string; o
   );
 }
 
-function EditCounselorModal({ counselor, onClose, onSaved }: { counselor: DisplayCounselor; onClose: () => void; onSaved: () => void }) {
-  const [role, setRole] = useState(counselor.role);
+function EditCounselorModal({
+  counselor,
+  onClose,
+  onSaved,
+}: {
+  counselor: ApiCounselor;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [firstName, setFirstName] = useState(counselor.first_name ?? "");
+  const [lastName, setLastName] = useState(counselor.last_name ?? "");
+  const [phone, setPhone] = useState(counselor.phone ?? "");
+  const [specialization, setSpecialization] = useState<CounselorSpecialization>(
+    counselor.specialization ?? "addiction_trauma"
+  );
+  const [licenseNumber, setLicenseNumber] = useState(counselor.license_number ?? "");
+  const [status, setStatus] = useState<CounselorStatus>(counselor.status ?? "active");
+  const [notes, setNotes] = useState(counselor.notes_credentials ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    if (!role.trim()) {
-      setError("Role is required.");
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("First and last name are required.");
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      await updateCounselor(counselor.id, { role: role.trim() });
+      await updateCounselor(counselor.id, {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        phone: phone.trim(),
+        specialization,
+        license_number: licenseNumber.trim(),
+        status,
+        notes_credentials: notes.trim(),
+      });
       onSaved();
       onClose();
     } catch (err) {
@@ -260,11 +286,76 @@ function EditCounselorModal({ counselor, onClose, onSaved }: { counselor: Displa
   return (
     <ModalOverlay onClose={onClose}>
       <ModalCard>
-        <ModalHeader title={`Edit ${counselor.name}`} onClose={onClose} />
+        <ModalHeader title={`Edit ${counselorDisplayName(counselor)}`} onClose={onClose} />
         <div className="flex flex-col gap-[16px]">
-          <FormField label="Role" required>
-            <TextInput value={role} onChange={setRole} />
+          <div className="flex gap-[16px] flex-wrap">
+            <div className="flex-1 min-w-[180px]">
+              <FormField label="First Name" required>
+                <TextInput value={firstName} onChange={setFirstName} />
+              </FormField>
+            </div>
+            <div className="flex-1 min-w-[180px]">
+              <FormField label="Last Name" required>
+                <TextInput value={lastName} onChange={setLastName} />
+              </FormField>
+            </div>
+          </div>
+
+          <div className="flex gap-[16px] flex-wrap">
+            <div className="flex-1 min-w-[180px]">
+              <FormField label="Email">
+                {/* Email is locked after creation — it's the counselor's identity/login. */}
+                <TextInput value={counselor.email ?? ""} onChange={() => {}} disabled />
+              </FormField>
+            </div>
+            <div className="flex-1 min-w-[180px]">
+              <FormField label="Phone">
+                <TextInput type="tel" value={phone} onChange={setPhone} />
+              </FormField>
+            </div>
+          </div>
+
+          <div className="flex gap-[16px] flex-wrap">
+            <div className="flex-1 min-w-[180px]">
+              <FormField label="Specialization">
+                <SelectInput
+                  options={COUNSELOR_SPECIALIZATIONS.map((s) => COUNSELOR_SPECIALIZATION_LABELS[s])}
+                  value={COUNSELOR_SPECIALIZATION_LABELS[specialization]}
+                  onChange={(label) =>
+                    setSpecialization(
+                      COUNSELOR_SPECIALIZATIONS.find((s) => COUNSELOR_SPECIALIZATION_LABELS[s] === label) ??
+                        "addiction_trauma"
+                    )
+                  }
+                />
+              </FormField>
+            </div>
+            <div className="flex-1 min-w-[180px]">
+              <FormField label="License Number">
+                <TextInput value={licenseNumber} onChange={setLicenseNumber} />
+              </FormField>
+            </div>
+          </div>
+
+          <div className="flex gap-[16px] flex-wrap">
+            <div className="flex-1 min-w-[180px]">
+              <FormField label="Status">
+                <SelectInput
+                  options={COUNSELOR_STATUSES.map((s) => COUNSELOR_STATUS_LABELS[s])}
+                  value={COUNSELOR_STATUS_LABELS[status]}
+                  onChange={(label) =>
+                    setStatus(COUNSELOR_STATUSES.find((s) => COUNSELOR_STATUS_LABELS[s] === label) ?? "active")
+                  }
+                />
+              </FormField>
+            </div>
+            <div className="flex-1 min-w-[180px]" />
+          </div>
+
+          <FormField label="Notes / Credentials">
+            <TextArea value={notes} onChange={setNotes} />
           </FormField>
+
           {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
         </div>
         <ModalFooter
@@ -424,13 +515,13 @@ function CounselorsPanel({
   counselorsVersion: number;
   bumpCounselorsVersion: () => void;
 }) {
-  const [counselors, setCounselors] = useState<DisplayCounselor[]>([]);
+  const [counselors, setCounselors] = useState<ApiCounselor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<CounselorStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [viewCounselorId, setViewCounselorId] = useState<string | null>(null);
-  const [editCounselor, setEditCounselor] = useState<DisplayCounselor | null>(null);
+  const [editCounselor, setEditCounselor] = useState<ApiCounselor | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -440,7 +531,7 @@ function CounselorsPanel({
     setError(null);
     listCounselors()
       .then((response) => {
-        if (!cancelled) setCounselors(response.results.map(toDisplayCounselor));
+        if (!cancelled) setCounselors(response.results);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -472,14 +563,17 @@ function CounselorsPanel({
 
   const avgPatients = stats && stats.total_counselors > 0 ? Math.round((stats.total_patients_assigned / stats.total_counselors) * 10) / 10 : 0;
 
-  const handleDelete = async (counselor: DisplayCounselor) => {
-    if (!window.confirm(`Delete ${counselor.name}? This cannot be undone.`)) return;
+  const handleDelete = async (counselor: ApiCounselor) => {
+    if (!window.confirm(`Delete ${counselorDisplayName(counselor)}? This cannot be undone.`)) return;
     setDeletingId(counselor.id);
     setDeleteError(null);
     try {
       await deleteCounselor(counselor.id);
       bumpCounselorsVersion();
     } catch (err) {
+      // The backend blocks deletion while patient assignments/appointments
+      // still reference this counselor and asks you to mark them inactive
+      // instead — surface that message as-is rather than a generic one.
       setDeleteError(err instanceof ApiError ? err.message : "Unable to delete counselor. Please try again.");
     } finally {
       setDeletingId(null);
@@ -503,7 +597,7 @@ function CounselorsPanel({
           <div className="min-w-[720px]">
             <TableHead cols={[
               { label: "COUNSELOR", w: "flex-1 min-w-[220px]" },
-              { label: "ROLE", w: "w-[220px]" },
+              { label: "SPECIALIZATION", w: "w-[220px]" },
               { label: "PATIENTS", w: "w-[110px]" },
               { label: "STATUS", w: "w-[120px]" },
               { label: "ACTIONS", w: "w-[100px] text-right" },
@@ -516,18 +610,18 @@ function CounselorsPanel({
             {!loading && !error && counselors.map((c) => (
               <TableRow key={c.id}>
                 <div className="flex items-center gap-[10px] flex-1 min-w-[220px]">
-                  {c.avatarUrl ? (
-                    <img src={c.avatarUrl} alt={c.name} className="w-[32px] h-[32px] rounded-full flex-shrink-0 object-cover" />
+                  {c.avatar_url ? (
+                    <img src={c.avatar_url} alt={counselorDisplayName(c)} className="w-[32px] h-[32px] rounded-full flex-shrink-0 object-cover" />
                   ) : (
                     <div className="w-[32px] h-[32px] rounded-full bg-[rgba(243,116,34,0.2)] flex items-center justify-center flex-shrink-0">
-                      <span className="font-['Figtree'] font-bold text-[#f37422] text-[11px]">{c.initials}</span>
+                      <span className="font-['Figtree'] font-bold text-[#f37422] text-[11px]">{c.initials || "--"}</span>
                     </div>
                   )}
-                  <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[13px] leading-tight">{c.name}</p>
+                  <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[13px] leading-tight">{counselorDisplayName(c)}</p>
                 </div>
-                <div className="w-[220px] font-['Figtree'] font-normal text-[var(--app-text)] text-[12px]">{c.role}</div>
-                <div className="w-[110px] font-['JetBrains_Mono'] font-bold text-[var(--app-text)] text-[12px]">{c.patients}</div>
-                <div className="w-[120px]"><StatusPill status="ACTIVE" /></div>
+                <div className="w-[220px] font-['Figtree'] font-normal text-[var(--app-text)] text-[12px]">{c.specialization_label || "—"}</div>
+                <div className="w-[110px] font-['JetBrains_Mono'] font-bold text-[var(--app-text)] text-[12px]">{c.patient_count}</div>
+                <div className="w-[120px]"><StatusPill status={toDisplayCounselorStatus(c.status)} /></div>
                 <div className="w-[100px] flex items-center justify-end gap-[10px]">
                   <ActionBtn onClick={() => setViewCounselorId(c.id)} title="View" icon={<EyeIcon />} />
                   <ActionBtn onClick={() => setEditCounselor(c)} title="Edit" icon={<EditIcon />} />

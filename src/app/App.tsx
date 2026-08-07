@@ -8,6 +8,7 @@ import {
   CounselorsPage,
   TreatmentPlansPage,
   ResourcesAppPage,
+  IntakeScriptsPage, // 1. Added Import
   AggregateDataPage,
   InsightsPage,
   RelapseSignalsPage,
@@ -25,6 +26,7 @@ function renderPage(pageKey: AppPageKey) {
     case "counselors":       return <CounselorsPage />;
     case "treatment-plans":  return <TreatmentPlansPage />;
     case "resources-app":    return <ResourcesAppPage />;
+    case "intake-scripts":   return <IntakeScriptsPage />; // 2. Added Render Case
     case "aggregate-data":   return <AggregateDataPage />;
     case "insights":         return <InsightsPage />;
     case "resources-real":   return <EventsPage />;
