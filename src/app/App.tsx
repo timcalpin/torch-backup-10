@@ -8,6 +8,7 @@ import {
   CounselorsPage,
   TreatmentPlansPage,
   ResourcesAppPage,
+  IntakeScriptsPage, // 1. Added Import
   AggregateDataPage,
   InsightsPage,
   RelapseSignalsPage,
@@ -15,16 +16,21 @@ import {
   PlaceholderPage,
   ProfilePage,
   LoginPage,
+  RecoveryPage,
 } from "../pages";
 import { RouterProvider } from "react-router-dom";
 
-function renderPage(pageKey: AppPageKey) {
+
+
+function renderPage(pageKey: AppPageKey) { 
   switch (pageKey) {
     case "support-groups":   return <SupportGroupsPage />;
     case "users":            return <UsersPage />;
+    case "recovery":         return <RecoveryPage />;
     case "counselors":       return <CounselorsPage />;
     case "treatment-plans":  return <TreatmentPlansPage />;
     case "resources-app":    return <ResourcesAppPage />;
+    case "intake-scripts":   return <IntakeScriptsPage />; // 2. Added Render Case
     case "aggregate-data":   return <AggregateDataPage />;
     case "insights":         return <InsightsPage />;
     case "resources-real":   return <EventsPage />;

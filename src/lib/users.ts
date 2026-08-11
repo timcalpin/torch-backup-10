@@ -3,14 +3,23 @@ import type { PaginatedResponse } from "./pagination";
 
 export type { PaginatedResponse };
 
+export interface ApiCounselor {
+  id: string | number;
+  full_name?: string;
+  name?: string;
+  email?: string;
+}
+
 export interface ApiUser {
   id: string;
   email: string;
   full_name: string;
+  phone?: string | null;
   role: string;
-  counselor: string;
+  counselor?: ApiCounselor | string | null;
   sobriety_days: number | null;
   sobriety_start_date: string | null;
+  primary_substance?: string | null;
   is_active: boolean;
   is_staff: boolean;
   is_superuser: boolean;
@@ -48,9 +57,13 @@ export function getUserStats(): Promise<UserStats> {
 export interface CreateUserPayload {
   email: string;
   full_name: string;
-  is_active: boolean;
-  sobriety_start_date: string | null;
+  phone?: string | null;
   role: string;
+  counselor?: string | number | null;
+  counselor_name?: string | null;
+  is_active: boolean;
+  sobriety_start_date?: string | null;
+  primary_substance?: string | null;
 }
 
 export function createUser(
@@ -64,7 +77,13 @@ export function createUser(
 
 export interface UpdateUserPayload {
   full_name: string;
+  phone?: string | null;
   role: string;
+  counselor?: string | number | null;
+  counselor_name?: string | null;
+  is_active?: boolean;
+  sobriety_start_date?: string | null;
+  primary_substance?: string | null;
 }
 
 export function updateUser(id: string, payload: UpdateUserPayload): Promise<ApiUser> {
