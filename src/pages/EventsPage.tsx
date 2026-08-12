@@ -1,433 +1,1082 @@
 import { useEffect, useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
-import { useAppContext } from "@/app/app-context";
-import { PageHeader } from "@/components/common/PageHeader";
-import { GhostBtn, PrimaryBtn } from "@/components/common/Buttons";
-import { MetricCard } from "@/components/common/MetricCard";
-import { TableCard, TableToolbar, TableHead, TableRow } from "@/components/common/Table";
-import { StatusPill } from "@/components/common/StatusPill";
-import { ActionBtn } from "@/components/common/ActionBtn";
-import { ModalOverlay, ModalCard, ModalHeader, ModalFooter } from "@/components/common/Modal";
-import { FormField, TextInput, TextArea, SelectInput } from "@/components/common/FormFields";
-import { FilterIcon, CalendarIcon, EyeIcon, EditIcon } from "@/components/icons";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Filter,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Search,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { AddResourceModal } from "../components/modals";
 import { ApiError } from "@/lib/api";
 import {
-  listEvents,
-  getEvent,
-  getEventStats,
-  updateEvent,
-  deleteEvent,
-  EVENT_TYPES,
-  EVENT_STATUSES,
-  type ApiEvent,
-  type EventStats,
-  type EventType,
-  type EventStatus,
-} from "@/lib/events";
-const EVENT_TYPE_COLORS: Record<string, { bg: string; color: string; border: string }> = {
-  RECOVERY: { bg: "rgba(243,116,34,0.1)", color: "#f37422", border: "rgba(243,116,34,0.3)" },
-  WELLNESS: { bg: "rgba(183,163,110,0.1)", color: "#b7a36e", border: "rgba(183,163,110,0.3)" },
-  COMMUNITY: { bg: "rgba(74,222,128,0.1)", color: "#4ade80", border: "rgba(74,222,128,0.3)" },
-};
+  listResources,
+  getResourceStats,
+  type ApiResource,
+} from "@/lib/resources";
+import { getResource } from "../lib/resources";
 
-const FILTER_TABS = ["All", "Today", "This Week", "Recovery", "Wellness", "Community"];
+const PAGE_SIZE = 8;
 
-const EVENT_TYPE_LABELS: Record<EventType, string> = {
-  recovery: "Recovery",
-  wellness: "Wellness",
-  community: "Community",
-};
+/* -------------------------------------------------------------------------- */
+/* TYPES                                                                      */
+/* -------------------------------------------------------------------------- */
 
-const EVENT_STATUS_LABELS: Record<EventStatus, string> = {
-  scheduled: "Scheduled",
-  active: "Active",
-  pending: "Pending",
-  cancelled: "Cancelled",
-};
-
-function toDisplayStatus(status: ApiEvent["status"]): "ACTIVE" | "PENDING" | "ARCHIVED" {
-  if (status === "active" || status === "scheduled") return "ACTIVE";
-  if (status === "cancelled") return "ARCHIVED";
-  return "PENDING";
+interface ResourceStatsCategory {
+  value: string;
+  label: string;
+  count: number;
 }
 
-function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+interface ResourceStats {
+  count: number;
+  active_count: number;
+  pending_count: number;
+  category_count: number;
+  categories: ResourceStatsCategory[];
+  results: ApiResource[];
 }
 
-function startOfWeek(date: Date): Date {
-  const d = new Date(date);
-  const day = (d.getDay() + 6) % 7; // Monday = 0
-  d.setDate(d.getDate() - day);
-  d.setHours(0, 0, 0, 0);
-  return d;
+/*
+ * Your backend currently returns these fields even though the older
+ * ApiResource interface may not contain them.
+ */
+type AdminResource = ApiResource & {
+  id: number;
+  title: string;
+
+  category: string;
+  category_display?: string | null;
+
+  sub_category?: string | null;
+  sub_category_display?: string | null;
+
+  format?: string | null;
+
+  delivery_format?: string | null;
+  delivery_format_display?: string | null;
+
+  status: string;
+  status_display?: string | null;
+
+  is_active?: boolean;
+};
+
+/* -------------------------------------------------------------------------- */
+/* HELPERS                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function normalizeLabel(value?: string | null): string {
+  if (!value) return "—";
+
+  return value
+    .replace(/_/g, " ")
+    .replace(/\s*\+\s*/g, " + ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function ViewEventModal({ eventId, onClose }: { eventId: number; onClose: () => void }) {
-  const [event, setEvent] = useState<ApiEvent | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    getEvent(eventId)
-      .then((response) => {
-        if (!cancelled) setEvent(response);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof ApiError ? err.message : "Unable to load event details.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [eventId]);
-
+function getCategoryLabel(resource: AdminResource): string {
   return (
-    <ModalOverlay onClose={onClose}>
-      <ModalCard>
-        <ModalHeader title="Event details" onClose={onClose} />
-        {loading && <p className="font-['Figtree'] text-[13px] text-[var(--app-muted)]">Loading event details...</p>}
-        {!loading && error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
-        {!loading && !error && event && (
-          <div className="flex flex-col gap-[20px]">
-            <div className="flex items-center gap-[14px]">
-              <div className="w-[48px] h-[48px] rounded-full bg-[rgba(243,116,34,0.18)] flex items-center justify-center flex-shrink-0">
-                <CalendarIcon color="#f37422" />
-              </div>
-              <p className="font-['Figtree'] font-bold text-[17px] text-[var(--app-text)]">{event.title}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-[12px]">
-              {[
-                ["Type", event.event_type ? EVENT_TYPE_LABELS[event.event_type] : "—"],
-                ["Status", event.status ? EVENT_STATUS_LABELS[event.status] : "—"],
-                ["Date", new Date(event.start_datetime).toLocaleDateString()],
-                ["Time", new Date(event.start_datetime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })],
-                ["Location", event.location || "—"],
-                ["Max Attendees", event.max_attendees != null ? String(event.max_attendees) : "—"],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-[9px] bg-[var(--app-surface)] border border-[var(--app-border)] p-[12px]">
-                  <p className="font-['JetBrains_Mono'] text-[9px] text-[var(--app-muted)]">{label}</p>
-                  <p className="mt-[4px] font-['Figtree'] font-semibold text-[13px] text-[var(--app-text)]">{value}</p>
-                </div>
-              ))}
-            </div>
-            <div>
-              <p className="font-['JetBrains_Mono'] text-[9px] text-[var(--app-muted)] mb-[6px]">DESCRIPTION</p>
-              <p className="font-['Figtree'] text-[13px] text-[var(--app-text)] whitespace-pre-wrap">{event.description || "No description."}</p>
-            </div>
-          </div>
-        )}
-        <ModalFooter onCancel={onClose} onConfirm={onClose} confirmLabel="Close" />
-      </ModalCard>
-    </ModalOverlay>
+    resource.category_display ||
+    normalizeLabel(resource.category)
   );
 }
 
-function EditEventModal({ event, onClose, onSaved }: { event: ApiEvent; onClose: () => void; onSaved: () => void }) {
-  const start = new Date(event.start_datetime);
-
-  const [name, setName] = useState(event.title);
-  const [eventType, setEventType] = useState<EventType>(event.event_type ?? "recovery");
-  const [description, setDescription] = useState(event.description);
-  const [date, setDate] = useState(start.toISOString().slice(0, 10));
-  const [time, setTime] = useState(start.toTimeString().slice(0, 5));
-  const [location, setLocation] = useState(event.location);
-  const [maxAttendees, setMaxAttendees] = useState(event.max_attendees != null ? String(event.max_attendees) : "");
-  const [status, setStatus] = useState<EventStatus>(event.status ?? "scheduled");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async () => {
-    if (!name.trim() || !date) {
-      setError("Event name and date are required.");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const startDatetime = new Date(`${date}T${time || "00:00"}`).toISOString();
-      await updateEvent(event.id, {
-        title: name.trim(),
-        description: description.trim(),
-        event_type: eventType,
-        start_datetime: startDatetime,
-        location: location.trim(),
-        max_attendees: maxAttendees ? Number(maxAttendees) : null,
-        status,
-      });
-      onSaved();
-      onClose();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to save changes. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
+function getSubCategoryLabel(resource: AdminResource): string {
   return (
-    <ModalOverlay onClose={onClose}>
-      <ModalCard>
-        <ModalHeader title={`Edit ${event.title}`} onClose={onClose} />
-        <div className="flex flex-col gap-[16px]">
-          <div className="flex gap-[16px] flex-wrap">
-            <div className="flex-1 min-w-[200px]">
-              <FormField label="Event Name" required><TextInput value={name} onChange={setName} /></FormField>
-            </div>
-            <div className="w-full sm:w-[180px]">
-              <FormField label="Type">
-                <SelectInput
-                  options={EVENT_TYPES.map((t) => EVENT_TYPE_LABELS[t])}
-                  value={EVENT_TYPE_LABELS[eventType]}
-                  onChange={(label) => setEventType(EVENT_TYPES.find((t) => EVENT_TYPE_LABELS[t] === label) ?? "recovery")}
-                />
-              </FormField>
-            </div>
-          </div>
-          <FormField label="Description"><TextArea value={description} onChange={setDescription} /></FormField>
-          <div className="flex gap-[16px] flex-wrap">
-            <div className="flex-1 min-w-[160px]">
-              <FormField label="Date" required><TextInput type="date" value={date} onChange={setDate} /></FormField>
-            </div>
-            <div className="flex-1 min-w-[160px]">
-              <FormField label="Time"><TextInput type="time" value={time} onChange={setTime} /></FormField>
-            </div>
-          </div>
-          <div className="flex gap-[16px] flex-wrap">
-            <div className="flex-1 min-w-[160px]">
-              <FormField label="Location"><TextInput value={location} onChange={setLocation} /></FormField>
-            </div>
-            <div className="flex-1 min-w-[160px]">
-              <FormField label="Max Attendees"><TextInput type="number" value={maxAttendees} onChange={setMaxAttendees} /></FormField>
-            </div>
-          </div>
-          <FormField label="Status">
-            <SelectInput
-              options={EVENT_STATUSES.map((s) => EVENT_STATUS_LABELS[s])}
-              value={EVENT_STATUS_LABELS[status]}
-              onChange={(label) => setStatus(EVENT_STATUSES.find((s) => EVENT_STATUS_LABELS[s] === label) ?? "scheduled")}
-            />
-          </FormField>
-          {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
-        </div>
-        <ModalFooter
-          onCancel={onClose}
-          onConfirm={handleSubmit}
-          confirmLabel={submitting ? "Saving..." : "Save changes"}
-          confirmDisabled={submitting}
-        />
-      </ModalCard>
-    </ModalOverlay>
+    resource.sub_category_display ||
+    normalizeLabel(resource.sub_category)
   );
 }
 
-export function EventsPage() {
-  const { setModal, eventsVersion, bumpEventsVersion } = useAppContext();
-  const [filter, setFilter] = useState("All");
-  const [weekOffset, setWeekOffset] = useState(0);
-  const [events, setEvents] = useState<ApiEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState<EventStats | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [viewEventId, setViewEventId] = useState<number | null>(null);
-  const [editEvent, setEditEvent] = useState<ApiEvent | null>(null);
+function getFormatLabel(resource: AdminResource): string {
+  return (
+    resource.format ||
+    resource.delivery_format_display ||
+    normalizeLabel(resource.delivery_format)
+  );
+}
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    listEvents()
-      .then((response) => {
-        if (!cancelled) setEvents(response.results);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof ApiError ? err.message : "Unable to load events.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    getEventStats()
-      .then((response) => {
-        if (!cancelled) setStats(response);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [eventsVersion]);
+function getStatusLabel(resource: AdminResource): string {
+  return (
+    resource.status_display ||
+    normalizeLabel(resource.status)
+  );
+}
 
-  const today = useMemo(() => new Date(), []);
-  const weekStart = useMemo(() => {
-    const base = startOfWeek(today);
-    base.setDate(base.getDate() + weekOffset * 7);
-    return base;
-  }, [today, weekOffset]);
+/* -------------------------------------------------------------------------- */
+/* CATEGORY COLORS                                                            */
+/* -------------------------------------------------------------------------- */
 
-  const calDays = useMemo(() => {
-    const DAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-    return DAY_LABELS.map((label, i) => {
-      const date = new Date(weekStart);
-      date.setDate(date.getDate() + i);
-      const dayEvents = events.filter((ev) => isSameDay(new Date(ev.start_datetime), date));
-      return { day: label, date, isToday: isSameDay(date, today), events: dayEvents };
-    });
-  }, [weekStart, events, today]);
+function getCategoryClass(category?: string | null): string {
+  switch (category) {
+    case "recovery_meetings":
+    case "Recovery Meetings":
+      return [
+        "border-[#f37422]",
+        "bg-[rgba(243,116,34,0.08)]",
+        "text-[#f37422]",
+      ].join(" ");
 
-  const weekEnd = useMemo(() => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + 6);
-    return d;
-  }, [weekStart]);
+    case "mental_health":
+    case "Mental Health":
+      return [
+        "border-[#a78bfa]",
+        "bg-[rgba(167,139,250,0.08)]",
+        "text-[#a78bfa]",
+      ].join(" ");
 
-  const filtered = events.filter((ev) => {
-    if (filter === "All") return true;
-    if (filter === "Today") return isSameDay(new Date(ev.start_datetime), today);
-    if (filter === "This Week") return calDays.some((d) => isSameDay(d.date, new Date(ev.start_datetime)));
-    return ev.event_type?.toLowerCase() === filter.toLowerCase();
-  });
+    case "physical_health":
+    case "Physical Health":
+      return [
+        "border-[#38bdf8]",
+        "bg-[rgba(56,189,248,0.08)]",
+        "text-[#38bdf8]",
+      ].join(" ");
 
-  const handleDelete = async (event: ApiEvent) => {
-    if (!window.confirm(`Delete "${event.title}"? This cannot be undone.`)) return;
-    setActionError(null);
-    try {
-      await deleteEvent(event.id);
-      bumpEventsVersion();
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Unable to delete event.");
-    }
-  };
+    case "additional_support":
+    case "Additional Support":
+      return [
+        "border-[#35d47b]",
+        "bg-[rgba(53,212,123,0.08)]",
+        "text-[#35d47b]",
+      ].join(" ");
 
-  const nextUpcomingLabel = stats?.next_upcoming_start
-    ? `next at ${new Date(stats.next_upcoming_start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`
-    : "none today";
+    case "recreation":
+    case "Recreation":
+      return [
+        "border-[#f472b6]",
+        "bg-[rgba(244,114,182,0.08)]",
+        "text-[#f472b6]",
+      ].join(" ");
+
+    default:
+      return [
+        "border-[#6b6258]",
+        "bg-[rgba(255,255,255,0.04)]",
+        "text-[#b8aea2]",
+      ].join(" ");
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* CATEGORY PILL                                                              */
+/* -------------------------------------------------------------------------- */
+
+function CategoryPill({
+  resource,
+}: {
+  resource: AdminResource;
+}) {
+  const label = getCategoryLabel(resource);
 
   return (
-    <div className="flex-1 min-w-0 overflow-y-auto">
-      <div className="p-[24px] lg:p-[32px] flex flex-col gap-[20px]">
-        <PageHeader eyebrow={stats ? `${stats.total_events} SCHEDULED · ${stats.this_week_count} THIS WEEK` : "LOADING EVENTS…"} title="Real World Resources">
-          <GhostBtn label="Filter" icon={<FilterIcon />} />
-          <GhostBtn label="Export" />
-          <PrimaryBtn label="+ Create Event" onClick={() => setModal("create-event")} />
-        </PageHeader>
+    <span
+      className={[
+        "inline-flex",
+        "w-fit",
+        "items-center",
+        "rounded-full",
+        "border",
+        "px-[9px]",
+        "py-[4px]",
+        "font-['Figtree']",
+        "text-[9px]",
+        "font-medium",
+        "whitespace-nowrap",
+        getCategoryClass(resource.category),
+      ].join(" ")}
+    >
+      {label}
+    </span>
+  );
+}
 
-        {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
-        {actionError && <p className="font-['Figtree'] text-[13px] text-red-500">{actionError}</p>}
+/* -------------------------------------------------------------------------- */
+/* STATUS PILL                                                                */
+/* -------------------------------------------------------------------------- */
 
-        <div className="flex gap-[10px] flex-wrap">
-          <MetricCard label="TOTAL EVENTS" value={stats ? String(stats.total_events) : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#f37422" />
-          <MetricCard label="THIS WEEK" value={stats ? String(stats.this_week_count) : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#4ade80" />
-          <MetricCard label="AVG CAPACITY" value={stats ? String(stats.avg_capacity) : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#6b8ab0" />
-          <MetricCard label="ACTIVE NOW" value={stats ? String(stats.active_now_count) : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#facc15" />
-          <MetricCard label="UPCOMING TODAY" value={stats ? String(stats.upcoming_today_count) : "—"} delta={nextUpcomingLabel} deltaColor="#8a8073" accentColor="#a3738f" />
-        </div>
+function ResourceStatus({
+  resource,
+}: {
+  resource: AdminResource;
+}) {
+  const status = getStatusLabel(resource).toUpperCase();
 
-        {/* Mini calendar */}
-        <div className="bg-[var(--app-surface)] rounded-[12px] relative">
-          <div className="absolute inset-0 rounded-[12px] border border-[var(--app-border)] pointer-events-none" />
-          <div className="p-[18px] flex flex-col gap-[16px]">
-            <div className="flex items-center justify-between">
-              <button onClick={() => setWeekOffset((offset) => offset - 1)} className="text-[var(--app-muted)] hover:text-[#f37422] font-['Figtree'] text-[18px] cursor-pointer">‹</button>
-              <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[13px]">
-                {weekStart.toLocaleDateString(undefined, { month: "long", day: "numeric" })}–{weekEnd.toLocaleDateString(undefined, { day: "numeric", year: "numeric" })}
-              </p>
-              <button onClick={() => setWeekOffset((offset) => offset + 1)} className="text-[var(--app-muted)] hover:text-[#f37422] font-['Figtree'] text-[18px] cursor-pointer">›</button>
-            </div>
-            <div className="flex gap-0 overflow-x-auto">
-              {calDays.map((d) => (
-                <div key={d.date.toISOString()} className="flex-1 min-w-[80px] flex flex-col items-center gap-[10px]">
-                  <div className="flex flex-col items-center gap-[6px]">
-                    <p className="font-['JetBrains_Mono'] font-bold text-[var(--app-muted)] text-[10px]">{d.day}</p>
-                    <div className={`w-[28px] h-[28px] rounded-full flex items-center justify-center ${d.isToday ? "bg-gradient-to-r from-[#f37422] to-[#c04a12] shadow-[0_0_8px_rgba(243,116,34,0.4)]" : ""}`}>
-                      <span className={`font-['Figtree'] text-[14px] ${d.isToday ? "font-bold text-white" : "font-normal text-[var(--app-text)]"}`}>{d.date.getDate()}</span>
-                    </div>
-                  </div>
-                  <div className="w-full flex flex-col gap-[3px] px-[3px]">
-                    {d.events.slice(0, 3).map((ev) => {
-                      const tc = EVENT_TYPE_COLORS[(ev.event_type ?? "").toUpperCase()] ?? { bg: "rgba(138,128,115,0.15)", color: "#8a8073", border: "" };
-                      return (
-                        <button key={ev.id} onClick={() => setViewEventId(ev.id)} className="rounded-[4px] px-[5px] py-[3px] text-left cursor-pointer" style={{ background: tc.bg }} title={ev.title}>
-                          <p className="font-['Figtree'] font-semibold text-[9px] truncate" style={{ color: tc.color }}>{ev.title}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+  if (status === "PUBLISHED") {
+    return (
+      <span className="inline-flex items-center gap-[5px] rounded-full border border-[#35d47b] bg-[rgba(53,212,123,0.06)] px-[8px] py-[3px] font-['JetBrains_Mono'] text-[7px] font-bold text-[#35d47b]">
+        <span className="h-[5px] w-[5px] rounded-full bg-current" />
+        PUBLISHED
+      </span>
+    );
+  }
 
-        <TableCard>
-          <TableToolbar title="All Events" tabs={FILTER_TABS} activeTab={filter} onTab={setFilter} />
-          <div className="overflow-x-auto">
-            <div className="min-w-[820px]">
-              <TableHead cols={[
-                { label: "EVENT", w: "flex-1 min-w-[220px]" },
-                { label: "TYPE", w: "w-[100px]" },
-                { label: "DATE", w: "w-[80px]" },
-                { label: "TIME", w: "w-[80px]" },
-                { label: "LOCATION", w: "w-[130px]" },
-                { label: "MAX ATTENDEES", w: "w-[110px]" },
-                { label: "STATUS", w: "w-[100px]" },
-                { label: "ACTIONS", w: "w-[80px] text-right" },
-              ]} />
-              {loading && (
-                <div className="py-[48px] text-center">
-                  <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">Loading events...</p>
-                </div>
-              )}
-              {!loading && filtered.map((ev) => {
-                const typeKey = (ev.event_type ?? "").toUpperCase();
-                const tc = EVENT_TYPE_COLORS[typeKey] ?? EVENT_TYPE_COLORS.RECOVERY;
-                const start = new Date(ev.start_datetime);
-                return (
-                  <TableRow key={ev.id}>
-                    <div className="flex items-center gap-[10px] flex-1 min-w-[220px]">
-                      <div className="w-[32px] h-[32px] rounded-full bg-[rgba(243,116,34,0.15)] flex items-center justify-center flex-shrink-0">
-                        <CalendarIcon color="#f37422" />
-                      </div>
-                      <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[13px] leading-tight">{ev.title}</p>
-                    </div>
-                    <div className="w-[100px]">
-                      <span className="inline-flex items-center px-[8px] py-[3px] rounded-[4px] font-['JetBrains_Mono'] font-bold text-[10px]" style={{ background: tc.bg, color: tc.color, border: `1px solid ${tc.border}` }}>
-                        {typeKey || "—"}
-                      </span>
-                    </div>
-                    <div className="w-[80px] font-['JetBrains_Mono'] font-bold text-[var(--app-text)] text-[11px]">
-                      {start.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                    </div>
-                    <div className="w-[80px] font-['JetBrains_Mono'] font-normal text-[var(--app-muted)] text-[11px]">
-                      {start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
-                    </div>
-                    <div className="w-[130px] font-['Figtree'] font-normal text-[var(--app-text)] text-[12px]">{ev.location || "—"}</div>
-                    <div className="w-[110px] font-['JetBrains_Mono'] font-bold text-[var(--app-text)] text-[12px]">{ev.max_attendees ?? "—"}</div>
-                    <div className="w-[100px]"><StatusPill status={toDisplayStatus(ev.status)} /></div>
-                    <div className="w-[80px] flex items-center justify-end gap-[10px]">
-                      <ActionBtn onClick={() => setViewEventId(ev.id)} title="View" icon={<EyeIcon />} />
-                      <ActionBtn onClick={() => setEditEvent(ev)} title="Edit" icon={<EditIcon />} />
-                      <ActionBtn onClick={() => handleDelete(ev)} title="Delete" icon={<Trash2 size={15} strokeWidth={1.8} />} />
-                    </div>
-                  </TableRow>
-                );
-              })}
-              {!loading && filtered.length === 0 && (
-                <div className="py-[48px] text-center">
-                  <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">
-                    {events.length === 0 ? "No events yet." : "No events match this filter."}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </TableCard>
-        {viewEventId != null && <ViewEventModal eventId={viewEventId} onClose={() => setViewEventId(null)} />}
-        {editEvent && <EditEventModal event={editEvent} onClose={() => setEditEvent(null)} onSaved={bumpEventsVersion} />}
+  if (status === "DRAFT") {
+    return (
+      <span className="inline-flex items-center gap-[5px] rounded-full border border-[#8a8073] bg-[rgba(138,128,115,0.06)] px-[8px] py-[3px] font-['JetBrains_Mono'] text-[7px] font-bold text-[#8a8073]">
+        <span className="h-[5px] w-[5px] rounded-full bg-current" />
+        DRAFT
+      </span>
+    );
+  }
+
+  if (status === "ARCHIVED") {
+    return (
+      <span className="inline-flex items-center gap-[5px] rounded-full border border-[#ef4444] bg-[rgba(239,68,68,0.06)] px-[8px] py-[3px] font-['JetBrains_Mono'] text-[7px] font-bold text-[#ef4444]">
+        <span className="h-[5px] w-[5px] rounded-full bg-current" />
+        ARCHIVED
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-[5px] rounded-full border border-[#6b6258] px-[8px] py-[3px] font-['JetBrains_Mono'] text-[7px] font-bold text-[#8b8174]">
+      <span className="h-[5px] w-[5px] rounded-full bg-current" />
+      {status}
+    </span>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* METRIC CARD                                                                */
+/* -------------------------------------------------------------------------- */
+
+function ResourceMetricCard({
+  label,
+  value,
+  description,
+  valueColor,
+}: {
+  label: string;
+  value: number | string;
+  description: string;
+  valueColor: string;
+}) {
+  return (
+    <div className="rounded-[9px] border border-[#2a2724] bg-[#15110e] p-[13px]">
+      <p className="font-['JetBrains_Mono'] text-[7px] uppercase tracking-[0.06em] text-[#756c61]">
+        {label}
+      </p>
+
+      <div className="mt-[8px] flex items-end justify-between">
+        <span
+          className="font-['Figtree'] text-[25px] font-bold leading-none"
+          style={{ color: valueColor }}
+        >
+          {value}
+        </span>
+
+        <span
+          className="text-[17px]"
+          style={{ color: valueColor }}
+        >
+          ↗
+        </span>
       </div>
+
+      <p className="mt-[6px] font-['JetBrains_Mono'] text-[7px] text-[#6f665c]">
+        {description}
+      </p>
     </div>
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* PAGE                                                                       */
+/* -------------------------------------------------------------------------- */
+
+export function EventsPage() {
+  const navigate = useNavigate();
+
+  const [resources, setResources] = useState<AdminResource[]>([]);
+  const [stats, setStats] = useState<ResourceStats | null>(null);
+
+  const [activeCategory, setActiveCategory] =
+    useState<string>("all");
+
+  const [search, setSearch] = useState("");
+  const [sortAscending, setSortAscending] = useState(true);
+
+  const [page, setPage] = useState(1);
+
+  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [showAddResourceModal, setShowAddResourceModal] = useState(false);
+  const [editingResource, setEditingResource] = useState<ApiResource | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  /* ---------------------------------------------------------------------- */
+  /* LOAD RESOURCES                                                         */
+  /* ---------------------------------------------------------------------- */
+
+  const loadResources = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await listResources();
+
+      setResources(
+        ((response as any)?.results || []) as AdminResource[]
+      );
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Unable to load resources."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ---------------------------------------------------------------------- */
+  /* LOAD STATS                                                             */
+  /* ---------------------------------------------------------------------- */
+
+  const loadStats = async () => {
+    try {
+      setStatsLoading(true);
+
+      const response = await getResourceStats();
+
+      setStats(response as unknown as ResourceStats);
+    } catch (err) {
+      console.error(err);
+      setStats(null);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadResources();
+    loadStats();
+  }, []);
+
+  /* ---------------------------------------------------------------------- */
+  /* CATEGORY FILTER                                                        */
+  /* ---------------------------------------------------------------------- */
+
+  const filteredResources = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    let result = [...resources];
+
+    if (activeCategory !== "all") {
+      result = result.filter(
+        (resource) =>
+          resource.category === activeCategory
+      );
+    }
+
+    if (query) {
+      result = result.filter((resource) => {
+        const title =
+          resource.title?.toLowerCase() || "";
+
+        const category =
+          getCategoryLabel(resource).toLowerCase();
+
+        const subCategory =
+          getSubCategoryLabel(resource).toLowerCase();
+
+        const format =
+          getFormatLabel(resource).toLowerCase();
+
+        const status =
+          getStatusLabel(resource).toLowerCase();
+
+        return (
+          title.includes(query) ||
+          category.includes(query) ||
+          subCategory.includes(query) ||
+          format.includes(query) ||
+          status.includes(query)
+        );
+      });
+    }
+
+    result.sort((a, b) => {
+      const first =
+        a.title?.toLowerCase() || "";
+
+      const second =
+        b.title?.toLowerCase() || "";
+
+      return sortAscending
+        ? first.localeCompare(second)
+        : second.localeCompare(first);
+    });
+
+    return result;
+  }, [
+    resources,
+    activeCategory,
+    search,
+    sortAscending,
+  ]);
+
+  /* ---------------------------------------------------------------------- */
+  /* FRONTEND PAGINATION                                                    */
+  /* ---------------------------------------------------------------------- */
+
+  const totalFiltered = filteredResources.length;
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(totalFiltered / PAGE_SIZE)
+  );
+
+  const currentPage = Math.min(
+    page,
+    totalPages
+  );
+
+  const startIndex =
+    (currentPage - 1) * PAGE_SIZE;
+
+  const endIndex =
+    startIndex + PAGE_SIZE;
+
+  const visibleResources =
+    filteredResources.slice(
+      startIndex,
+      endIndex
+    );
+
+  const showingStart =
+    totalFiltered === 0
+      ? 0
+      : startIndex + 1;
+
+  const showingEnd =
+    Math.min(
+      endIndex,
+      totalFiltered
+    );
+
+  /* ---------------------------------------------------------------------- */
+  /* CATEGORY TABS                                                          */
+  /* ---------------------------------------------------------------------- */
+
+  const categories =
+    stats?.categories || [];
+
+  const categoryTabs = [
+    {
+      value: "all",
+      label: "All Resources",
+      count: stats?.count ?? resources.length,
+    },
+    ...categories.map((category) => ({
+      value: category.value,
+      label: category.label,
+      count: category.count,
+    })),
+  ];
+
+  /* ---------------------------------------------------------------------- */
+  /* PAGE CHANGE                                                             */
+  /* ---------------------------------------------------------------------- */
+
+  const changeCategory = (value: string) => {
+    setActiveCategory(value);
+    setPage(1);
+  };
+
+  const changeSearch = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  /* ---------------------------------------------------------------------- */
+  /* EXPORT                                                                  */
+  /* ---------------------------------------------------------------------- */
+
+  const handleExport = () => {
+    if (!resources.length) return;
+
+    const headers = [
+      "Resource Name",
+      "Category",
+      "Sub-category",
+      "Format",
+      "Status",
+    ];
+
+    const rows = resources.map((resource) => [
+      resource.title,
+      getCategoryLabel(resource),
+      getSubCategoryLabel(resource),
+      getFormatLabel(resource),
+      getStatusLabel(resource),
+    ]);
+
+    const csv = [
+      headers,
+      ...rows,
+    ]
+      .map((row) =>
+        row
+          .map((value) =>
+            `"${String(value ?? "").replace(/"/g, '""')}"`
+          )
+          .join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob(
+      [csv],
+      { type: "text/csv;charset=utf-8;" }
+    );
+
+    const url = URL.createObjectURL(blob);
+
+    const link =
+      document.createElement("a");
+
+    link.href = url;
+    link.download = "resources.csv";
+    link.click();
+
+    URL.revokeObjectURL(url);
+  };
+
+
+  /* ---------------------------------------------------------------------- */
+  /* RENDER                                                                  */
+  /* ---------------------------------------------------------------------- */
+
+  return (
+    <div className="flex min-w-0 flex-1 overflow-y-auto bg-[#080808]">
+      <div className="w-full p-[20px] lg:p-[22px]">
+
+        <div className="flex flex-col gap-[18px]">
+
+          {/* ============================================================= */}
+          {/* HEADER                                                          */}
+          {/* ============================================================= */}
+
+          <div className="flex flex-col gap-[12px] xl:flex-row xl:items-end xl:justify-between">
+
+            <div>
+              <p className="font-['JetBrains_Mono'] text-[8px] font-bold uppercase tracking-[0.04em] text-[#f37422]">
+                RESOURCES ·{" "}
+                {statsLoading
+                  ? "—"
+                  : stats?.count ?? 0}{" "}
+                TOTAL ·{" "}
+                {statsLoading
+                  ? "—"
+                  : stats?.category_count ?? 0}{" "}
+                CATEGORIES ·{" "}
+                {statsLoading
+                  ? "—"
+                  : stats?.active_count ?? 0}{" "}
+                ACTIVE
+              </p>
+
+              <h1 className="mt-[5px] font-['Figtree'] text-[23px] font-bold leading-none text-[#f4ede3]">
+                Real World Resources
+              </h1>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-[8px]">
+
+              <button
+                type="button"
+                className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[#2a2724] bg-[#15110e] px-[11px] font-['Figtree'] text-[10px] text-[#c4b9aa] transition hover:border-[#f37422]"
+              >
+                <Filter size={12} />
+                Filter
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExport}
+                className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[#2a2724] bg-[#15110e] px-[11px] font-['Figtree'] text-[10px] text-[#c4b9aa] transition hover:border-[#f37422]"
+              >
+                <Download size={12} />
+                Export
+              </button>
+
+            <button
+              type="button"
+              onClick={() => setShowAddResourceModal(true)}
+              className="flex h-[31px] items-center gap-[5px] rounded-[7px] bg-[#f37422] px-[12px] font-['Figtree'] text-[10px] font-bold text-[#15110e] shadow-[0_4px_14px_rgba(243,116,34,0.2)] transition hover:bg-[#ff8535]"
+            >
+              <Plus
+                size={12}
+                strokeWidth={2.5}
+              />
+              Add Resource
+            </button>
+
+            </div>
+          </div>
+
+          {/* ============================================================= */}
+          {/* ERROR                                                           */}
+          {/* ============================================================= */}
+
+          {error && (
+            <div className="rounded-[8px] border border-red-500/30 bg-red-500/5 px-[13px] py-[9px]">
+              <p className="font-['Figtree'] text-[10px] text-red-400">
+                {error}
+              </p>
+            </div>
+          )}
+
+          {/* ============================================================= */}
+          {/* STAT CARDS                                                      */}
+          {/* ============================================================= */}
+
+          <div className="grid grid-cols-1 gap-[8px] sm:grid-cols-2 lg:grid-cols-4">
+
+            <ResourceMetricCard
+              label="Total Resources"
+              value={
+                statsLoading
+                  ? "—"
+                  : stats?.count ?? 0
+              }
+              description="Total resources listed"
+              valueColor="#f37422"
+            />
+
+            <ResourceMetricCard
+              label="Active"
+              value={
+                statsLoading
+                  ? "—"
+                  : stats?.active_count ?? 0
+              }
+              description="Currently active"
+              valueColor="#35d47b"
+            />
+
+            <ResourceMetricCard
+              label="Categories"
+              value={
+                statsLoading
+                  ? "—"
+                  : stats?.category_count ?? 0
+              }
+              description="Available categories"
+              valueColor="#6b8ab0"
+            />
+
+            <ResourceMetricCard
+              label="Pending Review"
+              value={
+                statsLoading
+                  ? "—"
+                  : stats?.pending_count ?? 0
+              }
+              description="Awaiting review"
+              valueColor="#ef4444"
+            />
+
+          </div>
+
+          {/* ============================================================= */}
+          {/* RESOURCE TABLE CARD                                            */}
+          {/* ============================================================= */}
+
+          <div className="overflow-hidden rounded-[10px] border border-[#2a2724] bg-[#15110e]">
+
+            {/* ----------------------------------------------------------- */}
+            {/* CATEGORY TABS                                                */}
+            {/* ----------------------------------------------------------- */}
+
+            <div className="flex items-center overflow-x-auto border-b border-[#2a2724] px-[10px] py-[8px]">
+
+              {categoryTabs.map((tab) => {
+                const active =
+                  activeCategory === tab.value;
+
+                return (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    onClick={() =>
+                      changeCategory(tab.value)
+                    }
+                    className={[
+                      "flex shrink-0 items-center gap-[5px]",
+                      "rounded-[6px]",
+                      "px-[10px]",
+                      "py-[6px]",
+                      "font-['Figtree']",
+                      "text-[9px]",
+                      "transition-colors",
+                      active
+                        ? "bg-[rgba(243,116,34,0.12)] font-bold text-[#f37422]"
+                        : "text-[#8b8174] hover:bg-[#1d1916] hover:text-[#f4ede3]",
+                    ].join(" ")}
+                  >
+                    {tab.label}
+
+                    <span
+                      className={[
+                        "rounded-full px-[5px] py-[1px]",
+                        "font-['JetBrains_Mono'] text-[7px]",
+                        active
+                          ? "bg-[rgba(243,116,34,0.15)] text-[#f37422]"
+                          : "bg-[#211d19] text-[#756c61]",
+                      ].join(" ")}
+                    >
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
+
+            </div>
+
+            {/* ----------------------------------------------------------- */}
+            {/* TABLE TOOLBAR                                                 */}
+            {/* ----------------------------------------------------------- */}
+
+            <div className="flex flex-col gap-[8px] border-b border-[#2a2724] px-[13px] py-[9px] sm:flex-row sm:items-center sm:justify-between">
+
+              <div>
+                <span className="font-['Figtree'] text-[10px] font-semibold text-[#f4ede3]">
+                  {activeCategory === "all"
+                    ? "All Resources"
+                    : categoryTabs.find(
+                        (item) =>
+                          item.value ===
+                          activeCategory
+                      )?.label || "Resources"}
+                </span>
+
+                <span className="ml-[7px] font-['JetBrains_Mono'] text-[8px] text-[#f37422]">
+                  {totalFiltered}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-[7px]">
+
+                <div className="relative w-full sm:w-[220px]">
+                  <Search
+                    size={13}
+                    className="pointer-events-none absolute left-[9px] top-1/2 -translate-y-1/2 text-[#756c61]"
+                  />
+
+                  <input
+                    value={search}
+                    onChange={(event) =>
+                      changeSearch(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Search resources..."
+                    className="h-[31px] w-full rounded-[7px] border border-[#2a2724] bg-[#0d0c0b] pl-[28px] pr-[9px] font-['Figtree'] text-[9px] text-[#f4ede3] outline-none placeholder:text-[#756c61] focus:border-[#f37422]"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSortAscending(
+                      (value) => !value
+                    )
+                  }
+                  className="flex h-[31px] shrink-0 items-center gap-[5px] rounded-[7px] border border-[#2a2724] px-[9px] font-['Figtree'] text-[9px] text-[#c4b9aa] hover:border-[#f37422]"
+                >
+                  Sort by:{" "}
+                  {sortAscending
+                    ? "Name A-Z"
+                    : "Name Z-A"}
+
+                  <ChevronDown size={10} />
+                </button>
+
+              </div>
+            </div>
+
+            {/* ----------------------------------------------------------- */}
+            {/* TABLE                                                         */}
+            {/* ----------------------------------------------------------- */}
+
+            <div className="overflow-x-auto">
+
+              <div className="min-w-[900px]">
+
+                {/* HEADER */}
+
+                <div className="grid grid-cols-[minmax(260px,1.8fr)_150px_160px_120px_120px_70px] items-center border-b border-[#2a2724] px-[13px] py-[9px]">
+
+                  {[
+                    "RESOURCE NAME",
+                    "CATEGORY",
+                    "SUB-CATEGORY",
+                    "FORMAT",
+                    "STATUS",
+                    "ACTIONS",
+                  ].map((heading) => (
+                    <span
+                      key={heading}
+                      className="font-['JetBrains_Mono'] text-[6px] uppercase tracking-[0.05em] text-[#756c61]"
+                    >
+                      {heading}
+                    </span>
+                  ))}
+
+                </div>
+
+                {/* LOADING */}
+
+                {loading && (
+                  <div className="px-[15px] py-[35px] text-center font-['Figtree'] text-[10px] text-[#756c61]">
+                    Loading resources...
+                  </div>
+                )}
+
+                {/* EMPTY */}
+
+                {!loading &&
+                  visibleResources.length === 0 && (
+                    <div className="px-[15px] py-[35px] text-center font-['Figtree'] text-[10px] text-[#756c61]">
+                      No resources found.
+                    </div>
+                  )}
+
+                {/* ROWS */}
+
+                {!loading &&
+                  visibleResources.map(
+                    (resource) => (
+                      <div
+                        key={resource.id}
+                        className="grid grid-cols-[minmax(260px,1.8fr)_150px_160px_120px_120px_70px] items-center border-b border-[#211e1b] px-[13px] py-[10px] transition-colors hover:bg-[#191512]"
+                      >
+
+                        {/* RESOURCE */}
+
+                        <div className="flex min-w-0 items-center gap-[9px]">
+
+                          <div className="flex h-[29px] w-[29px] shrink-0 items-center justify-center rounded-[8px] bg-[#2b2722]">
+                            <span className="font-['Figtree'] text-[9px] font-bold text-[#8b8174]">
+                              {resource.title
+                                ?.slice(0, 1)
+                                .toUpperCase() ||
+                                "R"}
+                            </span>
+                          </div>
+
+                          <div className="min-w-0">
+
+                            <p className="truncate font-['Figtree'] text-[10px] font-semibold leading-tight text-[#f4ede3]">
+                              {resource.title}
+                            </p>
+
+                            <p className="mt-[2px] truncate font-['JetBrains_Mono'] text-[7px] leading-tight text-[#756c61]">
+                              Resource #{resource.id}
+                            </p>
+
+                          </div>
+
+                        </div>
+
+                        {/* CATEGORY */}
+
+                        <div>
+                          <CategoryPill
+                            resource={resource}
+                          />
+                        </div>
+
+                        {/* SUB CATEGORY */}
+
+                        <div className="truncate pr-[10px] font-['Figtree'] text-[9px] text-[#9b9185]">
+                          {getSubCategoryLabel(
+                            resource
+                          )}
+                        </div>
+
+                        {/* FORMAT */}
+
+                        <div className="font-['Figtree'] text-[9px] font-medium text-[#f4ede3]">
+                          {getFormatLabel(resource)}
+                        </div>
+
+                        {/* STATUS */}
+
+                        <div>
+                          <ResourceStatus
+                            resource={resource}
+                          />
+                        </div>
+
+                        {/* ACTIONS */}
+
+                        <div className="flex items-center gap-[3px]">
+
+                        <button
+                          type="button"
+                          title="Edit resource"
+                          onClick={async () => {
+                            try {
+                              const resourceData = await getResource(resource.id);
+
+                              setEditingResource(resourceData);
+                              setShowAddResourceModal(true);
+                            } catch (error) {
+                              console.error("Failed to load resource:", error);
+                            }
+                          }}
+                          className="flex h-[25px] w-[25px] items-center justify-center rounded-[5px] text-[#756c61] transition hover:bg-[#211d19] hover:text-[#f37422]"
+                        >
+                          <Pencil size={12} strokeWidth={2} />
+                        </button>
+
+                          <button
+                            type="button"
+                            title="More actions"
+                            className="flex h-[25px] w-[25px] items-center justify-center rounded-[5px] text-[#756c61] hover:bg-[#211d19] hover:text-[#f4ede3]"
+                          >
+                            <MoreVertical
+                              size={12}
+                            />
+                          </button>
+
+                        </div>
+
+                      </div>
+                    )
+                  )}
+
+              </div>
+
+            </div>
+
+            {/* ----------------------------------------------------------- */}
+            {/* PAGINATION                                                    */}
+            {/* ----------------------------------------------------------- */}
+
+            <div className="flex flex-col gap-[8px] border-t border-[#2a2724] px-[13px] py-[10px] sm:flex-row sm:items-center sm:justify-between">
+
+              <span className="font-['JetBrains_Mono'] text-[7px] text-[#756c61]">
+                Showing{" "}
+                {showingStart}
+                –
+                {showingEnd}{" "}
+                of{" "}
+                {totalFiltered}{" "}
+                resources
+              </span>
+
+              <div className="flex items-center gap-[4px]">
+
+                {/* PREVIOUS */}
+
+                <button
+                  type="button"
+                  disabled={
+                    currentPage === 1 ||
+                    loading
+                  }
+                  onClick={() =>
+                    setPage((value) =>
+                      Math.max(
+                        1,
+                        value - 1
+                      )
+                    )
+                  }
+                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[#2a2724] text-[#756c61] transition hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  <ChevronLeft size={12} />
+                </button>
+
+                {/* PAGE NUMBERS */}
+
+                {Array.from(
+                  {
+                    length: totalPages,
+                  },
+                  (_, index) =>
+                    index + 1
+                ).map(
+                  (pageNumber) => (
+                    <button
+                      key={pageNumber}
+                      type="button"
+                      onClick={() =>
+                        setPage(
+                          pageNumber
+                        )
+                      }
+                      className={[
+                        "flex h-[24px] min-w-[24px] items-center justify-center rounded-[5px] px-[6px]",
+                        "font-['JetBrains_Mono'] text-[8px] font-bold",
+                        pageNumber ===
+                        currentPage
+                          ? "bg-[#f37422] text-[#15110e]"
+                          : "text-[#8b8174] hover:bg-[#211d19] hover:text-[#f4ede3]",
+                      ].join(" ")}
+                    >
+                      {pageNumber}
+                    </button>
+                  )
+                )}
+
+                {/* NEXT */}
+
+                <button
+                  type="button"
+                  disabled={
+                    currentPage ===
+                      totalPages ||
+                    loading
+                  }
+                  onClick={() =>
+                    setPage((value) =>
+                      Math.min(
+                        totalPages,
+                        value + 1
+                      )
+                    )
+                  }
+                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[#2a2724] text-[#756c61] transition hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  <ChevronRight size={12} />
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+      <AddResourceModal
+        open={showAddResourceModal}
+        resource={editingResource}
+        onClose={() => {
+          setShowAddResourceModal(false);
+          setEditingResource(null);
+        }}
+        onCreated={() => {
+          setShowAddResourceModal(false);
+          setEditingResource(null);
+          loadResources();
+        }}
+      />
+    </div>
+    
+  );
+  
 }

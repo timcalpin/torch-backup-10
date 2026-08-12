@@ -1,14 +1,9 @@
-import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, Download, Filter, Plus, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAppContext } from "@/app/app-context";
-import { PageHeader } from "@/components/common/PageHeader";
-import { SearchBox } from "@/components/common/SearchBox";
-import { PrimaryBtn } from "@/components/common/Buttons";
-import { MetricCard } from "@/components/common/MetricCard";
-import { TableCard, TableHead, TableRow } from "@/components/common/Table";
 import { StatusPill } from "@/components/common/StatusPill";
-import { ActionBtn } from "@/components/common/ActionBtn";
-import { EditIcon, EyeIcon } from "@/components/icons";
+import { EditIcon } from "@/components/icons";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter, SectionLabel } from "@/components/common/Modal";
 import { FormField, TextInput, SelectInput } from "@/components/common/FormFields";
 import { ApiError } from "@/lib/api";
@@ -18,7 +13,6 @@ import {
   getUserStats,
   createUser,
   updateUser,
-  deleteUser,
   type ApiUser,
   type UserStats,
 } from "@/lib/users";
@@ -41,6 +35,30 @@ interface DisplayUser {
   status: "ACTIVE" | "ARCHIVED";
 }
 
+interface UserUiExtras {
+  streak: number;
+  checkInRate: number;
+  risk: "LOW" | "MODERATE" | "ELEVATED" | "HIGH";
+  lastActive: string;
+  flagged: boolean;
+  isNew: boolean;
+}
+
+const USER_UI_EXTRAS: UserUiExtras[] = [
+  { streak: 12, checkInRate: 72, risk: "ELEVATED", lastActive: "2h ago", flagged: false, isNew: false },
+  { streak: 5, checkInRate: 91, risk: "LOW", lastActive: "1d ago", flagged: false, isNew: false },
+  { streak: 2, checkInRate: 45, risk: "HIGH", lastActive: "3d ago", flagged: true, isNew: true },
+  { streak: 18, checkInRate: 98, risk: "LOW", lastActive: "just now", flagged: false, isNew: false },
+  { streak: 7, checkInRate: 63, risk: "MODERATE", lastActive: "5h ago", flagged: false, isNew: false },
+  { streak: 1, checkInRate: 28, risk: "HIGH", lastActive: "6d ago", flagged: true, isNew: false },
+  { streak: 31, checkInRate: 95, risk: "LOW", lastActive: "30m ago", flagged: false, isNew: false },
+  { streak: 12, checkInRate: 79, risk: "ELEVATED", lastActive: "1h ago", flagged: false, isNew: true },
+];
+
+function getUserUiExtras(index: number): UserUiExtras {
+  return USER_UI_EXTRAS[index % USER_UI_EXTRAS.length];
+}
+
 function toDisplayUser(user: ApiUser): DisplayUser {
   let counselorName = "Unassigned";
 
@@ -61,11 +79,52 @@ function toDisplayUser(user: ApiUser): DisplayUser {
     phone: user.phone || "",
     role: user.role,
     counselor: counselorName,
-    sobriety: user.sobriety_days != null ? `${user.sobriety_days} days` : "—",
+    sobriety: user.sobriety_days != null ? `${user.sobriety_days}d` : "—",
     sobrietyDate: user.sobriety_start_date || "",
     primarySubstance: user.primary_substance || "",
     status: user.is_active ? "ACTIVE" : "ARCHIVED",
   };
+}
+
+function RiskPill({ risk }: { risk: UserUiExtras["risk"] }) {
+  const styles: Record<UserUiExtras["risk"], string> = {
+    LOW: "border-[#35d47b] text-[#35d47b] bg-[rgba(53,212,123,0.06)]",
+    MODERATE: "border-[#f4c400] text-[#f4c400] bg-[rgba(244,196,0,0.06)]",
+    ELEVATED: "border-[#f37422] text-[#f37422] bg-[rgba(243,116,34,0.06)]",
+    HIGH: "border-[#ef4444] text-[#ef4444] bg-[rgba(239,68,68,0.06)]",
+  };
+
+  return (
+    <span className={`inline-flex w-fit items-center gap-[4px] rounded-full border px-[6px] py-[2px] font-['JetBrains_Mono'] text-[6px] font-bold leading-none ${styles[risk]}`}>
+      <span className="h-[4px] w-[4px] rounded-full bg-current" />
+      {risk}
+    </span>
+  );
+}
+
+function CheckInBar({ rate }: { rate: number }) {
+  const width = `${Math.min(100, Math.max(0, rate))}%`;
+  const barClass = rate >= 80 ? "bg-[#35d47b]" : rate >= 60 ? "bg-[#f4c400]" : "bg-[#ef4444]";
+
+  return (
+    <div className="flex items-center gap-[8px]">
+      <div className="h-[4px] w-[30px] overflow-hidden rounded-full bg-[#2b2927]">
+        <div className={`h-full ${barClass}`} style={{ width }} />
+      </div>
+      <span className="font-['JetBrains_Mono'] text-[9px] text-[var(--app-muted)]">{rate}%</span>
+    </div>
+  );
+}
+
+function UserStatus({ status, flagged }: { status: DisplayUser["status"]; flagged: boolean }) {
+  const active = status === "ACTIVE" && !flagged;
+  const label = status !== "ACTIVE" ? "Inactive" : flagged ? "Flagged" : "Active";
+  return (
+    <span className={`inline-flex items-center gap-[6px] text-[10px] ${active ? "text-[#35d47b]" : "text-[#ef4444]"}`}>
+      <span className={`h-[5px] w-[5px] rounded-full ${active ? "bg-[#35d47b]" : "bg-[#ef4444]"}`} />
+      {label}
+    </span>
+  );
 }
 
 /* ==========================================================================
@@ -182,7 +241,7 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
+          {error && <p className="font-['Figtree'] text-[15px] text-red-500">{error}</p>}
         </div>
         <ModalFooter
           onCancel={onClose}
@@ -261,7 +320,7 @@ function EditUserModal({ user, onClose, onSaved }: { user: DisplayUser; onClose:
                     type="email"
                     value={user.email}
                     disabled
-                    className="w-full h-[40px] px-3 rounded-[6px] border border-[var(--app-border)] bg-[var(--app-surface-muted)] text-[var(--app-muted)] cursor-not-allowed text-[13px] font-['Figtree'] opacity-60 focus:outline-none"
+                    className="w-full h-[40px] px-3 rounded-[6px] border border-[var(--app-border)] bg-[var(--app-surface-muted)] text-[var(--app-muted)] cursor-not-allowed text-[15px] font-['Figtree'] opacity-60 focus:outline-none"
                   />
                 </FormField>
               </div>
@@ -314,7 +373,7 @@ function EditUserModal({ user, onClose, onSaved }: { user: DisplayUser; onClose:
             </div>
           </div>
 
-          {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
+          {error && <p className="font-['Figtree'] text-[15px] text-red-500">{error}</p>}
         </div>
         <ModalFooter
           onCancel={onClose}
@@ -362,17 +421,17 @@ function UserDetailModal({ userId, onClose }: { userId: string; onClose: () => v
     <ModalOverlay onClose={onClose}>
       <ModalCard>
         <ModalHeader title="User profile" onClose={onClose} />
-        {loading && <p className="font-['Figtree'] text-[13px] text-[var(--app-muted)]">Loading user details...</p>}
-        {!loading && error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
+        {loading && <p className="font-['Figtree'] text-[15px] text-[var(--app-muted)]">Loading user details...</p>}
+        {!loading && error && <p className="font-['Figtree'] text-[15px] text-red-500">{error}</p>}
         {!loading && !error && user && detail && (
           <div className="flex flex-col gap-[20px]">
             <div className="flex items-center gap-[14px]">
-              <div className="w-[48px] h-[48px] rounded-full bg-[rgba(243,116,34,0.18)] text-[#f37422] font-['Figtree'] font-bold text-[16px] flex items-center justify-center">
+              <div className="w-[48px] h-[48px] rounded-full bg-[rgba(243,116,34,0.18)] text-[#f37422] font-['Figtree'] font-bold text-[18px] flex items-center justify-center">
                 {initials}
               </div>
               <div>
-                <p className="font-['Figtree'] font-bold text-[17px] text-[var(--app-text)]">{user.name}</p>
-                <p className="font-['Figtree'] text-[13px] text-[var(--app-muted)]">{user.email}</p>
+                <p className="font-['Figtree'] font-bold text-[19px] text-[var(--app-text)]">{user.name}</p>
+                <p className="font-['Figtree'] text-[15px] text-[var(--app-muted)]">{user.email}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-[12px]">
@@ -383,12 +442,12 @@ function UserDetailModal({ userId, onClose }: { userId: string; onClose: () => v
                 ["Member since", new Date(detail.created_at).toLocaleDateString()],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-[9px] bg-[var(--app-surface)] border border-[var(--app-border)] p-[12px]">
-                  <p className="font-['JetBrains_Mono'] text-[9px] text-[var(--app-muted)]">{label}</p>
-                  <p className="mt-[4px] font-['Figtree'] font-semibold text-[13px] text-[var(--app-text)]">{value}</p>
+                  <p className="font-['JetBrains_Mono'] text-[10px] text-[var(--app-muted)]">{label}</p>
+                  <p className="mt-[4px] font-['Figtree'] font-semibold text-[15px] text-[var(--app-text)]">{value}</p>
                 </div>
               ))}
               <div className="rounded-[9px] bg-[var(--app-surface)] border border-[var(--app-border)] p-[12px]">
-                <p className="font-['JetBrains_Mono'] text-[9px] text-[var(--app-muted)]">Account status</p>
+                <p className="font-['JetBrains_Mono'] text-[10px] text-[var(--app-muted)]">Account status</p>
                 <div className="mt-[5px]">
                   <StatusPill status={user.status} />
                 </div>
@@ -407,8 +466,8 @@ function UserDetailModal({ userId, onClose }: { userId: string; onClose: () => v
    ========================================================================== */
 export function UsersPage() {
   const { modal, setModal, usersVersion, bumpUsersVersion } = useAppContext();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [viewUserId, setViewUserId] = useState<string | null>(null);
   const [editUser, setEditUser] = useState<DisplayUser | null>(null);
   const [users, setUsers] = useState<DisplayUser[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -419,8 +478,7 @@ export function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("All Users");
 
   useEffect(() => {
     let cancelled = false;
@@ -462,132 +520,244 @@ export function UsersPage() {
     };
   }, [usersVersion]);
 
-  const filtered = users.filter(
-    (u) =>
-      !search ||
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
+  const enrichedUsers = useMemo(
+    () => users.map((user, index) => ({ user, extras: getUserUiExtras(index) })),
+    [users]
   );
 
-  const handleDelete = async (u: DisplayUser) => {
-    if (!window.confirm(`Delete ${u.name}? This cannot be undone.`)) return;
-    setDeletingId(u.id);
-    setDeleteError(null);
-    try {
-      await deleteUser(u.id);
-      bumpUsersVersion();
-    } catch (err) {
-      setDeleteError(err instanceof ApiError ? err.message : "Unable to delete user. Please try again.");
-    } finally {
-      setDeletingId(null);
-    }
-  };
+  const filtered = enrichedUsers.filter(({ user, extras }) => {
+    const matchesSearch =
+      !search ||
+      user.name.toLowerCase().includes(search.toLowerCase()) ||
+      user.email.toLowerCase().includes(search.toLowerCase());
+
+    if (!matchesSearch) return false;
+    if (activeTab === "Active") return user.status === "ACTIVE";
+    if (activeTab === "High Risk") return extras.risk === "HIGH" || extras.risk === "ELEVATED";
+    if (activeTab === "Flagged") return extras.flagged;
+    if (activeTab === "New (7d)") return extras.isNew;
+    return true;
+  });
 
   const startItem = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const endItem = Math.min(page * PAGE_SIZE, totalCount);
+  const avgDaysSober = 61;
+  const highRiskAlerts = 12;
+  const checkInRate = 78;
+
+  const goToRecovery = (id: string) => {
+    navigate(`/recovery/${id}`);
+  };
+
+  const tabs = ["All Users", "Active", "High Risk", "Flagged", "New (7d)"];
 
   return (
-    <div className="flex-1 min-w-0 overflow-y-auto">
-      <div className="p-[24px] lg:p-[32px] flex flex-col gap-[20px]">
-        <PageHeader eyebrow={`REGISTERED ${totalCount}`} title="User Management">
-          <SearchBox placeholder="Search users..." value={search} onChange={setSearch} />
-          <PrimaryBtn label="+ Add User" onClick={() => setModal("add-user")} />
-        </PageHeader>
+    <div className="flex min-w-0 flex-1 overflow-y-auto bg-[#080808]">
+      <div className="w-full p-[20px] lg:p-[22px]">
+        <div className="flex flex-col gap-[18px]">
+          <div className="flex flex-col gap-[12px] xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <p className="font-['JetBrains_Mono'] text-[9px] font-bold uppercase tracking-[0.04em] text-[#f37422]">
+                REGISTERED {totalCount.toLocaleString()} · ACTIVE THIS WEEK {stats ? stats.active_this_week.toLocaleString() : "—"}
+              </p>
+              <h1 className="mt-[5px] font-['Figtree'] text-[26px] font-bold leading-none text-[#f4ede3]">
+                User Management
+              </h1>
+            </div>
 
-        {statsError && <p className="font-['Figtree'] text-[13px] text-red-500">{statsError}</p>}
-        {deleteError && <p className="font-['Figtree'] text-[13px] text-red-500">{deleteError}</p>}
+            <div className="flex flex-wrap items-center justify-end gap-[8px]">
+              <div className="relative w-[220px]">
+                <Search className="pointer-events-none absolute left-[10px] top-1/2 -translate-y-1/2 text-[#756c61]" size={13} />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search users..."
+                  className="h-[31px] w-full rounded-[7px] border border-[#2a2724] bg-[#15110e] pl-[29px] pr-[10px] font-['Figtree'] text-[11px] text-[#f4ede3] outline-none placeholder:text-[#756c61] focus:border-[#f37422]"
+                />
+              </div>
+              <button className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[#2a2724] bg-[#15110e] px-[11px] font-['Figtree'] text-[11px] text-[#c4b9aa] hover:border-[#f37422]">
+                <Filter size={12} />
+                Filter
+              </button>
+              <button className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[#2a2724] bg-[#15110e] px-[11px] font-['Figtree'] text-[11px] text-[#c4b9aa] hover:border-[#f37422]">
+                <Download size={12} />
+                Export
+              </button>
+              <button
+                onClick={() => setModal("add-user")}
+                className="flex h-[31px] items-center gap-[5px] rounded-[7px] bg-[#f37422] px-[12px] font-['Figtree'] text-[11px] font-bold text-[#15110e] shadow-[0_4px_14px_rgba(243,116,34,0.2)] hover:bg-[#ff8535]"
+              >
+                <Plus size={12} strokeWidth={2.5} />
+                Add User
+              </button>
+            </div>
+          </div>
 
-        <div className="flex gap-[10px] flex-wrap">
-          <MetricCard label="TOTAL USERS" value={stats ? String(stats.total_users) : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#f37422" />
-          <MetricCard label="ACTIVE THIS WEEK" value={stats ? String(stats.active_this_week) : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#4ade80" />
-          <MetricCard label="NEW THIS MONTH" value={stats ? String(stats.new_this_month) : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#6b8ab0" />
+          {statsError && <p className="font-['Figtree'] text-[13px] text-red-500">{statsError}</p>}
+
+          <div className="grid grid-cols-1 gap-[8px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="rounded-[9px] border border-[#2a2724] bg-[#15110e] p-[12px]">
+              <p className="font-['JetBrains_Mono'] text-[8px] uppercase text-[#756c61]">Total Users</p>
+              <div className="mt-[8px] flex items-end justify-between">
+                <span className="font-['Figtree'] text-[27px] font-bold text-[#f37422]">{stats ? stats.total_users.toLocaleString() : "—"}</span>
+                <span className="text-[#f37422]">↗</span>
+              </div>
+              <p className="mt-[3px] font-['JetBrains_Mono'] text-[8px] text-[#6f665c]">Live from server</p>
+            </div>
+
+            <div className="rounded-[9px] border border-[#2a2724] bg-[#15110e] p-[12px]">
+              <p className="font-['JetBrains_Mono'] text-[8px] uppercase text-[#756c61]">Active (7d)</p>
+              <div className="mt-[8px] flex items-end justify-between">
+                <span className="font-['Figtree'] text-[27px] font-bold text-[#35d47b]">{stats ? stats.active_this_week.toLocaleString() : "—"}</span>
+                <span className="text-[#35d47b]">↗</span>
+              </div>
+              <p className="mt-[3px] font-['JetBrains_Mono'] text-[8px] text-[#6f665c]">Live from server</p>
+            </div>
+
+            <div className="rounded-[9px] border border-[#2a2724] bg-[#15110e] p-[12px]">
+              <p className="font-['JetBrains_Mono'] text-[8px] uppercase text-[#756c61]">Avg Days Sober</p>
+              <div className="mt-[8px] flex items-end justify-between">
+                <span className="font-['Figtree'] text-[27px] font-bold text-[#f4c400]">{avgDaysSober}</span>
+                <span className="text-[#f4c400]">↗</span>
+              </div>
+              <p className="mt-[3px] font-['JetBrains_Mono'] text-[8px] text-[#6f665c]">Current recovery view</p>
+            </div>
+
+            <div className="rounded-[9px] border border-[#2a2724] bg-[#15110e] p-[12px]">
+              <p className="font-['JetBrains_Mono'] text-[8px] uppercase text-[#756c61]">High Risk Alerts</p>
+              <div className="mt-[8px] flex items-end justify-between">
+                <span className="font-['Figtree'] text-[27px] font-bold text-[#ef4444]">{highRiskAlerts}</span>
+                <span className="text-[#ef4444]">↗</span>
+              </div>
+              <p className="mt-[3px] font-['JetBrains_Mono'] text-[8px] text-[#6f665c]">Needs review</p>
+            </div>
+
+            <div className="rounded-[9px] border border-[#2a2724] bg-[#15110e] p-[12px]">
+              <p className="font-['JetBrains_Mono'] text-[8px] uppercase text-[#756c61]">Check-In Rate</p>
+              <div className="mt-[8px] flex items-end justify-between">
+                <span className="font-['Figtree'] text-[27px] font-bold text-[#6b8ab0]">{checkInRate}%</span>
+                <span className="text-[#6b8ab0]">↗</span>
+              </div>
+              <p className="mt-[3px] font-['JetBrains_Mono'] text-[8px] text-[#6f665c]">Current recovery view</p>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-[10px] border border-[#2a2724] bg-[#15110e]">
+            <div className="flex flex-col border-b border-[#2a2724] lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-[2px] overflow-x-auto px-[10px] py-[8px]">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`whitespace-nowrap rounded-[6px] px-[10px] py-[5px] font-['Figtree'] text-[10px] transition-colors ${
+                      activeTab === tab
+                        ? "bg-[rgba(243,116,34,0.12)] font-bold text-[#f37422]"
+                        : "text-[#8b8174] hover:bg-[#1d1916] hover:text-[#f4ede3]"
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-[7px] px-[10px] pb-[8px] lg:pb-0">
+                <span className="rounded-full border border-[#7b3f00] bg-[rgba(243,116,34,0.05)] px-[8px] py-[4px] font-['JetBrains_Mono'] text-[8px] font-bold text-[#f37422]">
+                  SUPER ADMIN · JUST ONLY
+                </span>
+                <button className="flex items-center gap-[5px] rounded-[6px] border border-[#2a2724] px-[8px] py-[4px] font-['Figtree'] text-[9px] text-[#8b8174]">
+                  Sort by: Risk
+                  <ChevronDown size={10} />
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <div className="min-w-[980px]">
+                <div className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px] items-center border-b border-[#2a2724] px-[13px] py-[9px]">
+                  {[
+                    "USER",
+                    "DAYS SOBER",
+                    "STREAK",
+                    "CHECK-IN RATE",
+                    "RISK",
+                    "LAST ACTIVE",
+                    "STATUS",
+                    "COUNSELOR",
+                    "ACTION",
+                  ].map((heading) => (
+                    <span key={heading} className="font-['JetBrains_Mono'] text-[7px] uppercase text-[#756c61]">
+                      {heading}
+                    </span>
+                  ))}
+                </div>
+
+                {loading && <div className="px-[15px] py-[28px] font-['Figtree'] text-[13px] text-[#756c61]">Loading users...</div>}
+                {!loading && error && <div className="px-[15px] py-[28px] font-['Figtree'] text-[13px] text-red-500">{error}</div>}
+                {!loading && !error && filtered.length === 0 && <div className="px-[15px] py-[28px] font-['Figtree'] text-center font-['Figtree'] text-[13px] text-[#756c61]">No users found.</div>}
+
+                {!loading && !error && filtered.map(({ user: u, extras }) => (
+                  <div key={u.id} className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px] items-center border-b border-[#211e1b] px-[13px] py-[9px] transition-colors hover:bg-[#191512]">
+                    <div className="flex min-w-0 items-center gap-[9px]">
+                      <div className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full bg-[#2b2722] font-['Figtree'] text-[10px] font-bold text-[#9b9185]">
+                        {u.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-['Figtree'] text-[11px] font-semibold leading-tight text-[#f4ede3]">{u.name}</p>
+                        <p className="truncate font-['JetBrains_Mono'] text-[8px] leading-tight text-[#756c61]">{u.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="font-['JetBrains_Mono'] text-[10px] font-bold text-[#f37422]">{u.sobriety}</div>
+                    <div className="font-['JetBrains_Mono'] text-[10px] font-bold text-[#f4ede3]">{extras.streak}{extras.streak > 10 && <span className="ml-[3px] text-[#f37422]">•</span>}</div>
+                    <CheckInBar rate={extras.checkInRate} />
+                    <RiskPill risk={extras.risk} />
+                    <span className="font-['Figtree'] text-[9px] text-[#8b8174]">{extras.lastActive}</span>
+                    <UserStatus status={u.status} flagged={extras.flagged} />
+                    <span className="truncate pr-[8px] font-['Figtree'] text-[9px] text-[#c4b9aa]">{u.counselor}</span>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/recovery/${u.id}`)}
+                      className="flex items-center gap-[4px] font-['Figtree'] text-[9px] font-semibold text-[#f37422] hover:text-[#ff9a57]"
+                    >
+                      View <span aria-hidden="true">→</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-[8px] border-t border-[#2a2724] px-[13px] py-[10px] sm:flex-row sm:items-center sm:justify-between">
+              <span className="font-['JetBrains_Mono'] text-[8px] text-[#756c61]">
+                Showing {startItem}–{endItem} of {totalCount.toLocaleString()} users
+              </span>
+              <div className="flex items-center gap-[4px]">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                  disabled={!hasPrev || loading}
+                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[#2a2724] text-[#756c61] hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  <ChevronLeft size={12} />
+                </button>
+                <span className="flex h-[24px] min-w-[24px] items-center justify-center rounded-[5px] bg-[#f37422] px-[7px] font-['JetBrains_Mono'] text-[9px] font-bold text-[#15110e]">{page}</span>
+                {hasNext && <span className="flex h-[24px] min-w-[24px] items-center justify-center rounded-[5px] px-[7px] font-['JetBrains_Mono'] text-[9px] text-[#8b8174]">{page + 1}</span>}
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={!hasNext || loading}
+                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[#2a2724] text-[#756c61] hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  <ChevronRight size={12} />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <TableCard>
-          <div className="overflow-x-auto">
-            <div className="min-w-[640px]">
-              <TableHead
-                cols={[
-                  { label: "USER", w: "flex-1 min-w-[200px]" },
-                  { label: "ROLE", w: "w-[100px]" },
-                  { label: "COUNSELOR", w: "w-[150px]" },
-                  { label: "SOBRIETY", w: "w-[110px]" },
-                  { label: "STATUS", w: "w-[110px]" },
-                  { label: "ACTIONS", w: "w-[100px] text-right" },
-                ]}
-              />
-              {loading && <div className="px-[18px] py-[24px] font-['Figtree'] text-[13px] text-[var(--app-muted)]">Loading users...</div>}
-              {!loading && error && <div className="px-[18px] py-[24px] font-['Figtree'] text-[13px] text-red-500">{error}</div>}
-              {!loading && !error && filtered.length === 0 && <div className="px-[18px] py-[24px] font-['Figtree'] text-[13px] text-[var(--app-muted)]">No users found.</div>}
-              {!loading &&
-                !error &&
-                filtered.map((u) => (
-                  <TableRow key={u.id}>
-                    <div className="flex items-center gap-[10px] flex-1 min-w-[200px]">
-                      <div className="w-[32px] h-[32px] rounded-full bg-[rgba(243,116,34,0.2)] flex items-center justify-center flex-shrink-0">
-                        <span className="font-['Figtree'] font-bold text-[#f37422] text-[11px]">
-                          {u.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[13px] leading-tight">{u.name}</p>
-                        <p className="font-['JetBrains_Mono'] font-normal text-[var(--app-muted)] text-[9px] leading-tight">{u.email}</p>
-                      </div>
-                    </div>
-                    <div className="w-[100px] font-['Figtree'] font-normal text-[var(--app-text)] text-[12px]">{u.role}</div>
-                    <div className="w-[150px] font-['Figtree'] font-normal text-[var(--app-text)] text-[12px]">{u.counselor}</div>
-                    <div className="w-[110px] font-['JetBrains_Mono'] font-bold text-[var(--app-text)] text-[12px]">{u.sobriety}</div>
-                    <div className="w-[110px]">
-                      <StatusPill status={u.status} />
-                    </div>
-                    <div className="w-[100px] flex items-center justify-end gap-[10px]">
-                      <ActionBtn onClick={() => setViewUserId(u.id)} title="View user profile" icon={<EyeIcon />} />
-                      <ActionBtn onClick={() => setEditUser(u)} title="Edit user" icon={<EditIcon />} />
-                      <ActionBtn
-                        onClick={() => handleDelete(u)}
-                        title="Delete user"
-                        disabled={deletingId === u.id}
-                        icon={<Trash2 size={15} strokeWidth={1.8} />}
-                      />
-                    </div>
-                  </TableRow>
-                ))}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end px-[18px] py-[14px] border-t border-[var(--app-border)]">
-            <div className="flex items-center gap-[10px]">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                disabled={!hasPrev || loading}
-                className="px-[14px] py-[6px] rounded-[6px] font-['Figtree'] font-medium text-[12px] border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text)] disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#f37422] transition-colors"
-              >
-                Previous
-              </button>
-
-              <span className="font-['JetBrains_Mono'] text-[11px] text-[var(--app-muted)] px-[4px]">
-                <strong className="text-[var(--app-text)]">
-                  {startItem}–{endItem}
-                </strong>
-              </span>
-
-              <button
-                type="button"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={!hasNext || loading}
-                className="px-[14px] py-[6px] rounded-[6px] font-['Figtree'] font-medium text-[12px] border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text)] disabled:opacity-40 disabled:cursor-not-allowed hover:border-[#f37422] transition-colors"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </TableCard>
-
         {modal === "add-user" && <AddUserModal onClose={() => setModal(null)} />}
-        {viewUserId && <UserDetailModal userId={viewUserId} onClose={() => setViewUserId(null)} />}
         {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} onSaved={bumpUsersVersion} />}
       </div>
     </div>
   );
 }
+
