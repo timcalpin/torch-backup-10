@@ -11,6 +11,7 @@ export interface ApiTreatmentPlan {
   title: string | null;
   patient: string | null;
   patient_name: string | null;
+  patient_email: string | null;
   counselor: string | null;
   counselor_name: string | null;
   start_date: string | null;
@@ -72,3 +73,36 @@ export function deleteTreatmentPlan(id: string): Promise<void> {
     method: "DELETE",
   });
 }
+
+export interface PillarData {
+  objective: string;
+  actions: string[];
+}
+
+export interface TreatmentPlanStructure {
+  clientOverview: string;
+  body: PillarData;
+  mind: PillarData;
+  spirit: PillarData;
+  life: PillarData;
+}
+
+export const EMPTY_TREATMENT_PLAN_STRUCTURE: TreatmentPlanStructure = {
+  clientOverview: "",
+  body: {
+    objective: "",
+    actions: [""],
+  },
+  mind: {
+    objective: "",
+    actions: [""],
+  },
+  spirit: {
+    objective: "",
+    actions: [""],
+  },
+  life: {
+    objective: "",
+    actions: [""],
+  },
+};

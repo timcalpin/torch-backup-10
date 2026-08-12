@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Lightbulb, SlidersHorizontal, FileText } from "lucide-react";
+import { Lightbulb, SlidersHorizontal, FileText, Target } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   TorchFlame,
@@ -135,6 +135,7 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
             <NavItem to="/resources/in-app" icon={<FileIcon color={iconColor("/resources/in-app")} />} label="In-App Resources" active={is("/resources/in-app")} lightMode={lightMode} />
             <NavItem to="/treatment-plans" icon={<ClipboardIcon color={iconColor("/treatment-plans")} />} label="Treatment Plans" active={is("/treatment-plans")} lightMode={lightMode} />
             <NavItem to="/intake-scripts" icon={<FileText size={14} strokeWidth={1.7} color={iconColor("/intake-scripts")} />} label="Intake Scripts" active={is("/intake-scripts")} lightMode={lightMode} />
+            <NavItem to="/goals" icon={<Target size={14} strokeWidth={1.7} color={iconColor("/goals")} />} label="Goals" active={is("/goals")} lightMode={lightMode} />
           </NavSection>
 
           <NavSection label="ANALYTICS" lightMode={lightMode}>

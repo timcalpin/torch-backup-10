@@ -7,8 +7,9 @@ import {
   UsersPage,
   CounselorsPage,
   TreatmentPlansPage,
+  GoalsPage, // 1. Added Import
   ResourcesAppPage,
-  IntakeScriptsPage, // 1. Added Import
+  IntakeScriptsPage,
   AggregateDataPage,
   InsightsPage,
   RelapseSignalsPage,
@@ -25,8 +26,9 @@ function renderPage(pageKey: AppPageKey) {
     case "users":            return <UsersPage />;
     case "counselors":       return <CounselorsPage />;
     case "treatment-plans":  return <TreatmentPlansPage />;
+    case "goals":            return <GoalsPage />; // 2. Added Render Case
     case "resources-app":    return <ResourcesAppPage />;
-    case "intake-scripts":   return <IntakeScriptsPage />; // 2. Added Render Case
+    case "intake-scripts":   return <IntakeScriptsPage />;
     case "aggregate-data":   return <AggregateDataPage />;
     case "insights":         return <InsightsPage />;
     case "resources-real":   return <EventsPage />;
