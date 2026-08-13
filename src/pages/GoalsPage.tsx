@@ -8,8 +8,9 @@ import { ApiError } from "@/lib/api";
 import {
   getPatientGoals,
   updatePatientGoals,
-  type ApiGoalsData,
+  type ApiGoalsResponse,
 } from "@/lib/goals";
+import { getUser } from "@/lib/users";
 
 interface GoalsStructure {
   body: string;
@@ -111,18 +112,49 @@ export function GoalsPage({
 
     let cancelled = false;
 
+    // User identity is independent of whether any goals have been created.
+    getUser(patientId)
+      .then((user) => {
+        if (!cancelled) {
+          setPatientName(user.full_name || "");
+          setPatientEmail(user.email || "");
+        }
+      })
+      .catch(() => {});
+
     setLoading(true);
     setError(null);
 
     getPatientGoals(patientId)
-      .then((response: ApiGoalsData) => {
+      .then((response: ApiGoalsResponse) => {
         if (cancelled) return;
 
         /**
          * Patient information
          */
-        setPatientName(response.patient_name || "");
-        setPatientEmail(response.patient_email || "");
+        if (Array.isArray(response)) {
+          // The goals endpoint returns one record per category. Patient details
+          // are repeated on every record, so use the first record as metadata.
+          const patient = response[0];
+          if (patient?.patient_name) setPatientName(patient.patient_name);
+          if (patient?.patient_email) setPatientEmail(patient.patient_email);
+
+          const objectives = response.reduce<Record<string, string>>((result, goal) => {
+            result[goal.category] = goal.objective || "";
+            return result;
+          }, {});
+
+          setGoals({
+            body: objectives.body || "",
+            mind: objectives.mind || "",
+            spirit: objectives.recovery || objectives.spirit || "",
+            life: objectives.life || "",
+          });
+          return;
+        }
+
+        if (response.patient_name) setPatientName(response.patient_name);
+        if (response.patient_email) setPatientEmail(response.patient_email);
 
         /**
          * Load actual database goals.

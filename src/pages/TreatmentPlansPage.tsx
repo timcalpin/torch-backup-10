@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { Activity, Brain, Compass, Home, Plus, Trash2, ArrowLeft } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
 import { ApiError } from "@/lib/api";
+import { getUser } from "@/lib/users";
 import {
   getTreatmentPlan,
+  getTreatmentPlanForPatient,
   updateTreatmentPlan,
   createTreatmentPlan,
   type ApiTreatmentPlan,
@@ -72,12 +75,16 @@ interface TreatmentPlansPageProps {
 }
 
 export function TreatmentPlansPage({ patientId, planId: initialPlanId }: TreatmentPlansPageProps) {
+  const params = useParams<{ userId?: string }>();
+  const selectedPatientId = patientId || params.userId;
   // Track current plan ID locally so it can seamlessly transition from CREATE -> UPDATE on first save
   const [currentPlanId, setCurrentPlanId] = useState<string | undefined>(initialPlanId);
 
   const { bumpTreatmentPlansVersion } = useAppContext();
 
   const [plan, setPlan] = useState<ApiTreatmentPlan | null>(null);
+  const [patientName, setPatientName] = useState("");
+  const [patientEmail, setPatientEmail] = useState("");
   const [structure, setStructure] = useState<TreatmentPlanStructure>(DEFAULT_STRUCTURE);
 
   const [loading, setLoading] = useState(false);
@@ -85,23 +92,51 @@ export function TreatmentPlansPage({ patientId, planId: initialPlanId }: Treatme
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  useEffect(() => {
+    if (!selectedPatientId) return;
+
+    let cancelled = false;
+    getUser(String(selectedPatientId))
+      .then((user) => {
+        if (!cancelled) {
+          setPatientName(user.full_name || "");
+          setPatientEmail(user.email || "");
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPatientId]);
+
   // Sync prop changes to state if initialPlanId changes
   useEffect(() => {
     setCurrentPlanId(initialPlanId);
-  }, [initialPlanId]);
+  }, [initialPlanId, selectedPatientId]);
 
   // Parse server goals string or initialize default schema
   useEffect(() => {
-    if (!currentPlanId) return;
+    if (!currentPlanId && !selectedPatientId) return;
 
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    getTreatmentPlan(currentPlanId)
+    const request = initialPlanId
+      ? getTreatmentPlan(initialPlanId)
+      : getTreatmentPlanForPatient(String(selectedPatientId));
+
+    request
       .then((res) => {
         if (cancelled) return;
+        if (!res) {
+          setPlan(null);
+          setStructure(DEFAULT_STRUCTURE);
+          return;
+        }
         setPlan(res);
+        setCurrentPlanId(res.id);
         if (res.goals_and_milestones) {
           try {
             const parsed = JSON.parse(res.goals_and_milestones);
@@ -118,6 +153,8 @@ export function TreatmentPlansPage({ patientId, planId: initialPlanId }: Treatme
               clientOverview: res.goals_and_milestones || "",
             }));
           }
+        } else {
+          setStructure(DEFAULT_STRUCTURE);
         }
       })
       .catch((err) => {
@@ -130,7 +167,7 @@ export function TreatmentPlansPage({ patientId, planId: initialPlanId }: Treatme
     return () => {
       cancelled = true;
     };
-  }, [currentPlanId]);
+  }, [initialPlanId, selectedPatientId]);
 
   const updatePillar = (
     pillarKey: keyof Omit<TreatmentPlanStructure, "clientOverview">,
@@ -192,12 +229,12 @@ export function TreatmentPlansPage({ patientId, planId: initialPlanId }: Treatme
         setPlan(updated);
       } else {
         // CREATE New Plan
-        if (!patientId) {
+        if (!selectedPatientId) {
           throw new Error("Unable to create treatment plan: Patient ID is missing.");
         }
 
         const created = await createTreatmentPlan({
-          patient: patientId,
+          patient: selectedPatientId,
           ...payload,
         });
 
@@ -255,11 +292,11 @@ export function TreatmentPlansPage({ patientId, planId: initialPlanId }: Treatme
           </div>
 
           <h1 className="font-['Figtree'] font-bold text-[28px] leading-tight text-[var(--app-text,#1a1a1a)] dark:text-white">
-            {plan?.patient_name || (currentPlanId ? "Treatment Plan" : "New Treatment Plan")}
+            {plan?.patient_name || patientName || (currentPlanId ? "Treatment Plan" : "New Treatment Plan")}
           </h1>
 
           <p className="font-['Figtree'] text-[13px] text-[var(--app-muted,#8a8073)]">
-            {plan?.patient_email || "No patient email"} ·{" "}
+            {plan?.patient_email || patientEmail || "No patient email"} ·{" "}
             <span className="capitalize">
               {plan?.status || "draft"}
             </span>{" "}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Lightbulb, SlidersHorizontal, FileText, Target } from "lucide-react";
+import { Lightbulb, SlidersHorizontal, FileText, Target, UserIcon, ClipboardList } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   TorchFlame,
@@ -7,7 +7,6 @@ import {
   MessageCircleIcon,
   CalendarIcon,
   FileIcon,
-  ClipboardIcon,
   ChartColumnIcon,
   AlertCircleIcon,
   CircleXIcon,
@@ -85,6 +84,11 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
   const is = (path: string) => pathname === path;
   const iconColor = (path: string) => is(path) ? "#F37422" : lightMode ? "#2C241D" : "#8A8073";
 
+  // These links are only available after a user has been selected from Users.
+  // Keep the id in the URL so the selection survives navigation between cards.
+  const selectedUserMatch = pathname.match(/^\/(?:recovery|treatment-plans|goals)\/([^/]+)$/);
+  const selectedUserId = selectedUserMatch?.[1];
+
   const [usersCount, setUsersCount] = useState<number | null>(null);
   const [groupsCount, setGroupsCount] = useState<number | null>(null);
 
@@ -133,10 +137,19 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
             <NavItem to="/support-groups" icon={<MessageCircleIcon color={iconColor("/support-groups")} />} label="Support Groups" badge={groupsCount ?? undefined} active={is("/support-groups")} lightMode={lightMode} />
             <NavItem to="/resources/real-world" icon={<CalendarIcon color={iconColor("/resources/real-world")} />} label="Real World Resources" active={is("/resources/real-world")} lightMode={lightMode} />
             <NavItem to="/resources/in-app" icon={<FileIcon color={iconColor("/resources/in-app")} />} label="In-App Resources" active={is("/resources/in-app")} lightMode={lightMode} />
-            <NavItem to="/treatment-plans" icon={<ClipboardIcon color={iconColor("/treatment-plans")} />} label="Treatment Plans" active={is("/treatment-plans")} lightMode={lightMode} />
             <NavItem to="/intake-scripts" icon={<FileText size={14} strokeWidth={1.7} color={iconColor("/intake-scripts")} />} label="Intake Scripts" active={is("/intake-scripts")} lightMode={lightMode} />
-            <NavItem to="/goals" icon={<Target size={14} strokeWidth={1.7} color={iconColor("/goals")} />} label="Goals" active={is("/goals")} lightMode={lightMode} />
             <NavItem to="/counselors" icon={<UsersNavIcon color={iconColor("/counselors")} />} label="Counselors" active={is("/counselors")} lightMode={lightMode} />
+
+            {selectedUserId && (
+              <div className="mt-[2px] flex flex-col gap-[6px] border-t border-[var(--app-border-soft)] pt-[12px]">
+                <p className={`px-[12px] font-['JetBrains_Mono'] text-[8px] font-bold uppercase tracking-widest ${lightMode ? "text-[#84796d]" : "text-[var(--app-muted)]"}`}>
+                  Selected user
+                </p>
+                <NavItem to={`/recovery/${selectedUserId}`} icon={<UserIcon size={14} strokeWidth={1.7} color={iconColor(`/recovery/${selectedUserId}`)} />} label="Recovery Profile" active={is(`/recovery/${selectedUserId}`)} lightMode={lightMode} />
+                <NavItem to={`/treatment-plans/${selectedUserId}`} icon={<ClipboardList size={14} strokeWidth={1.7} color={iconColor(`/treatment-plans/${selectedUserId}`)} />} label="Treatment Plans" active={is(`/treatment-plans/${selectedUserId}`)} lightMode={lightMode} />
+                <NavItem to={`/goals/${selectedUserId}`} icon={<Target size={14} strokeWidth={1.7} color={iconColor(`/goals/${selectedUserId}`)} />} label="Goals" active={is(`/goals/${selectedUserId}`)} lightMode={lightMode} />
+              </div>
+            )}
           </NavSection>
 
           <NavSection label="ANALYTICS" lightMode={lightMode}>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter, SectionLabel } from "@/components/common/Modal";
 import { FormField, TextInput, SelectInput } from "@/components/common/FormFields";
 import { ApiError } from "@/lib/api";
@@ -22,6 +22,9 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const handleSubmit = async () => {
     if (!fullName.trim() || !email.trim()) {
@@ -41,13 +44,27 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
         sobriety_start_date: sobrietyDate || null,
         primary_substance: primarySubstance.trim() || null,
       });
+      setTemporaryPassword("response.temporary_password"); // This should be replaced with the actual password returned from the API
       bumpUsersVersion();
-      onClose();
+      
+      setShowSuccess(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Unable to add user. Please try again.");
     } finally {
       setSubmitting(false);
     }
+  };
+
+    const handleCopy = async () => {
+    await navigator.clipboard.writeText(
+        temporaryPassword
+    );
+
+    setCopied(true);
+
+    setTimeout(() => {
+        setCopied(false);
+    }, 2000);
   };
 
   return (

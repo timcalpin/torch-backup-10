@@ -1,267 +1,700 @@
-import { useState } from "react";
-import { ModalOverlay, ModalCard, ModalHeader, ModalFooter, SectionLabel } from "@/components/common/Modal";
-import { FormField, TextInput, TextArea, SelectInput } from "@/components/common/FormFields";
-import { Toggle } from "@/components/common/Toggle";
+import { useEffect, useMemo, useState } from "react";
+
+import {
+  ModalOverlay,
+  ModalCard,
+  ModalHeader,
+  ModalFooter,
+} from "@/components/common/Modal";
+
+import {
+  FormField,
+  TextInput,
+  TextArea,
+  SelectInput,
+} from "@/components/common/FormFields";
+
 import { ApiError } from "@/lib/api";
 import {
-  RECOVERY_CATEGORIES,
-  WELLNESS_CATEGORIES,
-  DELIVERY_FORMATS,
-  DAYS_OF_WEEK,
   createResource,
-  type DayOfWeek,
+  updateResource,
+  type CreateResourcePayload,
+  type DeliveryFormat,
+  type ResourceCategory,
+  type ResourceStatus,
 } from "@/lib/resources";
+
 import { useAppContext } from "@/app/app-context";
+import { ApiResource } from "../../lib/resources";
 
-const RECOVERY_CATEGORY_LABELS: Record<(typeof RECOVERY_CATEGORIES)[number], string> = {
-  aa: "AA Meetings",
-  na: "NA Meetings",
-  smart: "SMART Recovery",
-  celebrate_recovery: "Celebrate Recovery",
-  recovery_dharma: "Recovery Dharma",
-};
+/* ============================================================================
+   CATEGORY TAXONOMY
+============================================================================ */
 
-const WELLNESS_CATEGORY_LABELS: Record<(typeof WELLNESS_CATEGORIES)[number], string> = {
-  therapy: "Therapy",
-  yoga: "Yoga",
-  fitness: "Gym & Fitness",
-  volunteering: "Volunteering",
-  massage_bodywork: "Massage & Bodywork",
-  art_creative: "Art & Creative",
-  parks_nature: "Parks & Nature",
-  animal_therapy: "Animal Therapy",
-  job_placement: "Job Placement",
-  county_benefits: "County Benefits",
-  legal_aid: "Legal Aid",
-  crisis_support: "Crisis & Immediate Support",
-  other: "Other",
-};
+const CATEGORY_OPTIONS: {
+  value: ResourceCategory;
+  label: string;
+  subCategories: {
+    value: string;
+    label: string;
+  }[];
+}[] = [
+  {
+    value: "recovery_meetings",
+    label: "Recovery Meetings",
+    subCategories: [
+      {
+        value: "aa",
+        label: "AA",
+      },
+      {
+        value: "na",
+        label: "NA",
+      },
+      {
+        value: "smart",
+        label: "SMART",
+      },
+      {
+        value: "recovery_dharma",
+        label: "Recovery Dharma",
+      },
+      {
+        value: "celebrate_recovery",
+        label: "Celebrate Recovery",
+      },
+    ],
+  },
 
-const DELIVERY_FORMAT_LABELS: Record<(typeof DELIVERY_FORMATS)[number], string> = {
-  in_person: "In Person",
-  online: "Online",
-  hybrid: "Hybrid",
-  phone: "Phone",
-};
+  {
+    value: "mental_health",
+    label: "Mental Health",
+    subCategories: [
+      {
+        value: "therapy",
+        label: "Therapy",
+      },
+      {
+        value: "emdr",
+        label: "EMDR",
+      },
+      {
+        value: "ocd",
+        label: "OCD",
+      },
+      {
+        value: "trauma_ptsd",
+        label: "Trauma + PTSD",
+      },
+      {
+        value: "couples_therapy",
+        label: "Couples Therapy",
+      },
+      {
+        value: "anxiety",
+        label: "Anxiety",
+      },
+      {
+        value: "depression",
+        label: "Depression",
+      },
+    ],
+  },
 
-const DAY_LABELS: Record<DayOfWeek, string> = {
-  monday: "Monday",
-  tuesday: "Tuesday",
-  wednesday: "Wednesday",
-  thursday: "Thursday",
-  friday: "Friday",
-  saturday: "Saturday",
-  sunday: "Sunday",
-};
+  {
+    value: "physical_health",
+    label: "Physical Health",
+    subCategories: [
+      {
+        value: "yoga",
+        label: "Yoga",
+      },
+      {
+        value: "gym",
+        label: "Gym",
+      },
+      {
+        value: "doctors",
+        label: "Doctors",
+      },
+      {
+        value: "mat",
+        label: "M.A.T. (Medically Assisted Treatment)",
+      },
+    ],
+  },
 
-export function AddResourceModal({ onClose }: { onClose: () => void }) {
+  {
+    value: "additional_support",
+    label: "Additional Support",
+    subCategories: [
+      {
+        value: "job_training",
+        label: "Job Training",
+      },
+      {
+        value: "education",
+        label: "Education",
+      },
+      {
+        value: "treatment",
+        label: "Treatment",
+      },
+      {
+        value: "state_county_benefits",
+        label: "State + County Benefits",
+      },
+      {
+        value: "legal_aid",
+        label: "Legal Aid",
+      },
+      {
+        value: "crisis_support",
+        label: "Crisis Support",
+      },
+    ],
+  },
+
+  {
+    value: "recreation",
+    label: "Recreation",
+    subCategories: [
+      {
+        value: "art",
+        label: "Art",
+      },
+      {
+        value: "music",
+        label: "Music",
+      },
+      {
+        value: "creative_writing",
+        label: "Creative Writing",
+      },
+      {
+        value: "live_events",
+        label: "Live Events",
+      },
+      {
+        value: "parks_nature",
+        label: "Parks + Nature",
+      },
+      {
+        value: "animal_assisted",
+        label: "Animal-Assisted",
+      },
+    ],
+  },
+];
+
+/* ============================================================================
+   DELIVERY FORMAT
+============================================================================ */
+
+const FORMAT_OPTIONS: {
+  value: DeliveryFormat;
+  label: string;
+}[] = [
+  {
+    value: "in_person",
+    label: "In Person",
+  },
+  {
+    value: "online",
+    label: "Online",
+  },
+  {
+    value: "hybrid",
+    label: "Hybrid",
+  },
+  {
+    value: "phone",
+    label: "Phone",
+  },
+  {
+    value: "not_applicable",
+    label: "Not Applicable",
+  },
+];
+
+/* ============================================================================
+   STATUS
+============================================================================ */
+
+const STATUS_OPTIONS: {
+  value: ResourceStatus;
+  label: string;
+}[] = [
+  {
+    value: "published",
+    label: "Published",
+  },
+  {
+    value: "draft",
+    label: "Draft",
+  },
+  {
+    value: "archived",
+    label: "Archived",
+  },
+];
+
+/* ============================================================================
+   COMPONENT
+============================================================================ */
+interface AddResourceModalProps {
+  open: boolean;
+  resource?: ApiResource | null;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+export function AddResourceModal({
+  open,
+  resource,
+  onClose,
+  onCreated,
+}: AddResourceModalProps) {
   const { bumpResourcesVersion } = useAppContext();
-  const [tab, setTab] = useState<"Recovery Meeting" | "Wellness & Support">("Recovery Meeting");
+
+  /* --------------------------------------------------------------------------
+     Form state
+  -------------------------------------------------------------------------- */
 
   const [title, setTitle] = useState("");
+  const [category, setCategory] =
+    useState<ResourceCategory>("recovery_meetings");
+  const [subCategory, setSubCategory] = useState("aa");
   const [description, setDescription] = useState("");
-  const [organization, setOrganization] = useState("");
   const [url, setUrl] = useState("");
+  const [phone, setPhone] = useState("");
   const [venue, setVenue] = useState("");
+  const [streetAddress, setStreetAddress] = useState("");
   const [city, setCity] = useState("");
-  const [tagsInput, setTagsInput] = useState("");
-  const [featured, setFeatured] = useState(false);
+  const [deliveryFormat, setDeliveryFormat] =
+    useState<DeliveryFormat>("in_person");
+  const [status, setStatus] =
+    useState<ResourceStatus>("published");
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Recovery Meeting only
-  const [recoveryCategory, setRecoveryCategory] = useState<(typeof RECOVERY_CATEGORIES)[number]>("aa");
-  const [day, setDay] = useState<DayOfWeek>("monday");
-  const [startTime, setStartTime] = useState("");
-  const [deliveryFormat, setDeliveryFormat] = useState<(typeof DELIVERY_FORMATS)[number]>("in_person");
+  const isEditing = Boolean(resource);
 
-  // Wellness & Support only
-  const [wellnessCategory, setWellnessCategory] = useState<(typeof WELLNESS_CATEGORIES)[number]>("therapy");
+  /* --------------------------------------------------------------------------
+     Load/reset form whenever the modal opens or the selected resource changes.
+     This is what makes Edit open the same card with all values pre-filled.
+  -------------------------------------------------------------------------- */
 
-  const isRecovery = tab === "Recovery Meeting";
+  useEffect(() => {
+    if (!open) return;
+
+    if (resource) {
+      const resourceCategory = CATEGORY_OPTIONS.some(
+        (item) => item.value === resource.category
+      )
+        ? (resource.category as ResourceCategory)
+        : "recovery_meetings";
+
+      const categoryOption =
+        CATEGORY_OPTIONS.find(
+          (item) => item.value === resourceCategory
+        ) ?? CATEGORY_OPTIONS[0];
+
+      const validSubCategory =
+        resource.sub_category &&
+        categoryOption.subCategories.some(
+          (item) => item.value === resource.sub_category
+        )
+          ? resource.sub_category
+          : categoryOption.subCategories[0]?.value ?? "";
+
+      const validFormat = FORMAT_OPTIONS.some(
+        (item) => item.value === resource.delivery_format
+      )
+        ? resource.delivery_format!
+        : "not_applicable";
+
+      const validStatus = STATUS_OPTIONS.some(
+        (item) => item.value === resource.status
+      )
+        ? (resource.status as ResourceStatus)
+        : "published";
+
+      setTitle(resource.title ?? "");
+      setCategory(resourceCategory);
+      setSubCategory(validSubCategory);
+      setDescription(resource.description ?? "");
+      setUrl(resource.url ?? "");
+      setPhone(resource.phone ?? "");
+      setVenue(resource.venue ?? "");
+      setStreetAddress(resource.street_address ?? "");
+      setCity(resource.city ?? "");
+      setDeliveryFormat(validFormat);
+      setStatus(validStatus);
+      setError(null);
+      return;
+    }
+
+    // New resource: reset to clean defaults.
+    setTitle("");
+    setCategory("recovery_meetings");
+    setSubCategory("aa");
+    setDescription("");
+    setUrl("");
+    setPhone("");
+    setVenue("");
+    setStreetAddress("");
+    setCity("");
+    setDeliveryFormat("in_person");
+    setStatus("published");
+    setError(null);
+  }, [open, resource]);
+
+  /* --------------------------------------------------------------------------
+     Selected category
+  -------------------------------------------------------------------------- */
+
+  const selectedCategory = useMemo(() => {
+    return (
+      CATEGORY_OPTIONS.find(
+        (item) => item.value === category
+      ) ?? CATEGORY_OPTIONS[0]
+    );
+  }, [category]);
+
+  /* --------------------------------------------------------------------------
+     Category change
+     When the category changes manually, select its first sub-category.
+  -------------------------------------------------------------------------- */
+
+  const handleCategoryChange = (label: string) => {
+    const selected = CATEGORY_OPTIONS.find(
+      (item) => item.label === label
+    );
+
+    if (!selected) return;
+
+    setCategory(selected.value);
+    setSubCategory(
+      selected.subCategories[0]?.value ?? ""
+    );
+  };
+
+  /* --------------------------------------------------------------------------
+     Submit
+  -------------------------------------------------------------------------- */
 
   const handleSubmit = async () => {
-    if (!title.trim()) {
-      setError("Title is required.");
-      return;
-    }
-    if (isRecovery && !startTime) {
-      setError("Start time is required for a Recovery Meeting.");
-      return;
-    }
-    if (isRecovery && (deliveryFormat === "online" || deliveryFormat === "hybrid") && !url.trim()) {
-      setError("An online or hybrid meeting requires a URL.");
-      return;
-    }
-    setSubmitting(true);
     setError(null);
-    const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
+
+    if (!title.trim()) {
+      setError("Resource name is required.");
+      return;
+    }
+
+    if (!category) {
+      setError("Category is required.");
+      return;
+    }
+
+    if (!subCategory) {
+      setError("Sub-category is required.");
+      return;
+    }
+
+    if (!description.trim()) {
+      setError("Description is required.");
+      return;
+    }
+
+    if (!url.trim()) {
+      setError("URL is required.");
+      return;
+    }
+
+    if (!deliveryFormat) {
+      setError("Format is required.");
+      return;
+    }
+
     try {
-      if (isRecovery) {
-        await createResource({
-          resource_type: "recovery_meeting",
+      setSubmitting(true);
+
+      if (resource) {
+        // Edit existing resource.
+        await updateResource(resource.id, {
           title: title.trim(),
-          category: recoveryCategory,
+          category,
+          sub_category: subCategory,
           description: description.trim(),
-          organization: organization.trim(),
+          organization: resource.organization ?? "",
           url: url.trim(),
-          phone: "",
+          phone: phone.trim(),
           venue: venue.trim(),
-          street_address: "",
+          street_address: streetAddress.trim(),
           city: city.trim(),
-          state: "",
-          zip_code: "",
-          day,
-          start_time: startTime,
-          end_time: null,
           delivery_format: deliveryFormat,
-          tags,
-          is_featured: featured,
-          status: "published",
+          status,
+          is_featured: resource.is_featured ?? false,
+          tags: resource.tags ?? [],
         });
       } else {
-        await createResource({
-          resource_type: "wellness_support",
+        // Create new resource.
+        const payload: CreateResourcePayload = {
           title: title.trim(),
-          category: wellnessCategory,
+          category,
+          sub_category: subCategory,
           description: description.trim(),
-          organization: organization.trim(),
+          organization: "",
           url: url.trim(),
-          phone: "",
+          phone: phone.trim(),
           venue: venue.trim(),
-          street_address: "",
+          street_address: streetAddress.trim(),
           city: city.trim(),
-          state: "",
-          zip_code: "",
-          tags,
-          is_featured: featured,
-          status: "published",
-        });
+          delivery_format: deliveryFormat,
+          status,
+          is_featured: false,
+          tags: [],
+        };
+
+        await createResource(payload);
       }
+
       bumpResourcesVersion();
+      onCreated();
       onClose();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to add resource. Please try again.");
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError(
+          isEditing
+            ? "Unable to update resource. Please try again."
+            : "Unable to add resource. Please try again."
+        );
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
+  if (!open) return null;
+
   return (
     <ModalOverlay onClose={onClose}>
       <ModalCard wide>
-        <ModalHeader title="Add Resource" onClose={onClose} />
-        <div className="relative border-b border-[var(--app-border)] mb-[24px]">
-          <div className="flex">
-            {(["Recovery Meeting", "Wellness & Support"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-[20px] py-[12px] font-['Figtree'] text-[14px] cursor-pointer transition-colors relative ${
-                  tab === t ? "font-semibold text-[#f37422]" : "font-medium text-[var(--app-muted)] hover:text-[var(--app-text)]"
-                }`}
-              >
-                {t}
-                {tab === t && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#f37422]" />}
-              </button>
-            ))}
-          </div>
-        </div>
+        <ModalHeader
+          title={isEditing ? "Edit Resource" : "Add Resource"}
+          onClose={onClose}
+        />
 
-        <div className="flex flex-col gap-[16px]">
-          <SectionLabel label="Basic Info" />
-          <FormField label="Title" required><TextInput placeholder="e.g. Tuesday Night AA Meeting" value={title} onChange={setTitle} /></FormField>
-          <div className="flex gap-[16px] flex-wrap">
-            <div className="flex-1 min-w-[180px]">
-              <FormField label="Category">
-                {isRecovery ? (
-                  <SelectInput
-                    options={RECOVERY_CATEGORIES.map((c) => RECOVERY_CATEGORY_LABELS[c])}
-                    value={RECOVERY_CATEGORY_LABELS[recoveryCategory]}
-                    onChange={(label) => setRecoveryCategory(RECOVERY_CATEGORIES.find((c) => RECOVERY_CATEGORY_LABELS[c] === label) ?? "aa")}
-                  />
-                ) : (
-                  <SelectInput
-                    options={WELLNESS_CATEGORIES.map((c) => WELLNESS_CATEGORY_LABELS[c])}
-                    value={WELLNESS_CATEGORY_LABELS[wellnessCategory]}
-                    onChange={(label) => setWellnessCategory(WELLNESS_CATEGORIES.find((c) => WELLNESS_CATEGORY_LABELS[c] === label) ?? "therapy")}
-                  />
-                )}
-              </FormField>
-            </div>
-            <div className="flex-1 min-w-[180px]">
-              <FormField label="Organization"><TextInput placeholder="e.g. Alcoholics Anonymous" value={organization} onChange={setOrganization} /></FormField>
-            </div>
-          </div>
-          <FormField label="Description (Optional)"><TextArea placeholder="Brief summary..." rows={3} value={description} onChange={setDescription} /></FormField>
-
-          <SectionLabel label="Location & Contact" />
-          <div className="flex gap-[16px] flex-wrap">
-            <div className="flex-1 min-w-[180px]">
-              <FormField label="Venue"><TextInput placeholder="e.g. Community Center" value={venue} onChange={setVenue} /></FormField>
-            </div>
-            <div className="flex-1 min-w-[180px]">
-              <FormField label="City"><TextInput value={city} onChange={setCity} /></FormField>
-            </div>
-          </div>
-          <FormField label={isRecovery ? "URL (required for online/hybrid)" : "URL"}>
-            <TextInput placeholder="https://..." value={url} onChange={setUrl} />
+        <div className="flex flex-col gap-[18px]">
+          <FormField
+            label="Resource Name"
+            required
+          >
+            <TextInput
+              placeholder="e.g. Tuesday Night Recovery Meeting"
+              value={title}
+              onChange={setTitle}
+            />
           </FormField>
 
-          {isRecovery && (
-            <>
-              <SectionLabel label="Meeting Schedule" />
-              <div className="flex gap-[16px] flex-wrap">
-                <div className="flex-1 min-w-[160px]">
-                  <FormField label="Day" required>
-                    <SelectInput
-                      options={DAYS_OF_WEEK.map((d) => DAY_LABELS[d])}
-                      value={DAY_LABELS[day]}
-                      onChange={(label) => setDay(DAYS_OF_WEEK.find((d) => DAY_LABELS[d] === label) ?? "monday")}
-                    />
-                  </FormField>
-                </div>
-                <div className="flex-1 min-w-[160px]">
-                  <FormField label="Start Time" required>
-                    <TextInput type="time" value={startTime} onChange={setStartTime} />
-                  </FormField>
-                </div>
-                <div className="flex-1 min-w-[160px]">
-                  <FormField label="Format" required>
-                    <SelectInput
-                      options={DELIVERY_FORMATS.map((f) => DELIVERY_FORMAT_LABELS[f])}
-                      value={DELIVERY_FORMAT_LABELS[deliveryFormat]}
-                      onChange={(label) => setDeliveryFormat(DELIVERY_FORMATS.find((f) => DELIVERY_FORMAT_LABELS[f] === label) ?? "in_person")}
-                    />
-                  </FormField>
-                </div>
-              </div>
-            </>
-          )}
-
-          <SectionLabel label="Details" />
-          <div className="flex gap-[16px] flex-wrap">
-            <div className="flex-1 min-w-[180px]">
-              <FormField label="Tags (comma separated)"><TextInput placeholder="e.g. free, 24/7, national" value={tagsInput} onChange={setTagsInput} /></FormField>
+          <div className="flex flex-wrap gap-[14px]">
+            <div className="min-w-[180px] flex-1">
+              <FormField
+                label="Category"
+                required
+              >
+                <SelectInput
+                  options={CATEGORY_OPTIONS.map(
+                    (item) => item.label
+                  )}
+                  value={selectedCategory.label}
+                  onChange={handleCategoryChange}
+                />
+              </FormField>
             </div>
-            <div className="flex-1 min-w-[180px]">
-              <FormField label="Featured Status">
-                <div className="relative bg-[var(--app-surface)] h-[44px] rounded-[10px]">
-                  <div className="absolute inset-0 rounded-[10px] border border-[var(--app-border)] pointer-events-none" />
-                  <button type="button" onClick={() => setFeatured((v) => !v)} className="flex items-center justify-between px-[14px] h-full w-full cursor-pointer">
-                    <span className="font-['Figtree'] font-normal text-[var(--app-text)] text-[14px]">Feature this</span>
-                    <Toggle on={featured} />
-                  </button>
-                </div>
+
+            <div className="min-w-[180px] flex-1">
+              <FormField
+                label="Sub-category"
+                required
+              >
+                <SelectInput
+                  options={selectedCategory.subCategories.map(
+                    (item) => item.label
+                  )}
+                  value={
+                    selectedCategory.subCategories.find(
+                      (item) =>
+                        item.value === subCategory
+                    )?.label ??
+                    selectedCategory.subCategories[0]
+                      ?.label ??
+                    ""
+                  }
+                  onChange={(label) => {
+                    const selected =
+                      selectedCategory.subCategories.find(
+                        (item) =>
+                          item.label === label
+                      );
+
+                    if (selected) {
+                      setSubCategory(selected.value);
+                    }
+                  }}
+                />
               </FormField>
             </div>
           </div>
-          {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
+
+          <FormField
+            label="Description"
+            required
+          >
+            <TextArea
+              placeholder="Brief description of the resource (1-2 sentences)"
+              rows={4}
+              value={description}
+              onChange={setDescription}
+            />
+          </FormField>
+
+          <FormField
+            label="Link (URL)"
+            required
+          >
+            <TextInput
+              placeholder="https://..."
+              value={url}
+              onChange={setUrl}
+            />
+          </FormField>
+
+          <div className="flex flex-wrap gap-[14px]">
+            <div className="min-w-[180px] flex-1">
+              <FormField label="Phone">
+                <TextInput
+                  placeholder="+1 (555) 000-0000"
+                  value={phone}
+                  onChange={setPhone}
+                />
+              </FormField>
+            </div>
+
+            <div className="min-w-[180px] flex-1">
+              <FormField label="Venue">
+                <TextInput
+                  placeholder="Community Center"
+                  value={venue}
+                  onChange={setVenue}
+                />
+              </FormField>
+            </div>
+          </div>
+
+          <FormField label="Address">
+            <TextInput
+              placeholder="123 Main St, City, PA"
+              value={streetAddress}
+              onChange={setStreetAddress}
+            />
+          </FormField>
+
+          <FormField label="City">
+            <TextInput
+              placeholder="Philadelphia"
+              value={city}
+              onChange={setCity}
+            />
+          </FormField>
+
+          <div className="flex flex-wrap gap-[14px]">
+            <div className="min-w-[180px] flex-1">
+              <FormField
+                label="Format"
+                required
+              >
+                <SelectInput
+                  options={FORMAT_OPTIONS.map(
+                    (item) => item.label
+                  )}
+                  value={
+                    FORMAT_OPTIONS.find(
+                      (item) =>
+                        item.value === deliveryFormat
+                    )?.label ?? "In Person"
+                  }
+                  onChange={(label) => {
+                    const selected =
+                      FORMAT_OPTIONS.find(
+                        (item) =>
+                          item.label === label
+                      );
+
+                    if (selected) {
+                      setDeliveryFormat(
+                        selected.value
+                      );
+                    }
+                  }}
+                />
+              </FormField>
+            </div>
+
+            <div className="min-w-[180px] flex-1">
+              <FormField
+                label="Status"
+                required
+              >
+                <SelectInput
+                  options={STATUS_OPTIONS.map(
+                    (item) => item.label
+                  )}
+                  value={
+                    STATUS_OPTIONS.find(
+                      (item) =>
+                        item.value === status
+                    )?.label ?? "Published"
+                  }
+                  onChange={(label) => {
+                    const selected =
+                      STATUS_OPTIONS.find(
+                        (item) =>
+                          item.label === label
+                      );
+
+                    if (selected) {
+                      setStatus(selected.value);
+                    }
+                  }}
+                />
+              </FormField>
+            </div>
+          </div>
+
+          {error && (
+            <p className="font-['Figtree'] text-[13px] text-red-500">
+              {error}
+            </p>
+          )}
         </div>
+
         <ModalFooter
           onCancel={onClose}
           onConfirm={handleSubmit}
-          confirmLabel={submitting ? "Adding..." : "Add Resource"}
+          confirmLabel={
+            submitting
+              ? isEditing
+                ? "Updating..."
+                : "Adding..."
+              : isEditing
+                ? "Update Resource"
+                : "Add Resource"
+          }
           confirmDisabled={submitting}
         />
       </ModalCard>

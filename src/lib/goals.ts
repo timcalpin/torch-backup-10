@@ -4,6 +4,17 @@ export interface PillarGoal {
   objective: string;
 }
 
+export interface ApiGoalRecord {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  patient_email: string;
+  category: "body" | "mind" | "recovery" | "life" | string;
+  objective: string;
+  title?: string;
+  updated_at?: string;
+}
+
 export interface ApiGoalsData {
   patient_id: string;
   patient_name: string;
@@ -17,6 +28,8 @@ export interface ApiGoalsData {
   updated_at?: string;
 }
 
+export type ApiGoalsResponse = ApiGoalRecord[] | ApiGoalsData;
+
 /**
  * Get all goals for a specific patient.
  *
@@ -25,8 +38,8 @@ export interface ApiGoalsData {
  */
 export function getPatientGoals(
   patientId: string
-): Promise<ApiGoalsData> {
-  return apiFetch<ApiGoalsData>(
+): Promise<ApiGoalsResponse> {
+  return apiFetch<ApiGoalsResponse>(
     `/api/v1/admin/goals/${patientId}/`
   );
 }
@@ -45,8 +58,8 @@ export function updatePatientGoals(
     spirit: PillarGoal;
     life: PillarGoal;
   }
-): Promise<ApiGoalsData> {
-  return apiFetch<ApiGoalsData>(
+): Promise<ApiGoalsResponse> {
+  return apiFetch<ApiGoalsResponse>(
     `/api/v1/admin/goals/${patientId}/`,
     {
       method: "PUT",

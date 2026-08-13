@@ -39,6 +39,13 @@ export function getTreatmentPlan(id: string): Promise<ApiTreatmentPlan> {
   return apiFetch<ApiTreatmentPlan>(`/api/v1/admin/treatment-plans/${id}/`);
 }
 
+/** Resolve a patient's plan, then load its full detail representation. */
+export async function getTreatmentPlanForPatient(patientId: string): Promise<ApiTreatmentPlan | null> {
+  const response = await listTreatmentPlans();
+  const plan = response.results.find((item) => item.patient === patientId);
+  return plan ? getTreatmentPlan(plan.id) : null;
+}
+
 export function getTreatmentPlanStats(): Promise<TreatmentPlanStats> {
   return apiFetch<TreatmentPlanStats>("/api/v1/admin/treatment-plans/stats/");
 }
