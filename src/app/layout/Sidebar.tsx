@@ -136,6 +136,7 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
             <NavItem to="/treatment-plans" icon={<ClipboardIcon color={iconColor("/treatment-plans")} />} label="Treatment Plans" active={is("/treatment-plans")} lightMode={lightMode} />
             <NavItem to="/intake-scripts" icon={<FileText size={14} strokeWidth={1.7} color={iconColor("/intake-scripts")} />} label="Intake Scripts" active={is("/intake-scripts")} lightMode={lightMode} />
             <NavItem to="/goals" icon={<Target size={14} strokeWidth={1.7} color={iconColor("/goals")} />} label="Goals" active={is("/goals")} lightMode={lightMode} />
+            <NavItem to="/counselors" icon={<UsersNavIcon color={iconColor("/counselors")} />} label="Counselors" active={is("/counselors")} lightMode={lightMode} />
           </NavSection>
 
           <NavSection label="ANALYTICS" lightMode={lightMode}>

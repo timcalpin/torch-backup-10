@@ -61,18 +61,9 @@ export function AddCounselorModal({ onClose }: { onClose: () => void }) {
     <ModalOverlay onClose={onClose}>
       <ModalCard>
         <ModalHeader title="Add Counselor" onClose={onClose} />
-        <div className="flex items-center gap-[16px] mb-[24px]">
-          <div className="relative w-[48px] h-[48px] rounded-[24px] bg-[var(--app-surface)] flex items-center justify-center flex-shrink-0 border border-[var(--app-border)]">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M13 3H17V7M17 3L11 9M4 13V17H8M4 17L10 11" stroke="#8A8073" strokeLinecap="round" strokeWidth="2" />
-            </svg>
-          </div>
-          <div>
-            <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[15px]">New Professional Profile</p>
-            <p className="font-['Figtree'] font-normal text-[var(--app-muted)] text-[13px]">Create a record for an accredited therapist or counselor.</p>
-          </div>
-        </div>
-        <div className="flex flex-col gap-[16px]">
+
+        <div className="flex flex-col gap-[16px] mt-[8px]">
+          {/* FIRST / LAST NAME */}
           <div className="flex gap-[16px] flex-wrap">
             <div className="flex-1 min-w-[180px]">
               <FormField label="First Name" required>
@@ -86,6 +77,7 @@ export function AddCounselorModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
+          {/* EMAIL / PHONE */}
           <div className="flex gap-[16px] flex-wrap">
             <div className="flex-1 min-w-[180px]">
               <FormField label="Email" required>
@@ -99,6 +91,7 @@ export function AddCounselorModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
+          {/* SPECIALIZATION / LICENSE */}
           <div className="flex gap-[16px] flex-wrap">
             <div className="flex-1 min-w-[180px]">
               <FormField label="Specialization">
@@ -121,6 +114,7 @@ export function AddCounselorModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
+          {/* STATUS */}
           <div className="flex gap-[16px] flex-wrap">
             <div className="flex-1 min-w-[180px]">
               <FormField label="Status">
@@ -136,6 +130,7 @@ export function AddCounselorModal({ onClose }: { onClose: () => void }) {
             <div className="flex-1 min-w-[180px]" />
           </div>
 
+          {/* NOTES / CREDENTIALS */}
           <FormField label="Notes / Credentials">
             <TextArea
               placeholder="Specializes in CBT and DBT pathways for substance recovery. Primary point of contact for outpatient crisis assessments."
@@ -146,6 +141,7 @@ export function AddCounselorModal({ onClose }: { onClose: () => void }) {
 
           {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
         </div>
+
         <ModalFooter
           onCancel={onClose}
           onConfirm={handleSubmit}
