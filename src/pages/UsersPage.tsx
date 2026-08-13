@@ -552,7 +552,7 @@ export function UsersPage() {
   const tabs = ["All Users", "Active", "High Risk", "Flagged", "New (7d)"];
 
   return (
-    <div className="flex min-w-0 flex-1 overflow-y-auto bg-[#080808]">
+    <div className="flex min-w-0 flex-1 overflow-y-auto bg-[var(--app-bg)] text-[var(--app-text)] transition-colors duration-200">
       <div className="w-full p-[20px] lg:p-[22px]">
         <div className="flex flex-col gap-[18px]">
           <div className="flex flex-col gap-[12px] xl:flex-row xl:items-end xl:justify-between">
@@ -560,26 +560,26 @@ export function UsersPage() {
               <p className="font-['JetBrains_Mono'] text-[9px] font-bold uppercase tracking-[0.04em] text-[#f37422]">
                 REGISTERED {totalCount.toLocaleString()} · ACTIVE THIS WEEK {stats ? stats.active_this_week.toLocaleString() : "—"}
               </p>
-              <h1 className="mt-[5px] font-['Figtree'] text-[26px] font-bold leading-none text-[#f4ede3]">
+                <h1 className="mt-[5px] font-['Figtree'] text-[26px] font-bold leading-none text-[var(--app-text)]">
                 User Management
               </h1>
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-[8px]">
               <div className="relative w-[220px]">
-                <Search className="pointer-events-none absolute left-[10px] top-1/2 -translate-y-1/2 text-[#756c61]" size={13} />
+                <Search className="pointer-events-none absolute left-[10px] top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} />
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search users..."
-                  className="h-[31px] w-full rounded-[7px] border border-[#2a2724] bg-[#15110e] pl-[29px] pr-[10px] font-['Figtree'] text-[11px] text-[#f4ede3] outline-none placeholder:text-[#756c61] focus:border-[#f37422]"
+                  className="h-[31px] w-full rounded-[7px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] pl-[29px] pr-[10px] font-['Figtree'] text-[11px] text-[var(--app-text)] outline-none placeholder:text-[var(--app-muted)] focus:border-[#f37422]"
                 />
               </div>
-              <button className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[#2a2724] bg-[#15110e] px-[11px] font-['Figtree'] text-[11px] text-[#c4b9aa] hover:border-[#f37422]">
+              <button className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-[11px] font-['Figtree'] text-[11px] text-[var(--app-muted)] hover:border-[#f37422]">
                 <Filter size={12} />
                 Filter
               </button>
-              <button className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[#2a2724] bg-[#15110e] px-[11px] font-['Figtree'] text-[11px] text-[#c4b9aa] hover:border-[#f37422]">
+              <button className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-[11px] font-['Figtree'] text-[11px] text-[var(--app-muted)] hover:border-[#f37422]">
                 <Download size={12} />
                 Export
               </button>
@@ -596,7 +596,7 @@ export function UsersPage() {
           {statsError && <p className="font-['Figtree'] text-[13px] text-red-500">{statsError}</p>}
 
           <div className="grid grid-cols-1 gap-[8px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            <div className="rounded-[9px] border border-[#2a2724] bg-[#15110e] p-[12px]">
+            <div className="rounded-[9px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] p-[12px]">
               <p className="font-['JetBrains_Mono'] text-[8px] uppercase text-[#756c61]">Total Users</p>
               <div className="mt-[8px] flex items-end justify-between">
                 <span className="font-['Figtree'] text-[27px] font-bold text-[#f37422]">{stats ? stats.total_users.toLocaleString() : "—"}</span>
@@ -605,7 +605,7 @@ export function UsersPage() {
               <p className="mt-[3px] font-['JetBrains_Mono'] text-[8px] text-[#6f665c]">Live from server</p>
             </div>
 
-            <div className="rounded-[9px] border border-[#2a2724] bg-[#15110e] p-[12px]">
+            <div className="rounded-[9px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] p-[12px]">
               <p className="font-['JetBrains_Mono'] text-[8px] uppercase text-[#756c61]">Active (7d)</p>
               <div className="mt-[8px] flex items-end justify-between">
                 <span className="font-['Figtree'] text-[27px] font-bold text-[#35d47b]">{stats ? stats.active_this_week.toLocaleString() : "—"}</span>
@@ -614,7 +614,7 @@ export function UsersPage() {
               <p className="mt-[3px] font-['JetBrains_Mono'] text-[8px] text-[#6f665c]">Live from server</p>
             </div>
 
-            <div className="rounded-[9px] border border-[#2a2724] bg-[#15110e] p-[12px]">
+            <div className="rounded-[9px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] p-[12px]">
               <p className="font-['JetBrains_Mono'] text-[8px] uppercase text-[#756c61]">Avg Days Sober</p>
               <div className="mt-[8px] flex items-end justify-between">
                 <span className="font-['Figtree'] text-[27px] font-bold text-[#f4c400]">{avgDaysSober}</span>
@@ -623,7 +623,7 @@ export function UsersPage() {
               <p className="mt-[3px] font-['JetBrains_Mono'] text-[8px] text-[#6f665c]">Current recovery view</p>
             </div>
 
-            <div className="rounded-[9px] border border-[#2a2724] bg-[#15110e] p-[12px]">
+            <div className="rounded-[9px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] p-[12px]">
               <p className="font-['JetBrains_Mono'] text-[8px] uppercase text-[#756c61]">High Risk Alerts</p>
               <div className="mt-[8px] flex items-end justify-between">
                 <span className="font-['Figtree'] text-[27px] font-bold text-[#ef4444]">{highRiskAlerts}</span>
@@ -632,7 +632,7 @@ export function UsersPage() {
               <p className="mt-[3px] font-['JetBrains_Mono'] text-[8px] text-[#6f665c]">Needs review</p>
             </div>
 
-            <div className="rounded-[9px] border border-[#2a2724] bg-[#15110e] p-[12px]">
+            <div className="rounded-[9px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] p-[12px]">
               <p className="font-['JetBrains_Mono'] text-[8px] uppercase text-[#756c61]">Check-In Rate</p>
               <div className="mt-[8px] flex items-end justify-between">
                 <span className="font-['Figtree'] text-[27px] font-bold text-[#6b8ab0]">{checkInRate}%</span>
@@ -642,8 +642,8 @@ export function UsersPage() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[10px] border border-[#2a2724] bg-[#15110e]">
-            <div className="flex flex-col border-b border-[#2a2724] lg:flex-row lg:items-center lg:justify-between">
+          <div className="overflow-hidden rounded-[10px] border border-[var(--app-border-strong)] bg-[var(--app-surface)]">
+            <div className="flex flex-col border-b border-[var(--app-border-strong)] lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-[2px] overflow-x-auto px-[10px] py-[8px]">
                 {tabs.map((tab) => (
                   <button
@@ -652,7 +652,7 @@ export function UsersPage() {
                     className={`whitespace-nowrap rounded-[6px] px-[10px] py-[5px] font-['Figtree'] text-[10px] transition-colors ${
                       activeTab === tab
                         ? "bg-[rgba(243,116,34,0.12)] font-bold text-[#f37422]"
-                        : "text-[#8b8174] hover:bg-[#1d1916] hover:text-[#f4ede3]"
+                        : "text-[var(--app-muted)] hover:bg-[var(--app-hover)] hover:text-[var(--app-text)]"
                     }`}
                   >
                     {tab}
@@ -664,7 +664,7 @@ export function UsersPage() {
                 <span className="rounded-full border border-[#7b3f00] bg-[rgba(243,116,34,0.05)] px-[8px] py-[4px] font-['JetBrains_Mono'] text-[8px] font-bold text-[#f37422]">
                   SUPER ADMIN · JUST ONLY
                 </span>
-                <button className="flex items-center gap-[5px] rounded-[6px] border border-[#2a2724] px-[8px] py-[4px] font-['Figtree'] text-[9px] text-[#8b8174]">
+                <button className="flex items-center gap-[5px] rounded-[6px] border border-[var(--app-border-strong)] px-[8px] py-[4px] font-['Figtree'] text-[9px] text-[var(--app-muted)]">
                   Sort by: Risk
                   <ChevronDown size={10} />
                 </button>
@@ -673,7 +673,7 @@ export function UsersPage() {
 
             <div className="overflow-x-auto">
               <div className="min-w-[980px]">
-                <div className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px] items-center border-b border-[#2a2724] px-[13px] py-[9px]">
+                <div className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px] items-center border-b border-[var(--app-border-strong)] px-[13px] py-[9px]">
                   {[
                     "USER",
                     "DAYS SOBER",
@@ -696,19 +696,19 @@ export function UsersPage() {
                 {!loading && !error && filtered.length === 0 && <div className="px-[15px] py-[28px] font-['Figtree'] text-center font-['Figtree'] text-[13px] text-[#756c61]">No users found.</div>}
 
                 {!loading && !error && filtered.map(({ user: u, extras }) => (
-                  <div key={u.id} className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px] items-center border-b border-[#211e1b] px-[13px] py-[9px] transition-colors hover:bg-[#191512]">
+                  <div key={u.id} className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px] items-center border-b border-[var(--app-border-soft)] px-[13px] py-[9px] transition-colors hover:bg-[var(--app-hover)]">
                     <div className="flex min-w-0 items-center gap-[9px]">
-                      <div className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full bg-[#2b2722] font-['Figtree'] text-[10px] font-bold text-[#9b9185]">
+                      <div className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full bg-[var(--app-hover)] font-['Figtree'] text-[10px] font-bold text-[var(--app-muted)]">
                         {u.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate font-['Figtree'] text-[11px] font-semibold leading-tight text-[#f4ede3]">{u.name}</p>
-                        <p className="truncate font-['JetBrains_Mono'] text-[8px] leading-tight text-[#756c61]">{u.email}</p>
+                        <p className="truncate font-['Figtree'] text-[11px] font-semibold leading-tight text-[var(--app-text)]">{u.name}</p>
+                        <p className="truncate font-['JetBrains_Mono'] text-[8px] leading-tight text-[var(--app-muted)]">{u.email}</p>
                       </div>
                     </div>
 
                     <div className="font-['JetBrains_Mono'] text-[10px] font-bold text-[#f37422]">{u.sobriety}</div>
-                    <div className="font-['JetBrains_Mono'] text-[10px] font-bold text-[#f4ede3]">{extras.streak}{extras.streak > 10 && <span className="ml-[3px] text-[#f37422]">•</span>}</div>
+                    <div className="font-['JetBrains_Mono'] text-[10px] font-bold text-[var(--app-text)]">{extras.streak}{extras.streak > 10 && <span className="ml-[3px] text-[#f37422]">•</span>}</div>
                     <CheckInBar rate={extras.checkInRate} />
                     <RiskPill risk={extras.risk} />
                     <span className="font-['Figtree'] text-[9px] text-[#8b8174]">{extras.lastActive}</span>
@@ -726,7 +726,7 @@ export function UsersPage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-[8px] border-t border-[#2a2724] px-[13px] py-[10px] sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-[8px] border-t border-[var(--app-border-strong)] px-[13px] py-[10px] sm:flex-row sm:items-center sm:justify-between">
               <span className="font-['JetBrains_Mono'] text-[8px] text-[#756c61]">
                 Showing {startItem}–{endItem} of {totalCount.toLocaleString()} users
               </span>
@@ -735,7 +735,7 @@ export function UsersPage() {
                   type="button"
                   onClick={() => setPage((p) => Math.max(p - 1, 1))}
                   disabled={!hasPrev || loading}
-                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[#2a2724] text-[#756c61] hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
+                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[var(--app-border-strong)] text-[var(--app-muted)] hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   <ChevronLeft size={12} />
                 </button>
@@ -745,7 +745,7 @@ export function UsersPage() {
                   type="button"
                   onClick={() => setPage((p) => p + 1)}
                   disabled={!hasNext || loading}
-                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[#2a2724] text-[#756c61] hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
+                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[var(--app-border-strong)] text-[var(--app-muted)] hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   <ChevronRight size={12} />
                 </button>

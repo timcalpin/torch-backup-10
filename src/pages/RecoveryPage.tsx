@@ -41,7 +41,7 @@ function Metric({
   orange?: boolean;
 }) {
   return (
-    <div className="rounded-[6px] border border-[var(--app-border)] bg-[#090909] px-[10px] py-[10px]">
+    <div className="rounded-[6px] border border-[var(--app-border)] bg-[var(--app-surface)] px-[10px] py-[10px]">
       <p className="font-['JetBrains_Mono'] text-[7px] uppercase text-[var(--app-muted)]">
         {label}
       </p>
@@ -265,7 +265,7 @@ export function RecoveryPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-full flex-1 items-center justify-center bg-[#070707] text-[var(--app-muted)]">
+      <div className="flex min-h-full flex-1 items-center justify-center bg-[var(--app-bg)] text-[var(--app-muted)]">
         <span className="font-['JetBrains_Mono'] text-[10px] uppercase">
           Loading recovery profile...
         </span>
@@ -275,7 +275,7 @@ export function RecoveryPage() {
 
   if (error || !user) {
     return (
-      <div className="flex min-h-full flex-1 items-center justify-center bg-[#070707] text-[#ef4444]">
+      <div className="flex min-h-full flex-1 items-center justify-center bg-[var(--app-bg)] text-[#ef4444]">
         <span className="font-['JetBrains_Mono'] text-[10px] uppercase">
           {error || "Unable to load recovery profile."}
         </span>
@@ -293,7 +293,7 @@ export function RecoveryPage() {
   const relapseScore = user.relapse_spectrum?.score ?? null;
 
   return (
-    <div className="min-h-full flex-1 overflow-y-auto bg-[#070707] text-[var(--app-text)]">
+    <div className="min-h-full flex-1 overflow-y-auto bg-[var(--app-bg)] text-[var(--app-text)] transition-colors duration-200">
       <div className="flex max-w-[1400px] flex-col gap-[14px] p-[16px] lg:p-[18px]">
         <header>
           <div className="flex min-h-[62px] items-center justify-between">
@@ -325,14 +325,14 @@ export function RecoveryPage() {
         </header>
 
         <section className="grid gap-[8px] lg:grid-cols-[minmax(0,1fr)_285px]">
-          <div className="rounded-lg border border-[#F4EDE314] bg-[#15110E] p-[17px]">
+          <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-[17px]">
             <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-[15px]">
               <div className="flex items-center gap-[13px]">
-                <div className="flex h-[45px] w-[45px] items-center justify-center rounded-[13px] bg-[#2a2824] font-['Figtree'] text-[14px] font-bold text-[#a69e92]">
+                <div className="flex h-[45px] w-[45px] items-center justify-center rounded-[13px] bg-[var(--app-hover)] font-['Figtree'] text-[14px] font-bold text-[var(--app-muted)]">
                   {initials}
                 </div>
                 <div>
-                  <p className="font-['Figtree'] text-[14px] font-bold text-[#f4ede3]">
+                  <p className="font-['Figtree'] text-[14px] font-bold text-[var(--app-text)]">
                     {user.full_name}
                   </p>
                   <p className="mt-[3px] font-['JetBrains_Mono'] text-[8px] text-[var(--app-muted)]">
@@ -358,28 +358,28 @@ export function RecoveryPage() {
             <div className="mt-[15px] grid gap-[7px] sm:grid-cols-2">
               <div className="flex justify-between text-[10px] sm:justify-start sm:gap-[12px]">
                 <span className="text-[var(--app-muted)]">Sobriety Date</span>
-                <b className="font-medium text-[#f4ede3]">
+                <b className="font-medium text-[var(--app-text)]">
                   {user.sobriety_date || "—"}
                 </b>
               </div>
 
               <div className="flex justify-between text-[10px] sm:justify-end sm:gap-[12px]">
                 <span className="text-[var(--app-muted)]">Counselor</span>
-                <b className="font-medium text-[#f4ede3]">
+                <b className="font-medium text-[var(--app-text)]">
                   {user.counselor || "Unassigned"}
                 </b>
               </div>
 
               <div className="flex justify-between text-[10px] sm:justify-start sm:gap-[12px]">
                 <span className="text-[var(--app-muted)]">Session Mode</span>
-                <b className="font-medium text-[#f4ede3]">
+                <b className="font-medium text-[var(--app-text)]">
                   {user.session_mode || "—"}
                 </b>
               </div>
             </div>
           </div>
 
-          <div className="rounded-lg border border-[#F4EDE314] bg-[#15110E]">
+          <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)]">
             <Gauge score={relapseScore} />
           </div>
         </section>
@@ -400,7 +400,7 @@ export function RecoveryPage() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-[#F4EDE314] bg-[#15110E]">
+        <section className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)]">
           <div className="flex items-center justify-between border-b border-[var(--app-border)] px-[17px] py-[14px]">
             <h2 className="font-['Figtree'] text-[13px] font-bold">
               Recent Check-Ins (Last 7 Days)
