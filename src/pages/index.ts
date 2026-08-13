@@ -12,4 +12,5 @@ export { SettingsPage } from "./SettingsPage";
 export { PlaceholderPage } from "./PlaceholderPage";
 export { ProfilePage } from "./ProfilePage";
 export { LoginPage } from "./LoginPage";
+export { GoalsPage } from "./GoalsPage"; // 1. Added Export
 export { RecoveryPage } from "./RecoveryPage";

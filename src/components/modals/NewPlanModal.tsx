@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter } from "@/components/common/Modal";
 import { FormField, TextInput, TextArea, SelectInput } from "@/components/common/FormFields";
 import { ApiError } from "@/lib/api";
-import { TREATMENT_PLAN_STATUSES, createTreatmentPlan, type TreatmentPlanStatus } from "@/lib/treatmentPlans";
+import { TREATMENT_PLAN_STATUSES, createTreatmentPlan,  EMPTY_TREATMENT_PLAN_STRUCTURE, type TreatmentPlanStatus } from "@/lib/treatmentPlans";
 import { listUsers, type ApiUser } from "@/lib/users";
 import { listCounselors, counselorDisplayName, type ApiCounselor } from "@/lib/counselors";
 import { buildUniqueOptions } from "@/lib/selectOptions";
@@ -62,15 +62,21 @@ export function NewPlanModal({ onClose }: { onClose: () => void }) {
     try {
       const patient = patientChoices.find((o) => o.label === patientLabel)?.id ?? null;
       const counselor = counselorChoices.find((o) => o.label === counselorLabel)?.id ?? null;
-      await createTreatmentPlan({
+      const initialStructure = {
+  ...EMPTY_TREATMENT_PLAN_STRUCTURE,
+  clientOverview: goals.trim(),
+};
+
+      const createdPlan = await createTreatmentPlan({
         title: title.trim(),
         patient,
         counselor,
         start_date: startDate || null,
         duration,
-        goals_and_milestones: goals.trim(),
+        goals_and_milestones: JSON.stringify(initialStructure),
         status,
       });
+      
       bumpTreatmentPlansVersion();
       onClose();
     } catch (err) {

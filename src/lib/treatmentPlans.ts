@@ -11,6 +11,7 @@ export interface ApiTreatmentPlan {
   title: string | null;
   patient: string | null;
   patient_name: string | null;
+  patient_email: string | null;
   counselor: string | null;
   counselor_name: string | null;
   start_date: string | null;
@@ -36,6 +37,13 @@ export function listTreatmentPlans(): Promise<PaginatedResponse<ApiTreatmentPlan
 
 export function getTreatmentPlan(id: string): Promise<ApiTreatmentPlan> {
   return apiFetch<ApiTreatmentPlan>(`/api/v1/admin/treatment-plans/${id}/`);
+}
+
+/** Resolve a patient's plan, then load its full detail representation. */
+export async function getTreatmentPlanForPatient(patientId: string): Promise<ApiTreatmentPlan | null> {
+  const response = await listTreatmentPlans();
+  const plan = response.results.find((item) => item.patient === patientId);
+  return plan ? getTreatmentPlan(plan.id) : null;
 }
 
 export function getTreatmentPlanStats(): Promise<TreatmentPlanStats> {
@@ -72,3 +80,36 @@ export function deleteTreatmentPlan(id: string): Promise<void> {
     method: "DELETE",
   });
 }
+
+export interface PillarData {
+  objective: string;
+  actions: string[];
+}
+
+export interface TreatmentPlanStructure {
+  clientOverview: string;
+  body: PillarData;
+  mind: PillarData;
+  spirit: PillarData;
+  life: PillarData;
+}
+
+export const EMPTY_TREATMENT_PLAN_STRUCTURE: TreatmentPlanStructure = {
+  clientOverview: "",
+  body: {
+    objective: "",
+    actions: [""],
+  },
+  mind: {
+    objective: "",
+    actions: [""],
+  },
+  spirit: {
+    objective: "",
+    actions: [""],
+  },
+  life: {
+    objective: "",
+    actions: [""],
+  },
+};
