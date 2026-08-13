@@ -305,7 +305,8 @@ export function ResourcesAppPage() {
     literatureVersion,
     bumpLiteratureVersion,
   } = useAppContext();
-  const [activeTab, setActiveTab] = useState("All");
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeStatus, setActiveStatus] = useState("All");
   const [editContentItem, setEditContentItem] = useState<ApiContentItem | null>(null);
   const [editLiteratureItem, setEditLiteratureItem] = useState<ApiLiterature | null>(null);
 
@@ -363,10 +364,44 @@ export function ResourcesAppPage() {
     };
   }, [literatureVersion]);
 
-  const isLiterature = activeTab === "Literature";
-  const filteredContent = isLiterature
-    ? []
-    : content.filter((c) => activeTab === "All" || toTitleCase(c.content_type) === activeTab);
+  const categoryCounts: Record<string, number> = {
+    All: content.length + literature.length,
+    Audio: content.filter((item) => toTitleCase(item.content_type) === "Audio").length,
+    Video: content.filter((item) => toTitleCase(item.content_type) === "Video").length,
+    Podcast: content.filter((item) => toTitleCase(item.content_type) === "Podcast").length,
+    Meditation: content.filter((item) => toTitleCase(item.content_type) === "Meditation").length,
+    Text: content.filter((item) => toTitleCase(item.content_type) === "Text").length,
+    Literature: literature.length,
+  };
+
+  const matchesStatus = (item: ApiContentItem) => {
+    if (activeStatus === "All") return true;
+    if (activeStatus === "Featured") return item.is_featured;
+    if (activeStatus === "Draft") return item.status === "draft";
+    if (activeStatus === "Review") return item.status === "review";
+    if (activeStatus === "Archived") return item.status === "archived";
+    if (activeStatus === "New") {
+      const createdAt = new Date(item.created_at).getTime();
+      return createdAt >= Date.now() - 7 * 24 * 60 * 60 * 1000;
+    }
+    return true;
+  };
+
+  const isLiterature = activeCategory === "Literature";
+  const filteredContent = content.filter((item) => {
+    const categoryMatches = activeCategory === "All" || toTitleCase(item.content_type) === activeCategory;
+    return categoryMatches && matchesStatus(item);
+  });
+
+  const filteredLiterature = literature.filter((item) => {
+    if (activeStatus === "All") return true;
+    if (activeStatus === "Featured") return item.is_featured;
+    if (activeStatus === "New") {
+      const createdAt = new Date(item.created_at).getTime();
+      return createdAt >= Date.now() - 7 * 24 * 60 * 60 * 1000;
+    }
+    return true;
+  });
 
   const handleToggleContentFeatured = async (item: ApiContentItem) => {
     setActionError(null);
@@ -433,32 +468,58 @@ export function ResourcesAppPage() {
           <MetricCard label="PUBLISHED" value={stats ? String(stats.published_count) : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#facc15" />
         </div>
 
-        <TableCard>
-          <div className="px-[18px] py-[12px] border-b border-[var(--app-border)]">
-            <div className="flex items-center gap-[4px] flex-wrap">
-              {CONTENT_TABS.map((t) => (
+        <div className="rounded-[10px] border border-[var(--app-border)] bg-[var(--app-surface)] p-[6px]">
+          <div className="grid grid-cols-2 gap-[4px] sm:grid-cols-4 lg:grid-cols-7">
+            {CONTENT_TABS.map((tab) => {
+              const active = activeCategory === tab;
+              const count = categoryCounts[tab] ?? 0;
+
+              return (
                 <button
-                  key={t}
-                  onClick={() => setActiveTab(t)}
-                  className={`flex items-center gap-[6px] px-[12px] py-[6px] rounded-[8px] font-['Figtree'] text-[12px] cursor-pointer transition-all ${
-                    activeTab === t
-                      ? "bg-[rgba(243,116,34,0.15)] text-[#f37422] font-bold border border-[rgba(243,116,34,0.3)]"
-                      : "text-[var(--app-muted)] font-medium border border-transparent hover:text-[var(--app-text)]"
+                  key={tab}
+                  onClick={() => setActiveCategory(tab)}
+                  className={`flex items-center justify-center gap-[6px] rounded-[8px] px-[10px] py-[8px] font-['Figtree'] text-[11px] font-medium transition-all cursor-pointer ${
+                    active
+                      ? "bg-[#f37422] text-white shadow-[0_2px_8px_rgba(243,116,34,0.25)]"
+                      : "text-[var(--app-muted)] hover:bg-[rgba(255,255,255,0.03)] hover:text-[var(--app-text)]"
                   }`}
                 >
-                  {t === "Audio" && <MicIcon color={activeTab === t ? "#f37422" : "#8a8073"} />}
-                  {t === "Video" && <VideoIcon color={activeTab === t ? "#f37422" : "#8a8073"} />}
-                  {t === "Literature" && <BookIcon color={activeTab === t ? "#f37422" : "#8a8073"} />}
-                  {t}
-                  {(t === "All" || t === "Literature") && (
-                    <span className={`font-['JetBrains_Mono'] font-bold text-[9px] px-[5px] py-[2px] rounded-[4px] ${activeTab === t ? "bg-[rgba(243,116,34,0.15)] text-[#f37422]" : "bg-[rgba(138,128,115,0.1)] text-[var(--app-muted)]"}`}>
-                    {t === "All" ? content.length : literature.length}
-                    </span>
-                  )}
+                  <span>{tab}</span>
+                  <span className={`rounded-[4px] px-[5px] py-[2px] font-['JetBrains_Mono'] text-[8px] font-bold ${active ? "bg-[rgba(255,255,255,0.15)] text-white" : "bg-[rgba(138,128,115,0.1)] text-[var(--app-muted)]"}`}>
+                    {count}
+                  </span>
                 </button>
-              ))}
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-[10px] border border-[var(--app-border)] bg-[var(--app-surface)]">
+          <div className="flex items-center gap-[18px] overflow-x-auto px-[14px] py-[10px]">
+            <button
+              onClick={() => setActiveStatus("All")}
+              className={`whitespace-nowrap font-['Figtree'] text-[11px] font-semibold cursor-pointer ${activeStatus === "All" ? "text-[var(--app-text)]" : "text-[var(--app-muted)] hover:text-[var(--app-text)]"}`}
+            >
+              All Content
+            </button>
+            {["All", "Featured", "New", "Draft", "Review", "Archived"].map((status) => (
+              <button
+                key={status}
+                onClick={() => setActiveStatus(status)}
+                className={`whitespace-nowrap font-['Figtree'] text-[10px] font-medium cursor-pointer transition-colors ${activeStatus === status ? "text-[#f37422]" : "text-[var(--app-muted)] hover:text-[var(--app-text)]"}`}
+              >
+                {status}
+              </button>
+            ))}
+            <div className="ml-auto flex-shrink-0">
+              <button className="rounded-[6px] border border-[var(--app-border)] bg-[rgba(255,255,255,0.02)] px-[8px] py-[5px] font-['Figtree'] text-[9px] text-[var(--app-muted)] cursor-pointer">
+                Sort by: Plays ↓
+              </button>
             </div>
           </div>
+        </div>
+
+        <TableCard>
 
           {!isLiterature ? (
             <div className="overflow-x-auto">
@@ -540,7 +601,7 @@ export function ResourcesAppPage() {
                     <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">Loading literature...</p>
                   </div>
                 )}
-                {!literatureLoading && literature.map((item) => (
+                {!literatureLoading && filteredLiterature.map((item) => (
                   <TableRow key={item.id}>
                     <div className="flex items-center gap-[10px] flex-1 min-w-[220px]">
                       <div className="w-[32px] h-[32px] rounded-full bg-[rgba(183,163,110,0.2)] flex items-center justify-center flex-shrink-0">
@@ -567,7 +628,7 @@ export function ResourcesAppPage() {
                     </div>
                   </TableRow>
                 ))}
-                {!literatureLoading && literature.length === 0 && (
+                {!literatureLoading && filteredLiterature.length === 0 && (
                   <div className="py-[48px] text-center">
                     <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">No literature uploaded yet.</p>
                   </div>

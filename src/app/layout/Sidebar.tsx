@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Lightbulb, SlidersHorizontal, FileText } from "lucide-react";
+import { Lightbulb, SlidersHorizontal, FileText, UserIcon } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   TorchFlame,
@@ -130,6 +130,7 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
         <div className="px-[16px] flex flex-col gap-[24px] pb-4">
           <NavSection label="MANAGEMENT" lightMode={lightMode}>
             <NavItem to="/users" icon={<UsersNavIcon color={iconColor("/users")} />} label="Users" badge={usersCount ?? undefined} active={is("/users")} lightMode={lightMode} />
+            <NavItem to="/recovery" icon={<UserIcon color={iconColor("/recovery")} size={16} />} label="Recovery" active={is("/recovery")} lightMode={lightMode} />
             <NavItem to="/support-groups" icon={<MessageCircleIcon color={iconColor("/support-groups")} />} label="Support Groups" badge={groupsCount ?? undefined} active={is("/support-groups")} lightMode={lightMode} />
             <NavItem to="/resources/real-world" icon={<CalendarIcon color={iconColor("/resources/real-world")} />} label="Real World Resources" active={is("/resources/real-world")} lightMode={lightMode} />
             <NavItem to="/resources/in-app" icon={<FileIcon color={iconColor("/resources/in-app")} />} label="In-App Resources" active={is("/resources/in-app")} lightMode={lightMode} />

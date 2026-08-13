@@ -12,3 +12,4 @@ export { SettingsPage } from "./SettingsPage";
 export { PlaceholderPage } from "./PlaceholderPage";
 export { ProfilePage } from "./ProfilePage";
 export { LoginPage } from "./LoginPage";
+export { RecoveryPage } from "./RecoveryPage";

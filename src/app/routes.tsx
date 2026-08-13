@@ -15,7 +15,8 @@ export type AppPageKey =
   | "insights"
   | "settings"
   | "privacy"
-  | "profile";
+  | "profile"
+  | "recovery";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { authenticated } = useAppContext();
@@ -68,6 +69,7 @@ export function createAppRouter({ AdminLayout, LoginPage, renderPage }: RouterOp
         { path: "settings", element: <PageRoute pageKey="settings" renderPage={renderPage} /> },
         { path: "privacy", element: <PageRoute pageKey="privacy" renderPage={renderPage} /> },
         { path: "profile", element: <PageRoute pageKey="profile" renderPage={renderPage} /> },
+        { path: "recovery/:userId", element: <PageRoute pageKey="recovery" renderPage={renderPage} /> }
       ],
     },
     {

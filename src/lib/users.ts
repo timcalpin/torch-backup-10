@@ -26,9 +26,46 @@ export interface ApiUser {
   created_at: string;
 }
 
+export interface CreateUserResponse {
+  user: ApiUser;  
+  temporary_password: string;
+}
+
+export interface CreateUserResponse {
+  user: ApiUser;  
+  temporary_password: string;
+}
+
+export interface Recoveryuser {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  counselor: string | null;
+  is_active: boolean;
+  is_staff: boolean;
+  is_superuser: boolean;
+  created_at: string;
+  days_sober: number;
+  sobriety_date: string | null;
+  session_mode: string | null;
+  relapse_spectrum: {
+    score: number;
+    score_date: string;
+  } | null;
+  checkins: {
+    id: string;
+    date: string;
+    type: string;
+    mood: string | null;
+    score: number;
+    status: string;
+  }[];
+}
+
 export function listUsers(page: number = 1): Promise<PaginatedResponse<ApiUser>> {
   return apiFetch<PaginatedResponse<ApiUser>>(`/api/v1/admin/users/?page=${page}`);
-}
+}  
 
 export function getUser(id: string): Promise<ApiUser> {
   return apiFetch<ApiUser>(`/api/v1/admin/users/${id}/`);
@@ -44,6 +81,10 @@ export function getUserStats(): Promise<UserStats> {
   return apiFetch<UserStats>("/api/v1/admin/users/stats/");
 }
 
+export function getUsersdetails(id: string): Promise<Recoveryuser> {
+  return apiFetch<Recoveryuser>(`/api/v1/admin/users/views/${id}/`);
+}
+
 export interface CreateUserPayload {
   email: string;
   full_name: string;
@@ -56,8 +97,10 @@ export interface CreateUserPayload {
   primary_substance?: string | null;
 }
 
-export function createUser(payload: CreateUserPayload): Promise<ApiUser> {
-  return apiFetch<ApiUser>("/api/v1/admin/users/", {
+export function createUser(
+  payload: CreateUserPayload
+): Promise<CreateUserResponse> {
+  return apiFetch<CreateUserResponse>("/api/v1/admin/users/", {
     method: "POST",
     body: JSON.stringify(payload),
   });

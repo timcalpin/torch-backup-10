@@ -3,7 +3,6 @@ import { useAppContext } from "@/app/app-context";
 import { Sidebar } from "./Sidebar";
 import {
   CreateGroupModal,
-  CreateEventModal,
   AddUserModal,
   AddCounselorModal,
   NewPlanModal,
@@ -23,7 +22,6 @@ export function AppLayout() {
       <Outlet />
 
       {modal === "create-group"    && <CreateGroupModal onClose={close} />}
-      {modal === "create-event"    && <CreateEventModal onClose={close} />}
       {modal === "add-user"        && <AddUserModal onClose={close} />}
       {modal === "add-counselor"   && <AddCounselorModal onClose={close} />}
       {modal === "new-plan"        && <NewPlanModal onClose={close} />}

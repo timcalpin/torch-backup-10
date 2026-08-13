@@ -16,13 +16,17 @@ import {
   PlaceholderPage,
   ProfilePage,
   LoginPage,
+  RecoveryPage,
 } from "../pages";
 import { RouterProvider } from "react-router-dom";
 
-function renderPage(pageKey: AppPageKey) {
+
+
+function renderPage(pageKey: AppPageKey) { 
   switch (pageKey) {
     case "support-groups":   return <SupportGroupsPage />;
     case "users":            return <UsersPage />;
+    case "recovery":         return <RecoveryPage />;
     case "counselors":       return <CounselorsPage />;
     case "treatment-plans":  return <TreatmentPlansPage />;
     case "resources-app":    return <ResourcesAppPage />;
