@@ -5,10 +5,14 @@ import { getUsersdetails } from "@/lib/users";
 import type { Recoveryuser } from "@/types/users";
 
 const moodClasses: Record<string, string> = {
-  ELEVATED: "border-[#f37422] text-[#f37422] bg-[rgba(243,116,34,0.08)]",
-  GOOD: "border-[#4ade80] text-[#4ade80] bg-[rgba(74,222,128,0.08)]",
-  STABLE: "border-[#facc15] text-[#facc15] bg-[rgba(250,204,21,0.08)]",
-  "LOW URGE": "border-[#4ade80] text-[#4ade80] bg-[rgba(74,222,128,0.08)]",
+  ELEVATED:
+    "border-[#f37422] text-[#f37422] bg-[rgba(243,116,34,0.08)]",
+  GOOD:
+    "border-[#4ade80] text-[#4ade80] bg-[rgba(74,222,128,0.08)]",
+  STABLE:
+    "border-[#facc15] text-[#facc15] bg-[rgba(250,204,21,0.08)]",
+  "LOW URGE":
+    "border-[#4ade80] text-[#4ade80] bg-[rgba(74,222,128,0.08)]",
 };
 
 function Pill({
@@ -20,7 +24,7 @@ function Pill({
 }) {
   return (
     <span
-      className={`rounded-full border px-[9px] py-[3px] font-['JetBrains_Mono'] text-[8px] font-bold ${
+      className={`rounded-full border px-[10px] py-[4px] font-['JetBrains_Mono'] text-[10px] font-bold ${
         orange
           ? "border-[#f37422] text-[#f37422]"
           : "border-[#4ade80] text-[#4ade80]"
@@ -41,13 +45,16 @@ function Metric({
   orange?: boolean;
 }) {
   return (
-    <div className="rounded-[6px] border border-[var(--app-border)] bg-[var(--app-surface)] px-[10px] py-[10px]">
-      <p className="font-['JetBrains_Mono'] text-[7px] uppercase text-[var(--app-muted)]">
+    <div className="rounded-[8px] border border-[var(--app-border)] bg-[var(--app-surface)] px-[14px] py-[13px]">
+      <p className="font-['JetBrains_Mono'] text-[10px] uppercase tracking-wider text-[var(--app-muted)]">
         {label}
       </p>
+
       <p
-        className={`mt-[5px] font-['Figtree'] text-[21px] font-bold leading-none ${
-          orange ? "text-[#f37422]" : "text-[var(--app-text)]"
+        className={`mt-[7px] font-['Figtree'] text-[28px] font-bold leading-none ${
+          orange
+            ? "text-[#f37422]"
+            : "text-[var(--app-text)]"
         }`}
       >
         {value}
@@ -66,21 +73,30 @@ function ScoreCard({
   dot: string;
 }) {
   return (
-    <div className="relative flex-1 rounded-[10px] border border-[var(--app-border)] bg-[var(--app-surface)] px-[13px] py-[12px]">
-      <div className="flex justify-between">
-        <span className="font-['JetBrains_Mono'] text-[7px] uppercase text-[var(--app-muted)]">
+    <div className="relative flex-1 rounded-[10px] border border-[var(--app-border)] bg-[var(--app-surface)] px-[17px] py-[15px]">
+      <div className="flex justify-between items-center">
+        <span className="font-['JetBrains_Mono'] text-[10px] uppercase tracking-wider text-[var(--app-muted)]">
           {label}
         </span>
-        <span className={`h-[7px] w-[7px] rounded-full ${dot}`} />
+
+        <span
+          className={`h-[8px] w-[8px] rounded-full ${dot}`}
+        />
       </div>
-      <div className="mt-[12px] flex items-end justify-between">
-        <span className="font-['Figtree'] text-[22px] font-bold text-[var(--app-text)]">
+
+      <div className="mt-[14px] flex items-end justify-between">
+        <span className="font-['Figtree'] text-[28px] font-bold leading-none text-[var(--app-text)]">
           {value}
-          <small className="ml-[2px] text-[9px] font-normal text-[var(--app-muted)]">
+
+          <small className="ml-[3px] text-[12px] font-normal text-[var(--app-muted)]">
             /10
           </small>
         </span>
-        <svg viewBox="0 0 50 22" className="h-[22px] w-[50px]">
+
+        <svg
+          viewBox="0 0 50 22"
+          className="h-[22px] w-[50px]"
+        >
           <polyline
             points="1,19 12,14 23,5 34,10 44,3 50,5"
             fill="none"
@@ -108,33 +124,66 @@ function getSpectrumColor(score: number | null) {
 }
 
 function Gauge({ score }: { score: number | null }) {
-  const safeScore = score === null ? 0 : Math.min(100, Math.max(0, score));
+  const safeScore =
+    score === null
+      ? 0
+      : Math.min(100, Math.max(0, score));
+
   const arcLength = 173;
-  const filledLength = (safeScore / 100) * arcLength;
-  const spectrumLabel = getSpectrumLabel(score);
-  const spectrumColor = getSpectrumColor(score);
+  const filledLength =
+    (safeScore / 100) * arcLength;
+
+  const spectrumLabel =
+    getSpectrumLabel(score);
+
+  const spectrumColor =
+    getSpectrumColor(score);
 
   return (
-    <div className="flex h-full flex-col items-center justify-between px-[18px] py-[17px]">
+    <div className="flex h-full flex-col items-center justify-between px-[22px] py-[20px]">
+
       <div className="flex w-full justify-between">
-        <span className="font-['JetBrains_Mono'] text-[7px] uppercase text-[var(--app-muted)]">
-          Relapse spectrum
+        <span className="font-['JetBrains_Mono'] text-[10px] uppercase tracking-wider text-[var(--app-muted)]">
+          Relapse Spectrum
         </span>
+
         <span
-          className="font-['JetBrains_Mono'] text-[7px] font-bold"
-          style={{ color: spectrumColor }}
+          className="font-['JetBrains_Mono'] text-[10px] font-bold"
+          style={{
+            color: spectrumColor,
+          }}
         >
-          {score !== null ? `${Math.round(score)}/100` : "—"}
+          {score !== null
+            ? `${Math.round(score)}/100`
+            : "—"}
         </span>
       </div>
 
-      <div className="relative h-[120px] w-[170px]">
-        <svg viewBox="0 0 170 105" className="h-full w-full">
+      <div className="relative h-[150px] w-[210px]">
+        <svg
+          viewBox="0 0 170 105"
+          className="h-full w-full"
+        >
           <defs>
-            <linearGradient id="recoveryGauge" x1="0%" x2="100%">
-              <stop offset="0%" stopColor="#ef4444" />
-              <stop offset="55%" stopColor="#f59e0b" />
-              <stop offset="100%" stopColor="#4ade80" />
+            <linearGradient
+              id="recoveryGauge"
+              x1="0%"
+              x2="100%"
+            >
+              <stop
+                offset="0%"
+                stopColor="#ef4444"
+              />
+
+              <stop
+                offset="55%"
+                stopColor="#f59e0b"
+              />
+
+              <stop
+                offset="100%"
+                stopColor="#4ade80"
+              />
             </linearGradient>
           </defs>
 
@@ -156,22 +205,29 @@ function Gauge({ score }: { score: number | null }) {
           />
         </svg>
 
-        <div className="absolute inset-x-0 bottom-[7px] text-center">
-          <div className="font-['Figtree'] text-[28px] font-bold leading-none text-[var(--app-text)]">
-            {score !== null ? Math.round(score) : "—"}
+        <div className="absolute inset-x-0 bottom-[8px] text-center">
+
+          <div className="font-['Figtree'] text-[36px] font-bold leading-none text-[var(--app-text)]">
+            {score !== null
+              ? Math.round(score)
+              : "—"}
           </div>
+
           <div
-            className="mt-[3px] font-['JetBrains_Mono'] text-[7px] font-bold uppercase"
-            style={{ color: spectrumColor }}
+            className="mt-[5px] font-['JetBrains_Mono'] text-[10px] font-bold uppercase tracking-wider"
+            style={{
+              color: spectrumColor,
+            }}
           >
             {spectrumLabel}
           </div>
+
         </div>
       </div>
 
-      <p className="max-w-[235px] text-center font-['Figtree'] text-[9px] leading-[1.45] text-[var(--app-muted)]">
-        Higher scores imply increased vulnerability. Immediate counseling
-        check-in advised.
+      <p className="max-w-[260px] text-center font-['Figtree'] text-[13px] leading-[1.45] text-[var(--app-muted)]">
+        Higher scores imply increased vulnerability.
+        Immediate counseling check-in advised.
       </p>
     </div>
   );
@@ -179,18 +235,25 @@ function Gauge({ score }: { score: number | null }) {
 
 function formatCheckInDate(date: string) {
   const parsedDate = new Date(date);
-  if (Number.isNaN(parsedDate.getTime())) return date;
 
-  return parsedDate.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  if (Number.isNaN(parsedDate.getTime())) {
+    return date;
+  }
+
+  return parsedDate.toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+    },
+  );
 }
 
 function normalizeMood(mood: string | null) {
   if (!mood) return "—";
 
-  const normalizedMood = mood.trim().toLowerCase();
+  const normalizedMood =
+    mood.trim().toLowerCase();
 
   if (
     normalizedMood.includes("elevated") ||
@@ -208,7 +271,9 @@ function normalizeMood(mood: string | null) {
     return "LOW URGE";
   }
 
-  if (normalizedMood.includes("stable")) return "STABLE";
+  if (normalizedMood.includes("stable")) {
+    return "STABLE";
+  }
 
   if (
     normalizedMood.includes("good") ||
@@ -221,10 +286,17 @@ function normalizeMood(mood: string | null) {
 }
 
 export function RecoveryPage() {
-  const { userId } = useParams<{ userId: string }>();
-  const [user, setUser] = useState<Recoveryuser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { userId } =
+    useParams<{ userId: string }>();
+
+  const [user, setUser] =
+    useState<Recoveryuser | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) {
@@ -235,26 +307,32 @@ export function RecoveryPage() {
 
     let cancelled = false;
 
-    const loadRecoveryUser = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    const loadRecoveryUser =
+      async () => {
+        try {
+          setLoading(true);
+          setError(null);
 
-        const response = await getUsersdetails(userId);
+          const response =
+            await getUsersdetails(userId);
 
-        if (!cancelled) setUser(response);
-      } catch (err) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Unable to load recovery profile.",
-          );
+          if (!cancelled) {
+            setUser(response);
+          }
+        } catch (err) {
+          if (!cancelled) {
+            setError(
+              err instanceof Error
+                ? err.message
+                : "Unable to load recovery profile.",
+            );
+          }
+        } finally {
+          if (!cancelled) {
+            setLoading(false);
+          }
         }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
+      };
 
     loadRecoveryUser();
 
@@ -266,7 +344,7 @@ export function RecoveryPage() {
   if (loading) {
     return (
       <div className="flex min-h-full flex-1 items-center justify-center bg-[var(--app-bg)] text-[var(--app-muted)]">
-        <span className="font-['JetBrains_Mono'] text-[10px] uppercase">
+        <span className="font-['JetBrains_Mono'] text-[12px] uppercase">
           Loading recovery profile...
         </span>
       </div>
@@ -276,8 +354,9 @@ export function RecoveryPage() {
   if (error || !user) {
     return (
       <div className="flex min-h-full flex-1 items-center justify-center bg-[var(--app-bg)] text-[#ef4444]">
-        <span className="font-['JetBrains_Mono'] text-[10px] uppercase">
-          {error || "Unable to load recovery profile."}
+        <span className="font-['JetBrains_Mono'] text-[12px] uppercase">
+          {error ||
+            "Unable to load recovery profile."}
         </span>
       </div>
     );
@@ -290,162 +369,292 @@ export function RecoveryPage() {
     .slice(0, 2)
     .toUpperCase();
 
-  const relapseScore = user.relapse_spectrum?.score ?? null;
+  const relapseScore =
+    user.relapse_spectrum?.score ?? null;
 
   return (
     <div className="min-h-full flex-1 overflow-y-auto bg-[var(--app-bg)] text-[var(--app-text)] transition-colors duration-200">
-      <div className="flex max-w-[1400px] flex-col gap-[14px] p-[16px] lg:p-[18px]">
+
+      <div className="mx-auto flex max-w-[1200px] flex-col gap-[24px] p-[24px] lg:p-[32px]">
+
+        {/* HEADER */}
+
         <header>
-          <div className="flex min-h-[62px] items-center justify-between">
-            <div>
-              <p className="font-['JetBrains_Mono'] text-[8px] font-bold uppercase text-[#F37422]">
-                USERS &gt; RECOVERY PROFILE
-              </p>
-              <h1 className="mt-[4px] font-['Figtree'] text-[23px] font-bold">
-                {user.full_name}
-              </h1>
-              <p className="mt-[6px] font-['JetBrains_Mono'] text-[8px] text-[var(--app-muted)]">
-                {user.email} ·{" "}
-                <span
-                  className={
-                    user.is_active ? "text-[#4ade80]" : "text-[#ef4444]"
-                  }
-                >
-                  {user.is_active ? "ACTIVE" : "INACTIVE"}
-                </span>{" "}
-                · Assigned to {user.counselor || "Unassigned"}
-              </p>
-            </div>
+  <div className="flex min-h-[72px] items-center justify-between">
 
-            <button className="flex items-center gap-[6px] rounded-[8px] border border-[var(--app-border)] bg-[var(--app-surface)] px-[13px] py-[8px] font-['Figtree'] text-[10px] font-semibold hover:border-[#f37422]">
-              <Edit3 size={12} />
-              Edit Profile
-            </button>
-          </div>
-        </header>
+    <div>
+      {/* SAME STYLE AS TREATMENT PLAN / GOALS */}
+       <span className="font-['JetBrains_Mono'] text-[11px] uppercase tracking-wider text-[#f37422]">
+              USERS &gt; RECOVRERY PROFILE
+            </span>
 
-        <section className="grid gap-[8px] lg:grid-cols-[minmax(0,1fr)_285px]">
-          <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)] p-[17px]">
-            <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-[15px]">
-              <div className="flex items-center gap-[13px]">
-                <div className="flex h-[45px] w-[45px] items-center justify-center rounded-[13px] bg-[var(--app-hover)] font-['Figtree'] text-[14px] font-bold text-[var(--app-muted)]">
+      {/* FULL USER NAME */}
+      <h1 className="mt-[5px] font-['Figtree'] text-[28px] font-bold leading-tight text-[var(--app-text)]">
+        {user.full_name}
+      </h1>
+
+      {/* EMAIL + STATUS */}
+      <p className="mt-[7px] font-['Figtree'] text-[13px] text-[var(--app-muted)]">
+        {user.email}
+        {" · "}
+        <span
+          className={
+            user.is_active
+              ? "text-[#4ade80]"
+              : "text-[#ef4444]"
+          }
+        >
+          {user.is_active
+            ? "Active"
+            : "Inactive"}
+        </span>
+        {" · Assigned to "}
+        {user.counselor || "Unassigned"}
+      </p>
+    </div>
+
+
+
+  </div>
+</header>
+
+        {/* PROFILE + RELAPSE */}
+
+        <section className="grid gap-[16px] lg:grid-cols-[minmax(0,1fr)_300px]">
+
+          {/* PROFILE CARD */}
+
+          <div className="rounded-[12px] border border-[var(--app-border)] bg-[var(--app-surface)] p-[20px]">
+
+            <div className="flex items-center justify-between border-b border-[var(--app-border)] pb-[18px]">
+
+              <div className="flex items-center gap-[14px]">
+
+                <div className="flex h-[56px] w-[56px] items-center justify-center rounded-[13px] bg-[var(--app-hover)] font-['Figtree'] text-[18px] font-bold text-[var(--app-muted)]">
                   {initials}
                 </div>
+
                 <div>
-                  <p className="font-['Figtree'] text-[14px] font-bold text-[var(--app-text)]">
+
+                  <p className="font-['Figtree'] text-[18px] font-bold text-[var(--app-text)]">
                     {user.full_name}
                   </p>
-                  <p className="mt-[3px] font-['JetBrains_Mono'] text-[8px] text-[var(--app-muted)]">
+
+                  <p className="mt-[4px] font-['JetBrains_Mono'] text-[10px] uppercase tracking-wider text-[var(--app-muted)]">
                     Primary: Alcohol
                   </p>
+
                 </div>
+
               </div>
 
-              <div className="flex gap-[7px]">
-                <Pill>{user.is_active ? "ACTIVE" : "INACTIVE"}</Pill>
-                {relapseScore !== null && relapseScore >= 50 && (
-                  <Pill orange>ELEVATED RISK</Pill>
-                )}
+              <div className="flex gap-[8px]">
+
+                <Pill>
+                  {user.is_active
+                    ? "ACTIVE"
+                    : "INACTIVE"}
+                </Pill>
+
+                {relapseScore !== null &&
+                  relapseScore >= 50 && (
+                    <Pill orange>
+                      ELEVATED RISK
+                    </Pill>
+                  )}
+
               </div>
+
             </div>
 
-            <div className="mt-[17px] grid gap-[9px] sm:grid-cols-3">
-              <Metric label="Days sober" value={`${user.days_sober}d`} orange />
-              <Metric label="Current streak" value="—" />
-              <Metric label="Check-in rate" value="—" orange />
+            {/* METRICS */}
+
+            <div className="mt-[20px] grid gap-[12px] sm:grid-cols-3">
+
+              <Metric
+                label="Days sober"
+                value={`${user.days_sober}d`}
+                orange
+              />
+
+              <Metric
+                label="Current streak"
+                value="—"
+              />
+
+              <Metric
+                label="Check-in rate"
+                value="—"
+                orange
+              />
+
             </div>
 
-            <div className="mt-[15px] grid gap-[7px] sm:grid-cols-2">
-              <div className="flex justify-between text-[10px] sm:justify-start sm:gap-[12px]">
-                <span className="text-[var(--app-muted)]">Sobriety Date</span>
-                <b className="font-medium text-[var(--app-text)]">
+            {/* DETAILS */}
+
+            <div className="mt-[20px] grid gap-[12px] sm:grid-cols-2">
+
+              <div className="flex justify-between text-[13px] sm:justify-start sm:gap-[16px]">
+
+                <span className="text-[var(--app-muted)]">
+                  Sobriety Date
+                </span>
+
+                <b className="font-['Figtree'] font-medium text-[var(--app-text)]">
                   {user.sobriety_date || "—"}
                 </b>
+
               </div>
 
-              <div className="flex justify-between text-[10px] sm:justify-end sm:gap-[12px]">
-                <span className="text-[var(--app-muted)]">Counselor</span>
-                <b className="font-medium text-[var(--app-text)]">
-                  {user.counselor || "Unassigned"}
+              <div className="flex justify-between text-[13px] sm:justify-end sm:gap-[16px]">
+
+                <span className="text-[var(--app-muted)]">
+                  Counselor
+                </span>
+
+                <b className="font-['Figtree'] font-medium text-[var(--app-text)]">
+                  {user.counselor ||
+                    "Unassigned"}
                 </b>
+
               </div>
 
-              <div className="flex justify-between text-[10px] sm:justify-start sm:gap-[12px]">
-                <span className="text-[var(--app-muted)]">Session Mode</span>
-                <b className="font-medium text-[var(--app-text)]">
+              <div className="flex justify-between text-[13px] sm:justify-start sm:gap-[16px]">
+
+                <span className="text-[var(--app-muted)]">
+                  Session Mode
+                </span>
+
+                <b className="font-['Figtree'] font-medium text-[var(--app-text)]">
                   {user.session_mode || "—"}
                 </b>
+
               </div>
+
             </div>
+
           </div>
 
-          <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)]">
+          {/* RELAPSE SPECTRUM */}
+
+          <div className="rounded-[12px] border border-[var(--app-border)] bg-[var(--app-surface)]">
             <Gauge score={relapseScore} />
           </div>
+
         </section>
+
+        {/* DOMAIN HEALTH SCORES */}
 
         <section>
-          <div className="mb-[8px] flex items-center gap-[8px]">
-            <span className="h-[15px] w-[2px] bg-[#F37422]" />
-            <span className="font-['JetBrains_Mono'] text-[8px] uppercase text-[var(--app-muted)]">
-              Domain health scores
+
+          <div className="mb-[10px] flex items-center gap-[9px]">
+
+            <span className="h-[18px] w-[3px] bg-[#F37422]" />
+
+            <span className="font-['JetBrains_Mono'] text-[10px] font-bold uppercase tracking-wider text-[var(--app-muted)]">
+              Domain Health Scores
             </span>
+
           </div>
 
-          <div className="flex flex-col gap-[8px] md:flex-row">
-            <ScoreCard label="Body" value="7.2" dot="bg-[#f37422]" />
-            <ScoreCard label="Mind" value="6.8" dot="bg-[#facc15]" />
-            <ScoreCard label="Spirit" value="8.1" dot="bg-[#4ade80]" />
-            <ScoreCard label="Life" value="5.9" dot="bg-[#ef4444]" />
+          <div className="flex flex-col gap-[12px] md:flex-row">
+
+            <ScoreCard
+              label="Body"
+              value="7.2"
+              dot="bg-[#f37422]"
+            />
+
+            <ScoreCard
+              label="Mind"
+              value="6.8"
+              dot="bg-[#facc15]"
+            />
+
+            <ScoreCard
+              label="Spirit"
+              value="8.1"
+              dot="bg-[#4ade80]"
+            />
+
+            <ScoreCard
+              label="Life"
+              value="5.9"
+              dot="bg-[#ef4444]"
+            />
+
           </div>
+
         </section>
 
-        <section className="rounded-lg border border-[var(--app-border)] bg-[var(--app-surface)]">
-          <div className="flex items-center justify-between border-b border-[var(--app-border)] px-[17px] py-[14px]">
-            <h2 className="font-['Figtree'] text-[13px] font-bold">
+        {/* RECENT CHECK-INS */}
+
+        <section className="rounded-[12px] border border-[var(--app-border)] bg-[var(--app-surface)]">
+
+          <div className="flex items-center justify-between border-b border-[var(--app-border)] px-[20px] py-[16px]">
+
+            <h2 className="font-['Figtree'] text-[18px] font-bold">
               Recent Check-Ins (Last 7 Days)
             </h2>
 
-            <button className="flex items-center gap-[5px] font-['JetBrains_Mono'] text-[8px] font-bold uppercase text-[#f37422]">
+            <button className="flex items-center gap-[6px] font-['JetBrains_Mono'] text-[10px] font-bold uppercase tracking-wider text-[#f37422]">
               View chronology
-              <ArrowRight size={11} />
+              <ArrowRight size={13} />
             </button>
+
           </div>
 
           <div className="overflow-x-auto">
-            <div className="min-w-[760px]">
-              <div className="grid grid-cols-[70px_115px_75px_minmax(0,1fr)] border-b border-[var(--app-border)] px-[17px] py-[9px]">
-                {["DATE", "MOOD / URGE", "SCORE", "NOTES SNIPPET"].map(
-                  (heading) => (
-                    <span
-                      key={heading}
-                      className="font-['JetBrains_Mono'] text-[7px] uppercase text-[var(--app-muted)]"
-                    >
-                      {heading}
-                    </span>
-                  ),
-                )}
+
+            <div className="min-w-[900px]">
+
+              {/* TABLE HEADER */}
+
+              <div className="grid grid-cols-[90px_140px_90px_minmax(0,1fr)] border-b border-[var(--app-border)] px-[20px] py-[11px]">
+
+                {[
+                  "DATE",
+                  "MOOD / URGE",
+                  "SCORE",
+                  "NOTES SNIPPET",
+                ].map((heading) => (
+                  <span
+                    key={heading}
+                    className="font-['JetBrains_Mono'] text-[9px] font-bold uppercase tracking-wider text-[var(--app-muted)]"
+                  >
+                    {heading}
+                  </span>
+                ))}
+
               </div>
 
+              {/* TABLE ROWS */}
+
               {user.checkins.length === 0 ? (
-                <div className="px-[17px] py-[22px] text-center font-['JetBrains_Mono'] text-[8px] uppercase text-[var(--app-muted)]">
+                <div className="px-[20px] py-[28px] text-center font-['JetBrains_Mono'] text-[10px] uppercase text-[var(--app-muted)]">
                   No completed check-ins
                 </div>
               ) : (
                 user.checkins.map((row) => {
-                  const mood = normalizeMood(row.mood);
+                  const mood =
+                    normalizeMood(
+                      row.mood,
+                    );
 
                   return (
                     <div
                       key={row.id}
-                      className="grid grid-cols-[70px_115px_75px_minmax(0,1fr)] items-center border-b border-[var(--app-border)] px-[17px] py-[10px] last:border-b-0"
+                      className="grid grid-cols-[90px_140px_90px_minmax(0,1fr)] items-center border-b border-[var(--app-border)] px-[20px] py-[13px] last:border-b-0"
                     >
-                      <span className="text-[10px]">
-                        {formatCheckInDate(row.date)}
+
+                      <span className="font-['Figtree'] text-[13px] text-[var(--app-text)]">
+                        {formatCheckInDate(
+                          row.date,
+                        )}
                       </span>
 
                       <span
-                        className={`w-fit rounded-full border px-[8px] py-[2px] font-['JetBrains_Mono'] text-[7px] font-bold ${
+                        className={`w-fit rounded-full border px-[9px] py-[3px] font-['JetBrains_Mono'] text-[9px] font-bold ${
                           moodClasses[mood] ||
                           "border-[var(--app-border)] text-[var(--app-muted)]"
                         }`}
@@ -453,21 +662,27 @@ export function RecoveryPage() {
                         • {mood}
                       </span>
 
-                      <span className="font-['JetBrains_Mono'] text-[9px] font-bold">
+                      <span className="font-['JetBrains_Mono'] text-[11px] font-bold">
                         —
                       </span>
 
-                      <span className="truncate text-[9px] text-[var(--app-muted)]">
+                      <span className="truncate font-['Figtree'] text-[13px] text-[var(--app-muted)]">
                         —
                       </span>
+
                     </div>
                   );
                 })
               )}
+
             </div>
+
           </div>
+
         </section>
+
       </div>
+
     </div>
   );
 }
