@@ -26,6 +26,14 @@ const EMPTY_GOALS: GoalsStructure = {
   life: "",
 };
 
+function cleanPatientName(name: string, email: string): string {
+  const trimmedName = name.trim();
+  const trimmedEmail = email.trim();
+  if (!trimmedName || !trimmedEmail) return trimmedName;
+  const escapedEmail = trimmedEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return trimmedName.replace(new RegExp(`\\s*[<(]?${escapedEmail}\\s*[>)]?$`, "i"), "").trim();
+}
+
 const PILLAR_CONFIG = {
   body: {
     title: "Body",
@@ -94,6 +102,8 @@ export function GoalsPage({
 
   const [patientName, setPatientName] = useState("");
   const [patientEmail, setPatientEmail] = useState("");
+  const [patientActive, setPatientActive] = useState(true);
+  const [counselorName, setCounselorName] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -118,6 +128,12 @@ export function GoalsPage({
         if (!cancelled) {
           setPatientName(user.full_name || "");
           setPatientEmail(user.email || "");
+          setPatientActive(user.is_active);
+          setCounselorName(
+            typeof user.counselor === "string"
+              ? user.counselor
+              : user.counselor?.full_name || user.counselor?.name || "",
+          );
         }
       })
       .catch(() => {});
@@ -296,11 +312,14 @@ export function GoalsPage({
           </div>
 
           <h1 className="font-['Figtree'] font-bold text-[28px] leading-tight text-[var(--app-text,#1a1a1a)] dark:text-white">
-            {patientName || "User Goals"}
+            {cleanPatientName(patientName, patientEmail) || "User Goals"}
           </h1>
 
           <p className="font-['Figtree'] text-[13px] text-[var(--app-muted,#8a8073)]">
-            {patientEmail || "No patient email"}
+            {patientEmail || "No patient email"} ·{" "}
+            <span className={patientActive ? "text-emerald-500" : "text-red-500"}>
+              {patientActive ? "Active" : "Inactive"}
+            </span>{" "}· Assigned to {counselorName || "Unassigned"}
           </p>
 
         </div>

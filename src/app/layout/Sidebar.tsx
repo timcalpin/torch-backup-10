@@ -134,22 +134,21 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
         <div className="px-[16px] flex flex-col gap-[24px] pb-4">
           <NavSection label="MANAGEMENT" lightMode={lightMode}>
             <NavItem to="/users" icon={<UsersNavIcon color={iconColor("/users")} />} label="Users" badge={usersCount ?? undefined} active={is("/users")} lightMode={lightMode} />
+
+            {selectedUserId && (
+              <div className="ml-[10px] flex flex-col gap-[6px] border-l border-[var(--app-border-soft)] pl-[10px]">
+                <NavItem to={`/recovery/${selectedUserId}`} icon={<UserIcon size={14} strokeWidth={1.7} color={iconColor(`/recovery/${selectedUserId}`)} />} label="Recovery Profile" active={is(`/recovery/${selectedUserId}`)} lightMode={lightMode} />
+                <NavItem to={`/treatment-plans/${selectedUserId}`} icon={<ClipboardList size={14} strokeWidth={1.7} color={iconColor(`/treatment-plans/${selectedUserId}`)} />} label="Treatment Plan" active={is(`/treatment-plans/${selectedUserId}`)} lightMode={lightMode} />
+                <NavItem to={`/goals/${selectedUserId}`} icon={<Target size={14} strokeWidth={1.7} color={iconColor(`/goals/${selectedUserId}`)} />} label="Goals" active={is(`/goals/${selectedUserId}`)} lightMode={lightMode} />
+              </div>
+            )}
+
             <NavItem to="/support-groups" icon={<MessageCircleIcon color={iconColor("/support-groups")} />} label="Support Groups" badge={groupsCount ?? undefined} active={is("/support-groups")} lightMode={lightMode} />
             <NavItem to="/resources/real-world" icon={<CalendarIcon color={iconColor("/resources/real-world")} />} label="Real World Resources" active={is("/resources/real-world")} lightMode={lightMode} />
             <NavItem to="/resources/in-app" icon={<FileIcon color={iconColor("/resources/in-app")} />} label="In-App Resources" active={is("/resources/in-app")} lightMode={lightMode} />
             <NavItem to="/intake-scripts" icon={<FileText size={14} strokeWidth={1.7} color={iconColor("/intake-scripts")} />} label="Intake Scripts" active={is("/intake-scripts")} lightMode={lightMode} />
             <NavItem to="/counselors" icon={<UsersNavIcon color={iconColor("/counselors")} />} label="Counselors" active={is("/counselors")} lightMode={lightMode} />
 
-            {selectedUserId && (
-              <div className="mt-[2px] flex flex-col gap-[6px] border-t border-[var(--app-border-soft)] pt-[12px]">
-                <p className={`px-[12px] font-['JetBrains_Mono'] text-[8px] font-bold uppercase tracking-widest ${lightMode ? "text-[#84796d]" : "text-[var(--app-muted)]"}`}>
-                  Selected user
-                </p>
-                <NavItem to={`/recovery/${selectedUserId}`} icon={<UserIcon size={14} strokeWidth={1.7} color={iconColor(`/recovery/${selectedUserId}`)} />} label="Recovery Profile" active={is(`/recovery/${selectedUserId}`)} lightMode={lightMode} />
-                <NavItem to={`/treatment-plans/${selectedUserId}`} icon={<ClipboardList size={14} strokeWidth={1.7} color={iconColor(`/treatment-plans/${selectedUserId}`)} />} label="Treatment Plans" active={is(`/treatment-plans/${selectedUserId}`)} lightMode={lightMode} />
-                <NavItem to={`/goals/${selectedUserId}`} icon={<Target size={14} strokeWidth={1.7} color={iconColor(`/goals/${selectedUserId}`)} />} label="Goals" active={is(`/goals/${selectedUserId}`)} lightMode={lightMode} />
-              </div>
-            )}
           </NavSection>
 
           <NavSection label="ANALYTICS" lightMode={lightMode}>
