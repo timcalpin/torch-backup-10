@@ -1,5 +1,6 @@
 export { SupportGroupsPage } from "./SupportGroupsPage";
 export { EventsPage } from "./EventsPage";
+export { RealWorldResourcesPage } from "./RealWorldResourcesPage";
 export { UsersPage } from "./UsersPage";
 export { CounselorsPage } from "./CounselorsPage";
 export { IntakeScriptsPage } from "./IntakeScriptsPage";

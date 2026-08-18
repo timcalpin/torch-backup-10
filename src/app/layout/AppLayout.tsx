@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { useAppContext } from "@/app/app-context";
 import { Sidebar } from "./Sidebar";
+import { Toaster } from "@/app/components/ui/sonner";
 import {
   CreateGroupModal,
   AddUserModal,
@@ -20,6 +21,7 @@ export function AppLayout() {
     <div className="app-shell bg-[var(--app-bg)] w-full h-screen flex overflow-hidden transition-colors duration-200" style={{ fontFamily: "'Figtree', sans-serif" }} data-theme={darkMode ? "dark" : "light"}>
       <Sidebar pathname={location.pathname} lightMode={!darkMode} />
       <Outlet />
+      <Toaster position="top-right" richColors />
 
       {modal === "create-group"    && <CreateGroupModal onClose={close} />}
       {modal === "add-user"        && <AddUserModal onClose={close} />}

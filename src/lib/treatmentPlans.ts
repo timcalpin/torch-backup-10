@@ -6,13 +6,20 @@ export type { PaginatedResponse };
 export const TREATMENT_PLAN_STATUSES = ["draft", "active", "on_hold", "completed"] as const;
 export type TreatmentPlanStatus = (typeof TREATMENT_PLAN_STATUSES)[number];
 
+export interface TreatmentPlanPerson {
+  id?: string | number;
+  name?: string | null;
+  full_name?: string | null;
+  email?: string | null;
+}
+
 export interface ApiTreatmentPlan {
   id: string;
   title: string | null;
-  patient: string | null;
+  patient: string | number | TreatmentPlanPerson | null;
   patient_name: string | null;
   patient_email: string | null;
-  counselor: string | null;
+  counselor: string | number | TreatmentPlanPerson | null;
   counselor_name: string | null;
   start_date: string | null;
   duration: string | null;
@@ -42,7 +49,13 @@ export function getTreatmentPlan(id: string): Promise<ApiTreatmentPlan> {
 /** Resolve a patient's plan, then load its full detail representation. */
 export async function getTreatmentPlanForPatient(patientId: string): Promise<ApiTreatmentPlan | null> {
   const response = await listTreatmentPlans();
-  const plan = response.results.find((item) => item.patient === patientId);
+  const plan = response.results.find(
+    (item) => {
+      if (item.patient == null) return false;
+      const patientValue = typeof item.patient === "object" ? item.patient.id : item.patient;
+      return patientValue != null && String(patientValue) === String(patientId);
+    }
+  );
   return plan ? getTreatmentPlan(plan.id) : null;
 }
 

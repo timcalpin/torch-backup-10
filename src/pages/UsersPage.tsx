@@ -95,7 +95,7 @@ function RiskPill({ risk }: { risk: UserUiExtras["risk"] }) {
   };
 
   return (
-    <span className={`inline-flex w-fit items-center gap-[4px] rounded-full border px-[6px] py-[2px] font-['JetBrains_Mono'] text-[6px] font-bold leading-none ${styles[risk]}`}>
+    <span className={`inline-flex w-fit items-center gap-[4px] rounded-full border px-[7px] py-[3px] font-['JetBrains_Mono'] text-[9px] font-bold leading-none ${styles[risk]}`}>
       <span className="h-[4px] w-[4px] rounded-full bg-current" />
       {risk}
     </span>
@@ -111,7 +111,7 @@ function CheckInBar({ rate }: { rate: number }) {
       <div className="h-[4px] w-[30px] overflow-hidden rounded-full bg-[#2b2927]">
         <div className={`h-full ${barClass}`} style={{ width }} />
       </div>
-      <span className="font-['JetBrains_Mono'] text-[9px] text-[var(--app-muted)]">{rate}%</span>
+    <span className="font-['JetBrains_Mono'] text-[11px] text-[var(--app-muted)]">{rate}%</span>
     </div>
   );
 }
@@ -649,7 +649,7 @@ export function UsersPage() {
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`whitespace-nowrap rounded-[6px] px-[10px] py-[5px] font-['Figtree'] text-[10px] transition-colors ${
+                    className={`whitespace-nowrap rounded-[6px] px-[10px] py-[5px] font-['Figtree'] text-[12px] transition-colors ${
                       activeTab === tab
                         ? "bg-[rgba(243,116,34,0.12)] font-bold text-[#f37422]"
                         : "text-[var(--app-muted)] hover:bg-[var(--app-hover)] hover:text-[var(--app-text)]"
@@ -685,7 +685,7 @@ export function UsersPage() {
                     "COUNSELOR",
                     "ACTION",
                   ].map((heading) => (
-                    <span key={heading} className="font-['JetBrains_Mono'] text-[7px] uppercase text-[#756c61]">
+                      <span key={heading} className="font-['JetBrains_Mono'] text-[9px] uppercase text-[#756c61]">
                       {heading}
                     </span>
                   ))}
@@ -698,12 +698,12 @@ export function UsersPage() {
                 {!loading && !error && filtered.map(({ user: u, extras }) => (
                   <div key={u.id} className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px] items-center border-b border-[var(--app-border-soft)] px-[13px] py-[9px] transition-colors hover:bg-[var(--app-hover)]">
                     <div className="flex min-w-0 items-center gap-[9px]">
-                      <div className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full bg-[var(--app-hover)] font-['Figtree'] text-[10px] font-bold text-[var(--app-muted)]">
+                      <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[var(--app-hover)] font-['Figtree'] text-[12px] font-bold text-[var(--app-muted)]">
                         {u.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate font-['Figtree'] text-[11px] font-semibold leading-tight text-[var(--app-text)]">{u.name}</p>
-                        <p className="truncate font-['JetBrains_Mono'] text-[8px] leading-tight text-[var(--app-muted)]">{u.email}</p>
+                        <p className="truncate font-['Figtree'] text-[13px] font-semibold leading-tight text-[var(--app-text)]">{u.name}</p>
+                        <p className="truncate font-['JetBrains_Mono'] text-[10px] leading-tight text-[var(--app-muted)]">{u.email}</p>
                       </div>
                     </div>
 
@@ -711,13 +711,13 @@ export function UsersPage() {
                     <div className="font-['JetBrains_Mono'] text-[10px] font-bold text-[var(--app-text)]">{extras.streak}{extras.streak > 10 && <span className="ml-[3px] text-[#f37422]">•</span>}</div>
                     <CheckInBar rate={extras.checkInRate} />
                     <RiskPill risk={extras.risk} />
-                    <span className="font-['Figtree'] text-[9px] text-[#8b8174]">{extras.lastActive}</span>
+                    <span className="font-['Figtree'] text-[11px] text-[#8b8174]">{extras.lastActive}</span>
                     <UserStatus status={u.status} flagged={extras.flagged} />
-                    <span className="truncate pr-[8px] font-['Figtree'] text-[9px] text-[#c4b9aa]">{u.counselor}</span>
+                    <span className="truncate pr-[8px] font-['Figtree'] text-[11px] text-[#c4b9aa]">{u.counselor}</span>
                     <button
                       type="button"
                       onClick={() => navigate(`/recovery/${u.id}`)}
-                      className="flex items-center gap-[4px] font-['Figtree'] text-[9px] font-semibold text-[#f37422] hover:text-[#ff9a57]"
+                      className="flex items-center gap-[4px] font-['Figtree'] text-[11px] font-semibold text-[#f37422] hover:text-[#ff9a57]"
                     >
                       View <span aria-hidden="true">→</span>
                     </button>
