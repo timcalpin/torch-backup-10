@@ -45,9 +45,7 @@ export function createSupportGroup(payload: CreateSupportGroupPayload): Promise<
   });
 }
 
-export interface UpdateSupportGroupPayload {
-  max_capacity: number;
-}
+export type UpdateSupportGroupPayload = Partial<CreateSupportGroupPayload>;
 
 export function updateSupportGroup(id: string, payload: UpdateSupportGroupPayload): Promise<ApiSupportGroup> {
   return apiFetch<ApiSupportGroup>(`/api/v1/admin/support-groups/${id}/`, {

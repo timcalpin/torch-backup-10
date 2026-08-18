@@ -8,14 +8,13 @@ import { MetricCard } from "@/components/common/MetricCard";
 import { TableCard, TableToolbar, TableHead, TableRow } from "@/components/common/Table";
 import { ActionBtn } from "@/components/common/ActionBtn";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter } from "@/components/common/Modal";
-import { FormField, TextInput } from "@/components/common/FormFields";
+import { CreateGroupModal } from "@/components/modals/CreateGroupModal";
 import { FilterIcon, HashIcon, EyeIcon, EditIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api";
 import {
   listSupportGroups,
   getSupportGroup,
   getSupportGroupStats,
-  updateSupportGroup,
   deleteSupportGroup,
   type ApiSupportGroup,
   type SupportGroupStats,
@@ -146,46 +145,42 @@ function GroupDetailModal({ groupId, onClose }: { groupId: string; onClose: () =
   );
 }
 
-function EditGroupModal({ group, onClose, onSaved }: { group: DisplayGroup; onClose: () => void; onSaved: () => void }) {
-  const [maxCapacity, setMaxCapacity] = useState(String(group.capacity));
-  const [submitting, setSubmitting] = useState(false);
+function EditGroupModal({ groupId, onClose, onSaved }: { groupId: string; onClose: () => void; onSaved: () => void }) {
+  const [detail, setDetail] = useState<ApiSupportGroup | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
-    const parsed = Number(maxCapacity);
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      setError("Max capacity must be a positive whole number.");
-      return;
-    }
-    setSubmitting(true);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
     setError(null);
-    try {
-      await updateSupportGroup(group.id, { max_capacity: parsed });
-      onSaved();
-      onClose();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Unable to save changes. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    getSupportGroup(groupId)
+      .then((response) => {
+        if (!cancelled) setDetail(response);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof ApiError ? err.message : "Unable to load group details.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [groupId]);
+
+  if (detail) {
+    return <CreateGroupModal group={detail} onClose={onClose} onSaved={onSaved} />;
+  }
 
   return (
     <ModalOverlay onClose={onClose}>
       <ModalCard>
-        <ModalHeader title={`Edit ${group.name}`} onClose={onClose} />
-        <div className="flex flex-col gap-[16px]">
-          <FormField label="Max capacity" required>
-            <TextInput type="number" value={maxCapacity} onChange={setMaxCapacity} />
-          </FormField>
-          {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
-        </div>
-        <ModalFooter
-          onCancel={onClose}
-          onConfirm={handleSubmit}
-          confirmLabel={submitting ? "Saving..." : "Save changes"}
-          confirmDisabled={submitting}
-        />
+        <ModalHeader title="Edit Group" onClose={onClose} />
+        {loading && <p className="font-['Figtree'] text-[13px] text-[var(--app-muted)]">Loading group details...</p>}
+        {!loading && error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
+        <ModalFooter onCancel={onClose} onConfirm={onClose} confirmLabel="Close" />
       </ModalCard>
     </ModalOverlay>
   );
@@ -202,7 +197,7 @@ export function SupportGroupsPage() {
   const [stats, setStats] = useState<SupportGroupStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [viewGroupId, setViewGroupId] = useState<string | null>(null);
-  const [editGroup, setEditGroup] = useState<DisplayGroup | null>(null);
+  const [editGroupId, setEditGroupId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -341,7 +336,7 @@ export function SupportGroupsPage() {
                     </div>
                     <div className="w-[100px] flex items-center justify-end gap-[10px]">
                       <ActionBtn onClick={() => setViewGroupId(group.id)} title="View" icon={<EyeIcon />} />
-                      <ActionBtn onClick={() => setEditGroup(group)} title="Edit" icon={<EditIcon />} />
+                      <ActionBtn onClick={() => setEditGroupId(group.id)} title="Edit" icon={<EditIcon />} />
                       <ActionBtn
                         onClick={() => handleDelete(group)}
                         title="Delete group"
@@ -363,10 +358,10 @@ export function SupportGroupsPage() {
           </div>
         </TableCard>
         {viewGroupId && <GroupDetailModal groupId={viewGroupId} onClose={() => setViewGroupId(null)} />}
-        {editGroup && (
+        {editGroupId && (
           <EditGroupModal
-            group={editGroup}
-            onClose={() => setEditGroup(null)}
+            groupId={editGroupId}
+            onClose={() => setEditGroupId(null)}
             onSaved={bumpGroupsVersion}
           />
         )}
