@@ -14,3 +14,6 @@ export { ProfilePage } from "./ProfilePage";
 export { LoginPage } from "./LoginPage";
 export { GoalsPage } from "./GoalsPage"; // 1. Added Export
 export { RecoveryPage } from "./RecoveryPage";
+export { MetricsDebugPage } from "./MetricsDebugPage";
+export { MetricsDebugDetailPage } from "./MetricsDebugDetailPage";
+export { PayloadInspectorPage } from "./PayloadInspectorPage";

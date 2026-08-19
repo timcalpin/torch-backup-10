@@ -16,7 +16,10 @@ export type AppPageKey =
   | "settings"
   | "privacy"
   | "profile"
-  | "recovery";
+  | "recovery"
+  | "metrics-debug"
+  | "metrics-debug-detail"
+  | "payload-inspector";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { authenticated } = useAppContext();
@@ -72,7 +75,13 @@ export function createAppRouter({ AdminLayout, LoginPage, renderPage }: RouterOp
         { path: "settings", element: <PageRoute pageKey="settings" renderPage={renderPage} /> },
         { path: "privacy", element: <PageRoute pageKey="privacy" renderPage={renderPage} /> },
         { path: "profile", element: <PageRoute pageKey="profile" renderPage={renderPage} /> },
-        { path: "recovery/:userId", element: <PageRoute pageKey="recovery" renderPage={renderPage} /> }
+        { path: "recovery/:userId", element: <PageRoute pageKey="recovery" renderPage={renderPage} /> },
+        { path: "metrics-debug", element: <PageRoute pageKey="metrics-debug" renderPage={renderPage} /> },
+        { path: "metrics-debug/:userId", element: <PageRoute pageKey="metrics-debug-detail" renderPage={renderPage} /> },
+        {
+          path: "metrics-debug/:userId/payload-inspector",
+          element: <PageRoute pageKey="payload-inspector" renderPage={renderPage} />,
+        }
       ],
     },
     {
