@@ -1,628 +1,82 @@
-import { useState, useEffect } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { useEffect, useState } from "react";
+import { CalendarDays, Download, Loader2 } from "lucide-react";
+import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/common/PageHeader";
 import { GhostBtn } from "../components/common/Buttons";
 import { MetricCard } from "../components/common/MetricCard";
-import {
-  getAggregateDashboard,
-  type AggregateDashboardResponse,
-} from "../lib/aggregate";
+import { getAggregateDashboard, type AggregateDashboardResponse } from "../lib/aggregate";
 
-const CustomTooltip = ({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: { color: string; name: string; value: number }[];
-  label?: string;
-}) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-[var(--app-surface)] border border-[var(--app-border-strong)] rounded-[10px] px-[14px] py-[10px] shadow-xl">
-      <p className="font-['JetBrains_Mono'] font-bold text-[var(--app-muted)] text-[10px] mb-[6px]">
-        {label}
-      </p>
-      {payload.map((p) => (
-        <div key={p.name} className="flex items-center gap-[8px]">
-          <div
-            className="w-[8px] h-[8px] rounded-full"
-            style={{ background: p.color }}
-          />
-          <span className="font-['Figtree'] text-[12px] text-[var(--app-text)]">
-            {p.name}: <strong>{p.value}</strong>
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-};
+const panel = "relative rounded-[12px] border border-[var(--app-border)] bg-[var(--app-surface)]";
+const riskTiers = [
+  { name: "Moderate", value: 27, count: 58, color: "#facc15" },
+  { name: "High", value: 12, count: 25, color: "#fb923c" },
+  { name: "Critical", value: 9, count: 19, color: "#ef4444" },
+];
 
-interface DateRangeCalendarProps {
-  startDate: Date;
-  endDate: Date;
-  onChange: (start: Date, end: Date) => void;
-}
+function formatDate(value: Date) { return value.toLocaleDateString("default", { month: "short", day: "numeric", year: "numeric" }); }
+function localDate(value: Date) { return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`; }
 
-function DateRangeCalendar({
-  startDate,
-  endDate,
-  onChange,
-}: DateRangeCalendarProps) {
+function DateRange({ start, end, onChange }: { start: Date; end: Date; onChange: (start: Date, end: Date) => void }) {
   const [open, setOpen] = useState(false);
-  const [field, setField] = useState<"start" | "end">("start");
-
-  const [tempStart, setTempStart] = useState<Date>(startDate);
-  const [tempEnd, setTempEnd] = useState<Date>(endDate);
-
-  // Default view month set to end date's month (current active month)
-  const [viewDate, setViewDate] = useState<Date>(
-    new Date(endDate.getFullYear(), endDate.getMonth(), 1)
-  );
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  useEffect(() => {
-    setTempStart(startDate);
-    setTempEnd(endDate);
-  }, [startDate, endDate]);
-
-  const year = viewDate.getFullYear();
-  const monthIdx = viewDate.getMonth();
-  const fullMonthName = viewDate.toLocaleString("default", { month: "long" });
-
-  const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
-  const firstDayOfWeek = new Date(year, monthIdx, 1).getDay();
-
-  const handlePrevMonth = () => {
-    setViewDate(new Date(year, monthIdx - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    const nextMonth = new Date(year, monthIdx + 1, 1);
-    if (nextMonth <= new Date(today.getFullYear(), today.getMonth(), 1)) {
-      setViewDate(nextMonth);
-    }
-  };
-
-  const formatDateStr = (d: Date) =>
-    `${d.toLocaleString("default", { month: "short" })} ${d.getDate()}, ${d.getFullYear()}`;
-
-  const handleDayClick = (day: number) => {
-    const selected = new Date(year, monthIdx, day);
-    selected.setHours(0, 0, 0, 0);
-
-    if (selected > today) return;
-
-    if (field === "start") {
-      setTempStart(selected);
-      if (selected > tempEnd) {
-        setTempEnd(selected);
-      }
-      setField("end");
-    } else {
-      if (selected < tempStart) {
-        setTempStart(selected);
-        setTempEnd(selected);
-      } else {
-        setTempEnd(selected);
-      }
-      onChange(
-        selected < tempStart ? selected : tempStart,
-        selected < tempStart ? selected : selected
-      );
-      setOpen(false);
-      setField("start");
-    }
-  };
-
-  const isSameDay = (d1: Date, d2: Date) =>
-    d1.getFullYear() === d2.getFullYear() &&
-    d1.getMonth() === d2.getMonth() &&
-    d1.getDate() === d2.getDate();
-
-  const isInRange = (d: Date) => d >= tempStart && d <= tempEnd;
-
-  const isNextMonthDisabled =
-    new Date(year, monthIdx + 1, 1) >
-    new Date(today.getFullYear(), today.getMonth(), 1);
-
-  return (
-    <div className="relative">
-      <GhostBtn
-        label={`${formatDateStr(startDate)} – ${formatDateStr(endDate)}`}
-        icon={<CalendarDays size={14} strokeWidth={1.7} />}
-        onClick={() => setOpen((value) => !value)}
-      />
-      {open && (
-        <div className="absolute right-0 top-[46px] z-30 w-[280px] rounded-[10px] bg-[var(--app-surface)] border border-[var(--app-border-strong)] p-[12px] shadow-2xl">
-          <div className="grid grid-cols-2 gap-[6px] mb-[10px]">
-            <button
-              onClick={() => setField("start")}
-              className={`rounded-[6px] border px-[8px] py-[6px] text-left cursor-pointer ${
-                field === "start"
-                  ? "border-[#f37422] bg-[rgba(243,116,34,0.10)]"
-                  : "border-[var(--app-border)]"
-              }`}
-            >
-              <span className="block font-['JetBrains_Mono'] text-[8px] text-[var(--app-muted)]">
-                FROM
-              </span>
-              <span className="font-['Figtree'] text-[11px] text-[var(--app-text)]">
-                {formatDateStr(tempStart)}
-              </span>
-            </button>
-            <button
-              onClick={() => setField("end")}
-              className={`rounded-[6px] border px-[8px] py-[6px] text-left cursor-pointer ${
-                field === "end"
-                  ? "border-[#f37422] bg-[rgba(243,116,34,0.10)]"
-                  : "border-[var(--app-border)]"
-              }`}
-            >
-              <span className="block font-['JetBrains_Mono'] text-[8px] text-[var(--app-muted)]">
-                TO
-              </span>
-              <span className="font-['Figtree'] text-[11px] text-[var(--app-text)]">
-                {formatDateStr(tempEnd)}
-              </span>
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between mb-[10px]">
-            <button
-              onClick={handlePrevMonth}
-              className="p-[4px] text-[var(--app-muted)] hover:text-[var(--app-text)] cursor-pointer"
-            >
-              <ChevronLeft size={15} />
-            </button>
-            <span className="font-['Figtree'] font-semibold text-[12px] text-[var(--app-text)]">
-              {fullMonthName} {year}
-            </span>
-            <button
-              onClick={handleNextMonth}
-              disabled={isNextMonthDisabled}
-              className="p-[4px] text-[var(--app-muted)] hover:text-[var(--app-text)] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-            >
-              <ChevronRight size={15} />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-7 gap-[3px] text-center font-['JetBrains_Mono'] text-[8px] text-[var(--app-muted)] mb-[4px]">
-            {"SMTWTFS".split("").map((day, index) => (
-              <span key={`${day}-${index}`}>{day}</span>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-[3px]">
-            {Array.from({ length: firstDayOfWeek }).map((_, idx) => (
-              <div key={`empty-${idx}`} className="h-[27px]" />
-            ))}
-
-            {Array.from({ length: daysInMonth }, (_, index) => index + 1).map(
-              (day) => {
-                const currentDate = new Date(year, monthIdx, day);
-                currentDate.setHours(0, 0, 0, 0);
-
-                const isFuture = currentDate > today;
-                const isToday = isSameDay(currentDate, today);
-                const endpoint =
-                  isSameDay(currentDate, tempStart) ||
-                  isSameDay(currentDate, tempEnd);
-                const range = isInRange(currentDate);
-
-                return (
-                  <button
-                    key={day}
-                    disabled={isFuture}
-                    onClick={() => handleDayClick(day)}
-                    className={`h-[27px] rounded-[5px] font-['Figtree'] text-[10px] ${
-                      isFuture
-                        ? "opacity-25 cursor-not-allowed text-[var(--app-muted)]"
-                        : "cursor-pointer"
-                    } ${
-                      endpoint && !isFuture
-                        ? "bg-[#f37422] text-white font-bold"
-                        : range && !isFuture
-                        ? "bg-[rgba(243,116,34,0.12)] text-[#f37422]"
-                        : isToday
-                        ? "border border-[#f37422] text-[var(--app-text)]"
-                        : !isFuture
-                        ? "text-[var(--app-text)] hover:bg-[var(--app-hover)]"
-                        : ""
-                    }`}
-                  >
-                    {day}
-                  </button>
-                );
-              }
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return <div className="relative"><GhostBtn label={`${formatDate(start)} – ${formatDate(end)}`} icon={<CalendarDays size={14} />} onClick={() => setOpen((value) => !value)} />{open && <div className="absolute right-0 top-[44px] z-30 flex w-[260px] flex-col gap-[10px] rounded-[10px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] p-[12px] shadow-xl"><label className="text-[9px] text-[var(--app-muted)]">FROM<input className="mt-[4px] w-full rounded border border-[var(--app-border)] bg-transparent p-[7px] text-[12px] text-[var(--app-text)]" type="date" value={localDate(start)} onChange={(event) => onChange(new Date(`${event.target.value}T00:00:00`), end)} /></label><label className="text-[9px] text-[var(--app-muted)]">TO<input className="mt-[4px] w-full rounded border border-[var(--app-border)] bg-transparent p-[7px] text-[12px] text-[var(--app-text)]" type="date" value={localDate(end)} onChange={(event) => onChange(start, new Date(`${event.target.value}T00:00:00`))} /></label></div>}</div>;
 }
 
-function formatLocalDate(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: { color: string; name: string; value: number }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return <div className="rounded-[8px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-[10px] py-[8px] shadow-xl"><p className="mb-[4px] text-[9px] text-[var(--app-muted)]">{label}</p>{payload.map((item) => <p key={item.name} className="text-[11px]" style={{ color: item.color }}>{item.name}: {item.value}</p>)}</div>;
 }
 
-function formatXAxis(dateStr: string): string {
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString("default", { month: "short", day: "numeric" });
-  } catch {
-    return dateStr;
-  }
+function xDate(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("default", { month: "short", day: "numeric" }); }
+
+function FilterDropdown({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return <div className="relative"><button type="button" onClick={() => setOpen((current) => !current)} className="flex h-[34px] items-center gap-[8px] rounded-[8px] border border-[var(--app-border-strong)] bg-[var(--app-bg)] px-[12px] text-[12px] text-[var(--app-text)]">{label}: {value}<span className="text-[var(--app-muted)]">⌄</span></button>{open && <div className="absolute left-0 top-[40px] z-40 min-w-full overflow-hidden rounded-[8px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] p-[4px] shadow-xl">{options.map((option) => <button type="button" key={option} onClick={() => { onChange(option); setOpen(false); }} className={`block w-full whitespace-nowrap rounded-[5px] px-[10px] py-[7px] text-left text-[11px] ${option === value ? "bg-[rgba(243,116,34,0.12)] text-[#f37422]" : "text-[var(--app-text)] hover:bg-[var(--app-hover)]"}`}>{option}</button>)}</div>}</div>;
 }
 
 export function AggregateDataPage() {
-  const [dashboard, setDashboard] =
-    useState<AggregateDashboardResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const navigate = useNavigate();
+  const [dashboard, setDashboard] = useState<AggregateDashboardResponse | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Initialized to exactly 1 Month prior to today
-  const [startDate, setStartDate] = useState<Date>(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - 1);
-    return d;
-  });
-  const [endDate, setEndDate] = useState<Date>(() => new Date());
+  const [filters, setFilters] = useState({ risk: "All", sobriety: "All", adherence: "All", mat: "All" });
+  const [start, setStart] = useState(() => { const date = new Date(); date.setMonth(date.getMonth() - 2); return date; });
+  const [end, setEnd] = useState(() => new Date());
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setError(null);
+    getAggregateDashboard(localDate(start), localDate(end)).then((data) => { if (!cancelled) setDashboard(data); }).catch(() => { if (!cancelled) setError("Failed to load aggregate data."); }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [start, end]);
 
-    const startFormatted = formatLocalDate(startDate);
-    const endFormatted = formatLocalDate(endDate);
+  if (loading && !dashboard) return <div className="flex flex-1 items-center justify-center"><Loader2 className="animate-spin text-[#f37422]" size={30} /></div>;
+  if (!dashboard) return <div className="flex-1 p-[32px] text-red-500">{error ?? "No data available."}</div>;
 
-    getAggregateDashboard(startFormatted, endFormatted)
-      .then((data: AggregateDashboardResponse) => {
-        if (!cancelled) {
-          setDashboard(data);
-          setLoading(false);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          console.error("Failed to load dashboard:", err);
-          setError("Failed to load aggregate data.");
-          setLoading(false);
-        }
-      });
+  const metrics = dashboard.metrics;
+  const userCount = metrics.active_users?.value ?? 0;
+  const metricCards = [
+    ["active-users", "ACTIVE USERS", userCount.toLocaleString(), metrics.active_users?.delta ?? "", "#4ade80"],
+    ["avg-days-sober", "AVG DAYS SOBER", String(metrics.avg_days_sober?.value ?? 0), metrics.avg_days_sober?.delta ?? "", "#f37422"],
+    ["rs-score", "AVG RS SCORE", String(metrics.avg_motivation?.value ?? 0), metrics.avg_motivation?.delta ?? "", "#6b8ab0"],
+    ["checkin-rate", "CHECK-IN RATE", `${metrics.checkin_rate?.value ?? 0}%`, metrics.checkin_rate?.delta ?? "", "#6b8ab0"],
+    ["high-risk", "HIGH RISK", `${metrics.high_risk?.value ?? 0}%`, metrics.high_risk?.delta ?? "", "#ef4444"],
+    ["motivation", "AVG MOTIVATION", String(metrics.avg_motivation?.value ?? 0), metrics.avg_motivation?.delta ?? "", "#facc15"],
+    ["anxiety", "AVG ANXIETY", String(metrics.avg_anxiety?.value ?? 0), metrics.avg_anxiety?.delta ?? "", "#a3738f"],
+  ] as const;
 
-    return () => {
-      cancelled = true;
-    };
-  }, [startDate, endDate]);
-
-  const handleDateChange = (newStart: Date, newEnd: Date) => {
-    setStartDate(newStart);
-    setEndDate(newEnd);
-  };
-
-  if (loading && !dashboard) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-[32px]">
-        <Loader2 className="animate-spin text-[#f37422]" size={32} />
-      </div>
-    );
-  }
-
-  if (error || !dashboard) {
-    return (
-      <div className="flex-1 p-[32px] text-red-500 font-['Figtree']">
-        {error || "No data available."}
-      </div>
-    );
-  }
-
-  const { metrics } = dashboard;
-  const activeUserCount = metrics.active_users?.value ?? 0;
-
-  return (
-    <div className="flex-1 min-w-0 overflow-y-auto">
-      <div className="p-[24px] lg:p-[32px] flex flex-col gap-[20px]">
-        {/* Page Header */}
-        <PageHeader
-          eyebrow={`${activeUserCount.toLocaleString()} USERS · ANONYMIZED`}
-          title="Aggregate Data"
-        >
-          <DateRangeCalendar
-            startDate={startDate}
-            endDate={endDate}
-            onChange={handleDateChange}
-          />
-          <GhostBtn label="Export Report" />
-        </PageHeader>
-
-        {/* Metric Cards */}
-        <div className="flex gap-[10px] flex-wrap">
-          <MetricCard
-            label="AVG DAYS SOBER"
-            value={metrics.avg_days_sober?.value?.toString() ?? "0"}
-            delta={metrics.avg_days_sober?.delta ?? ""}
-            deltaColor="#4ade80"
-            accentColor="#f37422"
-          />
-          <MetricCard
-            label="ACTIVE USERS"
-            value={activeUserCount.toLocaleString()}
-            delta={metrics.active_users?.delta ?? ""}
-            deltaColor="#4ade80"
-            accentColor="#4ade80"
-          />
-          <MetricCard
-            label="AVG MOTIVATION"
-            value={`${metrics.avg_motivation?.value ?? 0}%`}
-            delta={metrics.avg_motivation?.delta ?? ""}
-            deltaColor="#4ade80"
-            accentColor="#6b8ab0"
-          />
-          <MetricCard
-            label="CHECK-IN RATE"
-            value={`${metrics.checkin_rate?.value ?? 0}%`}
-            delta={metrics.checkin_rate?.delta ?? ""}
-            deltaColor="#4ade80"
-            accentColor="#6b8ab0"
-          />
-          <MetricCard
-            label="HIGH RISK"
-            value={`${metrics.high_risk?.value ?? 0}%`}
-            delta={metrics.high_risk?.delta ?? ""}
-            deltaColor="#4ade80"
-            accentColor="#ef4444"
-          />
-          <MetricCard
-            label="AVG ANXIETY"
-            value={`${metrics.avg_anxiety?.value ?? 0}%`}
-            delta={metrics.avg_anxiety?.delta ?? ""}
-            deltaColor="#facc15"
-            accentColor="#facc15"
-          />
-        </div>
-
-        {/* Population Sobriety Trend Chart Container */}
-        <div className="bg-[var(--app-surface)] rounded-[12px] relative">
-          {loading && (
-            <div className="absolute inset-0 bg-[var(--app-surface)]/60 z-20 flex items-center justify-center rounded-[12px]">
-              <Loader2 className="animate-spin text-[#f37422]" size={24} />
-            </div>
-          )}
-          <div className="absolute inset-0 rounded-[12px] border border-[var(--app-border)] pointer-events-none" />
-          <div className="p-[24px]">
-            <div className="flex items-center justify-between mb-[20px]">
-              <div>
-                <p className="font-['Figtree'] font-bold text-[var(--app-text)] text-[16px]">
-                  Population Sobriety Trend
-                </p>
-                <p className="font-['JetBrains_Mono'] font-bold text-[var(--app-muted)] text-[10px] mt-[2px]">
-                  {startDate.toLocaleDateString("default", {
-                    month: "short",
-                    day: "numeric",
-                  })}{" "}
-                  –{" "}
-                  {endDate.toLocaleDateString("default", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}{" "}
-                  · {activeUserCount.toLocaleString()} users
-                </p>
-              </div>
-              <div className="flex items-center gap-[16px]">
-                {[
-                  { color: "#f37422", label: "Avg Days Sober" },
-                  { color: "#6b8ab0", label: "Check-in Rate %" },
-                  { color: "#ef4444", label: "High Risk %" },
-                ].map((l) => (
-                  <div key={l.label} className="flex items-center gap-[6px]">
-                    <div
-                      className="w-[8px] h-[8px] rounded-full"
-                      style={{ background: l.color }}
-                    />
-                    <span className="font-['JetBrains_Mono'] font-bold text-[var(--app-muted)] text-[9px]">
-                      {l.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="w-full h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={dashboard?.trend ?? []}
-                  margin={{ top: 4, right: 8, left: -24, bottom: 4 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="rgba(244,237,227,0.06)"
-                  />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={formatXAxis}
-                    tick={{
-                      fill: "#8a8073",
-                      fontSize: 10,
-                      fontFamily: "JetBrains Mono",
-                    }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{
-                      fill: "#8a8073",
-                      fontSize: 10,
-                      fontFamily: "JetBrains Mono",
-                    }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Line
-                    type="monotone"
-                    dataKey="avgDays"
-                    stroke="#f37422"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: "#f37422" }}
-                    name="Avg Days Sober"
-                    isAnimationActive={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="checkIn"
-                    stroke="#6b8ab0"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: "#6b8ab0" }}
-                    name="Check-in Rate %"
-                    isAnimationActive={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="highRisk"
-                    stroke="#ef4444"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: "#ef4444" }}
-                    name="High Risk %"
-                    isAnimationActive={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-
-        {/* Sub Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[10px]">
-          {/* Motivation Chart */}
-          <div className="bg-[var(--app-surface)] rounded-[12px] relative">
-            <div className="absolute inset-0 rounded-[12px] border border-[var(--app-border)] pointer-events-none" />
-            <div className="p-[20px]">
-              <p className="font-['Figtree'] font-bold text-[var(--app-text)] text-[14px]">
-                Avg Motivation Score
-              </p>
-              <p className="font-['JetBrains_Mono'] font-bold text-[var(--app-muted)] text-[10px] mt-[2px] mb-[16px]">
-                {metrics.avg_motivation?.value ?? 0}% avg ·{" "}
-                {metrics.avg_motivation?.delta ?? ""}
-              </p>
-              <div className="w-full h-[140px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={dashboard?.motivation ?? []}
-                    margin={{ top: 4, right: 4, left: -28, bottom: 4 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="rgba(244,237,227,0.06)"
-                    />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={formatXAxis}
-                      tick={{
-                        fill: "#8a8073",
-                        fontSize: 9,
-                        fontFamily: "JetBrains Mono",
-                      }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{
-                        fill: "#8a8073",
-                        fontSize: 9,
-                        fontFamily: "JetBrains Mono",
-                      }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="val"
-                      stroke="#6b8ab0"
-                      strokeWidth={2}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-
-          {/* Anxiety Chart */}
-          <div className="bg-[var(--app-surface)] rounded-[12px] relative">
-            <div className="absolute inset-0 rounded-[12px] border border-[var(--app-border)] pointer-events-none" />
-            <div className="p-[20px]">
-              <p className="font-['Figtree'] font-bold text-[var(--app-text)] text-[14px]">
-                Avg Anxiety Score
-              </p>
-              <p className="font-['JetBrains_Mono'] font-bold text-[var(--app-muted)] text-[10px] mt-[2px] mb-[16px]">
-                {metrics.avg_anxiety?.value ?? 0}% avg ·{" "}
-                {metrics.avg_anxiety?.delta ?? ""}
-              </p>
-              <div className="w-full h-[140px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={dashboard?.anxiety ?? []}
-                    margin={{ top: 4, right: 4, left: -28, bottom: 4 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="rgba(244,237,227,0.06)"
-                    />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={formatXAxis}
-                      tick={{
-                        fill: "#8a8073",
-                        fontSize: 9,
-                        fontFamily: "JetBrains Mono",
-                      }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{
-                        fill: "#8a8073",
-                        fontSize: 9,
-                        fontFamily: "JetBrains Mono",
-                      }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="val"
-                      stroke="#facc15"
-                      strokeWidth={2}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+  return <div className="flex-1 min-w-0 overflow-y-auto"><div className="flex flex-col gap-[20px] p-[24px] lg:p-[32px]">
+    <PageHeader eyebrow={`POPULATION INSIGHTS · ANONYMIZED · ${userCount.toLocaleString()} USERS`} title="Aggregate Data"><DateRange start={start} end={end} onChange={(nextStart, nextEnd) => { setStart(nextStart); setEnd(nextEnd); }} /><GhostBtn label="Export Report" icon={<Download size={14} />} /></PageHeader>
+    <div className={`${panel} flex flex-wrap gap-[10px] p-[12px]`}><FilterDropdown label="Risk Tier" value={filters.risk} options={["All", "High", "Critical", "Moderate"]} onChange={(value) => setFilters((current) => ({ ...current, risk: value }))} /><FilterDropdown label="Sobriety Stage" value={filters.sobriety} options={["All", "0–30 days", "31–90 days", "91–180 days", "181–365 days", "365+ days"]} onChange={(value) => setFilters((current) => ({ ...current, sobriety: value }))} /><FilterDropdown label="Check-in Adherence" value={filters.adherence} options={["All", ">75%", "25–75%", "<25%"]} onChange={(value) => setFilters((current) => ({ ...current, adherence: value }))} /><FilterDropdown label="MAT Status" value={filters.mat} options={["All", "On MAT", "Not on MAT"]} onChange={(value) => setFilters((current) => ({ ...current, mat: value }))} /></div>
+    <div className="grid grid-cols-2 gap-[10px] md:grid-cols-4 xl:grid-cols-7">{metricCards.map(([key, label, value, delta, color]) => <button key={key} className="text-left" onClick={() => navigate(`/aggregate-data/metric/${key}`)}><MetricCard label={label} value={value} delta={delta} deltaColor={color === "#ef4444" ? "#ef4444" : "#4ade80"} accentColor={color} /></button>)}</div>
+    <div className="grid grid-cols-1 gap-[12px] xl:grid-cols-[1.45fr_0.85fr]">
+      <div className={`${panel} p-[20px]`}><p className="text-[16px] font-bold text-[var(--app-text)]">Population Sobriety Trend</p><p className="mt-[2px] text-[10px] text-[var(--app-muted)]">{formatDate(start)} – {formatDate(end)} · {userCount.toLocaleString()} users (8-Week metrics)</p><div className="my-[12px] flex flex-wrap gap-[14px] text-[9px] text-[var(--app-muted)]">{[["#f37422", "Avg Days Sober"], ["#6b8ab0", "Check-in Rate"], ["#ef4444", "High Risk"]].map(([color, label]) => <span key={label} className="flex items-center gap-[6px]"><i className="h-[2px] w-[10px]" style={{ background: color }} />{label}</span>)}</div><div className="h-[245px]"><ResponsiveContainer width="100%" height="100%"><LineChart data={dashboard.trend} margin={{ top: 4, right: 8, left: -24, bottom: 4 }}><CartesianGrid stroke="rgba(244,237,227,0.06)" /><XAxis dataKey="date" tickFormatter={xDate} tick={{ fill: "#8a8073", fontSize: 9 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: "#8a8073", fontSize: 9 }} axisLine={false} tickLine={false} /><Tooltip content={<ChartTooltip />} /><Line type="monotone" dataKey="avgDays" stroke="#f37422" strokeWidth={2} dot={false} name="Avg Days Sober" /><Line type="monotone" dataKey="checkIn" stroke="#6b8ab0" strokeWidth={2} dot={false} name="Check-in Rate" /><Line type="monotone" dataKey="highRisk" stroke="#ef4444" strokeWidth={2} dot={false} name="High Risk" /></LineChart></ResponsiveContainer></div></div>
+      <div className={`${panel} p-[20px]`}><p className="text-[16px] font-bold text-[var(--app-text)]">Risk Tier Distribution</p><p className="mt-[2px] text-[10px] text-[var(--app-muted)]">Current snapshot · {userCount.toLocaleString()} Users</p><div className="mt-[10px] flex items-center justify-center gap-[10px]"><div className="relative h-[180px] w-[180px]"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={riskTiers} dataKey="value" innerRadius={55} outerRadius={78} paddingAngle={2} stroke="var(--app-surface)">{riskTiers.map((tier) => <Cell key={tier.name} fill={tier.color} />)}</Pie></PieChart></ResponsiveContainer><div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-[22px] font-bold text-[var(--app-text)]">{userCount}</span><span className="text-[8px] text-[var(--app-muted)]">USERS</span></div></div><div className="flex flex-col gap-[9px] text-[11px] text-[var(--app-text)]">{riskTiers.map((tier) => <span key={tier.name} className="flex items-center gap-[7px]"><i className="h-[6px] w-[6px] rounded-full" style={{ background: tier.color }} />{tier.name} <em className="not-italic text-[var(--app-muted)]">{tier.value}% ({tier.count})</em></span>)}</div></div></div>
     </div>
-  );
+    <div className="grid grid-cols-1 gap-[12px] lg:grid-cols-2"><StaticCohortCard title="Medication-Assisted Treatment (MAT) Cohorts" subtitle="Compare retention, adherence, and risk metrics" headers={["COHORT", "RS SCORE", "CHECK-IN %", "90-DAY RET."]} rows={[["On MAT", "61", "71", "76%", "84%"], ["Not on MAT", "153", "66", "69%", "71%"]]} /><StaticCohortCard title="Check-In Adherence Performance" subtitle="Impact of high vs low adherence on primary outcomes" headers={["COHORT", "RS SCORE", "90-DAY RET."]} rows={[["Adherence >75%", "88", "74", "89%"], ["Adherence <25%", "41", "55", "52%"]]} /></div>
+  </div></div>;
+}
+
+function StaticCohortCard({ title, subtitle, headers, rows }: { title: string; subtitle: string; headers: string[]; rows: string[][] }) {
+  return <div className={`${panel} p-[20px]`}><p className="text-[15px] font-bold text-[var(--app-text)]">{title}</p><p className="mt-[3px] text-[11px] text-[var(--app-muted)]">{subtitle}</p><div className="mt-[18px] grid grid-cols-[1fr_repeat(3,90px)] gap-[8px] border-b border-[var(--app-border)] pb-[8px] text-[9px] text-[var(--app-muted)]">{headers.map((header) => <span key={header}>{header}</span>)}</div>{rows.map((row) => <div key={row[0]} className="grid grid-cols-[1fr_repeat(3,90px)] gap-[8px] py-[9px] text-[12px] text-[var(--app-text)]"><span><b className={row[0].includes("<") ? "text-[#ef4444]" : row[0].includes(">") || row[0] === "On MAT" ? "text-[#4ade80]" : "text-[var(--app-muted)]"}>{row[0]}</b><small className="block text-[10px] text-[var(--app-muted)]">n={row[1]} users</small></span>{row.slice(2).map((value, index) => <span key={`${row[0]}-${index}`} className={value.includes("%") && row[0].includes("<") ? "text-[#ef4444]" : value.includes("%") ? "text-[#4ade80]" : ""}>{value}</span>)}</div>)}</div>;
 }

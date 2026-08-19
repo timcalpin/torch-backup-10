@@ -7,6 +7,7 @@ export { IntakeScriptsPage } from "./IntakeScriptsPage";
 export { TreatmentPlansPage } from "./TreatmentPlansPage";
 export { ResourcesAppPage } from "./ResourcesAppPage";
 export { AggregateDataPage } from "./AggregateDataPage";
+export { MetricDetailPage } from "./MetricDetailPage";
 export { InsightsPage } from "./InsightsPage";
 export { RelapseSignalsPage } from "./RelapseSignalsPage";
 export { SettingsPage } from "./SettingsPage";

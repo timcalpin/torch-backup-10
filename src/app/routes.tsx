@@ -11,6 +11,7 @@ export type AppPageKey =
   | "resources-app"
   | "treatment-plans"
   | "aggregate-data"
+  | "metric-detail"
   | "relapse-signals"
   | "insights"
   | "settings"
@@ -67,6 +68,7 @@ export function createAppRouter({ AdminLayout, LoginPage, renderPage }: RouterOp
         { path: "resources/real-world", element: <PageRoute pageKey="resources-real" renderPage={renderPage} /> },
         { path: "resources/in-app", element: <PageRoute pageKey="resources-app" renderPage={renderPage} /> },
         { path: "aggregate-data", element: <PageRoute pageKey="aggregate-data" renderPage={renderPage} /> },
+        { path: "aggregate-data/metric/:metric", element: <PageRoute pageKey="metric-detail" renderPage={renderPage} /> },
         { path: "relapse-signals", element: <PageRoute pageKey="relapse-signals" renderPage={renderPage} /> },
         { path: "insights", element: <PageRoute pageKey="insights" renderPage={renderPage} /> },
         { path: "settings", element: <PageRoute pageKey="settings" renderPage={renderPage} /> },

@@ -11,6 +11,7 @@ import {
   ResourcesAppPage,
   IntakeScriptsPage,
   AggregateDataPage,
+  MetricDetailPage,
   InsightsPage,
   RelapseSignalsPage,
   SettingsPage,
@@ -34,6 +35,7 @@ function renderPage(pageKey: AppPageKey) {
     case "resources-app":    return <ResourcesAppPage />;
     case "intake-scripts":   return <IntakeScriptsPage />;
     case "aggregate-data":   return <AggregateDataPage />;
+    case "metric-detail":    return <MetricDetailPage />;
     case "insights":         return <InsightsPage />;
     case "resources-real":   return <RealWorldResourcesPage />;
     case "relapse-signals":  return <RelapseSignalsPage />;

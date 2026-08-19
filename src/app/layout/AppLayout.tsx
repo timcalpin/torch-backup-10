@@ -28,7 +28,13 @@ export function AppLayout() {
       {modal === "add-counselor"   && <AddCounselorModal onClose={close} />}
       {modal === "new-plan"        && <NewPlanModal onClose={close} />}
       {modal === "add-content"     && <AddContentModal onClose={close} />}
-      {modal === "add-resource"    && <AddResourceModal onClose={close} />}
+      {modal === "add-resource"    && (
+        <AddResourceModal
+          open={modal === "add-resource"}
+          onClose={close}
+          onCreated={() => {}}
+        />
+      )}
       {modal === "export-insights" && <ExportInsightsModal onClose={close} />}
     </div>
   );

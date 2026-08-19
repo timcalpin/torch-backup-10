@@ -153,8 +153,8 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
 
           <NavSection label="ANALYTICS" lightMode={lightMode}>
             <NavItem to="/aggregate-data" icon={<ChartColumnIcon color={iconColor("/aggregate-data")} />} label="Aggregate Data" active={is("/aggregate-data")} lightMode={lightMode} />
+            <NavItem to="/insights" icon={<Lightbulb size={14} strokeWidth={1.7} color={iconColor("/insights")} />} label="Insights & Reporting" active={is("/insights")} lightMode={lightMode} />
             <NavItem to="/relapse-signals" icon={<AlertCircleIcon color={iconColor("/relapse-signals")} />} label="Relapse Signals" active={is("/relapse-signals")} lightMode={lightMode} />
-            <NavItem to="/insights" icon={<Lightbulb size={14} strokeWidth={1.7} color={iconColor("/insights")} />} label="Insights" active={is("/insights")} lightMode={lightMode} />
           </NavSection>
 
           <NavSection label="SYSTEM" lightMode={lightMode}>
