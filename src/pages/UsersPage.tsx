@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Download, Filter, Plus, Search } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Download, Plus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "@/app/app-context";
 import { StatusPill } from "@/components/common/StatusPill";
@@ -549,6 +549,51 @@ export function UsersPage() {
     navigate(`/recovery/${id}`);
   };
 
+  const exportUsersCsv = async () => {
+    try {
+      const allUsers: ApiUser[] = [];
+      let currentPage = 1;
+      let nextPage = true;
+      while (nextPage) {
+        const response = await listUsers(currentPage);
+        allUsers.push(...response.results);
+        nextPage = Boolean(response.next);
+        currentPage += 1;
+      }
+
+      const headers = ["id", "email", "full_name", "phone", "role", "counselor", "sobriety_days", "sobriety_start_date", "primary_substance", "is_active", "created_at"];
+      const escapeCsv = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+      const formatDateTime = (value: string | null | undefined) => {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return `'${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}, ${date.toLocaleDateString("en-GB")}`;
+      };
+      const rows = allUsers.map((user) => [
+        user.id,
+        user.email,
+        user.full_name,
+        user.phone,
+        user.role,
+        typeof user.counselor === "string" ? user.counselor : user.counselor?.full_name ?? user.counselor?.name ?? "",
+        user.sobriety_days,
+        user.sobriety_start_date ? `'${new Date(user.sobriety_start_date).toLocaleDateString("en-GB")}` : "",
+        user.primary_substance,
+        user.is_active,
+        formatDateTime(user.created_at),
+      ].map(escapeCsv).join(","));
+      const csv = [headers.join(","), ...rows].join("\r\n");
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "users.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Unable to export users.");
+    }
+  };
+
   const tabs = ["All Users", "Active", "High Risk", "Flagged", "New (7d)"];
 
   return (
@@ -575,13 +620,9 @@ export function UsersPage() {
                   className="h-[31px] w-full rounded-[7px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] pl-[29px] pr-[10px] font-['Figtree'] text-[11px] text-[var(--app-text)] outline-none placeholder:text-[var(--app-muted)] focus:border-[#f37422]"
                 />
               </div>
-              <button className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-[11px] font-['Figtree'] text-[11px] text-[var(--app-muted)] hover:border-[#f37422]">
-                <Filter size={12} />
-                Filter
-              </button>
-              <button className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-[11px] font-['Figtree'] text-[11px] text-[var(--app-muted)] hover:border-[#f37422]">
+              <button onClick={exportUsersCsv} className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-[11px] font-['Figtree'] text-[11px] text-[var(--app-muted)] hover:border-[#f37422]">
                 <Download size={12} />
-                Export
+                Export CSV
               </button>
               <button
                 onClick={() => setModal("add-user")}

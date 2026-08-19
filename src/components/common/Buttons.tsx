@@ -1,8 +1,9 @@
-export function GhostBtn({ label, icon, onClick }: { label: string; icon?: React.ReactNode; onClick?: () => void }) {
+export function GhostBtn({ label, icon, onClick, disabled = false }: { label: string; icon?: React.ReactNode; onClick?: () => void; disabled?: boolean }) {
   return (
     <button
       onClick={onClick}
-      className="relative h-[38px] inline-flex items-center gap-[8px] px-[14px] rounded-[9px] bg-[var(--app-surface)] cursor-pointer hover:bg-[var(--app-hover)] hover:border-[#f37422] transition-colors"
+      disabled={disabled}
+      className="relative h-[38px] inline-flex items-center gap-[8px] px-[14px] rounded-[9px] bg-[var(--app-surface)] cursor-pointer hover:bg-[var(--app-hover)] hover:border-[#f37422] transition-colors disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-[var(--app-border-strong)]"
     >
       <div className="absolute inset-0 rounded-[10px] border border-[var(--app-border-strong)] pointer-events-none" />
       {icon && <span className="text-[var(--app-muted)] leading-none">{icon}</span>}
