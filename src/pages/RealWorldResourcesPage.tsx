@@ -44,11 +44,11 @@ export function RealWorldResourcesPage() {
   }, [resourcesVersion]);
 
   const filtered = resources.filter(
-    (r) => !search || r.title.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase())
+    (r) => !search || r.title.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase()) || (r.category_display || "").toLowerCase().includes(search.toLowerCase())
   );
   const featuredCount = resources.filter((r) => r.is_featured).length;
   const categoryCount = new Set(resources.map((r) => r.category)).size;
-  const recoveryCount = resources.filter((r) => r.resource_type === "recovery_meeting").length;
+  const recoveryCount = resources.filter((r) => r.category === "recovery_meetings").length;
 
   const handleToggleFeatured = async (item: ApiResource) => {
     setActionError(null);
@@ -115,7 +115,7 @@ export function RealWorldResourcesPage() {
                     <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[13px]">{item.title}</p>
                   </div>
                   <div className="w-[140px] font-['Figtree'] font-normal text-[var(--app-text)] text-[12px]">
-                    {item.resource_type_display || toTitleCase(item.resource_type)}
+                    {item.format || item.delivery_format || "—"}
                   </div>
                   <div className="w-[160px]">
                     <span className="inline-flex px-[8px] py-[3px] rounded-[4px] bg-[rgba(107,138,176,0.15)] font-['JetBrains_Mono'] font-bold text-[10px] text-[#6b8ab0]">

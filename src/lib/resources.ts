@@ -334,12 +334,12 @@ export function createResource(
 
 export function updateResource(
   id: number,
-  payload: CreateResourcePayload
+  payload: UpdateResourcePayload
 ): Promise<ApiResource> {
   return apiFetch<ApiResource>(
     `/api/v1/admin/resources/${id}/`,
     {
-      method: "PUT",
+      method: "PATCH",
       body: JSON.stringify(payload),
     }
   );

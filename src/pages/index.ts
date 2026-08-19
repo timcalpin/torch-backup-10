@@ -1,11 +1,13 @@
 export { SupportGroupsPage } from "./SupportGroupsPage";
 export { EventsPage } from "./EventsPage";
+export { RealWorldResourcesPage } from "./RealWorldResourcesPage";
 export { UsersPage } from "./UsersPage";
 export { CounselorsPage } from "./CounselorsPage";
 export { IntakeScriptsPage } from "./IntakeScriptsPage";
 export { TreatmentPlansPage } from "./TreatmentPlansPage";
 export { ResourcesAppPage } from "./ResourcesAppPage";
 export { AggregateDataPage } from "./AggregateDataPage";
+export { MetricDetailPage } from "./MetricDetailPage";
 export { InsightsPage } from "./InsightsPage";
 export { RelapseSignalsPage } from "./RelapseSignalsPage";
 export { SettingsPage } from "./SettingsPage";

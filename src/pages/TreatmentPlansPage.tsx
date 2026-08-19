@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import {
   Activity,
   Brain,
@@ -7,7 +8,7 @@ import {
   Home,
   Plus,
   Trash2,
-  ArrowLeft,
+  Pencil,
 } from "lucide-react";
 
 import { useAppContext } from "@/app/app-context";
@@ -15,11 +16,13 @@ import { ApiError } from "@/lib/api";
 import { getUser } from "@/lib/users";
 
 import {
+  listTreatmentPlans,
   getTreatmentPlan,
   getTreatmentPlanForPatient,
   updateTreatmentPlan,
   createTreatmentPlan,
   type ApiTreatmentPlan,
+  type TreatmentPlanPerson,
 } from "@/lib/treatmentPlans";
 
 interface PillarData {
@@ -65,6 +68,14 @@ const DEFAULT_STRUCTURE: TreatmentPlanStructure = {
     actions: [""],
   },
 };
+
+function personName(person: string | number | TreatmentPlanPerson | null | undefined): string {
+  if (person == null) return "";
+  if (typeof person === "object") {
+    return person.full_name || person.name || person.email || "";
+  }
+  return String(person);
+}
 
 const PILLAR_CONFIG = {
   body: {
@@ -166,6 +177,7 @@ export function TreatmentPlansPage({
 
   const selectedPatientId =
     patientId || params.userId;
+  const navigate = useNavigate();
 
   const [currentPlanId, setCurrentPlanId] =
     useState<string | undefined>(
@@ -174,7 +186,10 @@ export function TreatmentPlansPage({
 
   const {
     bumpTreatmentPlansVersion,
+    treatmentPlansVersion,
   } = useAppContext();
+
+  const [plans, setPlans] = useState<ApiTreatmentPlan[]>([]);
 
   const [plan, setPlan] =
     useState<ApiTreatmentPlan | null>(null);
@@ -184,6 +199,9 @@ export function TreatmentPlansPage({
     useState("");
 
   const [patientEmail, setPatientEmail] =
+    useState("");
+
+  const [assignedCounselor, setAssignedCounselor] =
     useState("");
 
   const [structure, setStructure] =
@@ -202,6 +220,9 @@ export function TreatmentPlansPage({
 
   const [saveSuccess, setSaveSuccess] =
     useState(false);
+
+  const [isEditing, setIsEditing] =
+    useState(true);
 
   /**
    * IMPORTANT:
@@ -253,6 +274,20 @@ export function TreatmentPlansPage({
         setPatientEmail(
           user.email || ""
         );
+
+        const userCounselor = user.counselor;
+        const userCounselorName =
+          typeof userCounselor === "object" && userCounselor
+            ? userCounselor.full_name || userCounselor.name || userCounselor.email || ""
+            : typeof userCounselor === "string"
+              ? userCounselor
+              : "";
+
+        setAssignedCounselor(
+          userCounselorName ||
+          (user as typeof user & { counselor_name?: string }).counselor_name ||
+          ""
+        );
       })
       .catch((err) => {
         console.error(
@@ -281,11 +316,29 @@ export function TreatmentPlansPage({
    * Load treatment plan.
    */
   useEffect(() => {
-    if (
-      !currentPlanId &&
-      !selectedPatientId
-    ) {
-      return;
+    if (!currentPlanId && !selectedPatientId) {
+      let cancelled = false;
+      setLoading(true);
+      setError(null);
+
+      listTreatmentPlans()
+        .then((response) => {
+          if (!cancelled) {
+            setPlans(Array.isArray(response) ? response : response.results || []);
+          }
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setError(err instanceof ApiError ? err.message : "Failed to load treatment plans.");
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+
+      return () => {
+        cancelled = true;
+      };
     }
 
     let cancelled = false;
@@ -314,12 +367,14 @@ export function TreatmentPlansPage({
 
         setPlan(res);
         setCurrentPlanId(res.id);
+        setIsEditing(false);
 
         if (res.goals_and_milestones) {
           try {
-            const parsed = JSON.parse(
-              res.goals_and_milestones
-            );
+            const parsed =
+              typeof res.goals_and_milestones === "string"
+                ? JSON.parse(res.goals_and_milestones)
+                : res.goals_and_milestones;
 
             setStructure({
               clientOverview:
@@ -347,9 +402,9 @@ export function TreatmentPlansPage({
           } catch {
             setStructure((prev) => ({
               ...prev,
-              clientOverview:
-                res.goals_and_milestones ||
-                "",
+              clientOverview: typeof res.goals_and_milestones === "string"
+                ? res.goals_and_milestones
+                : "",
             }));
           }
         } else {
@@ -377,6 +432,8 @@ export function TreatmentPlansPage({
   }, [
     initialPlanId,
     selectedPatientId,
+    currentPlanId,
+    treatmentPlansVersion,
   ]);
 
   /**
@@ -539,49 +596,10 @@ export function TreatmentPlansPage({
   };
 
   /**
-   * Validate the treatment plan before save.
-   *
-   * This prevents saving a plan where
-   * one of the added action fields is empty.
+   * Empty action inputs are placeholders, not errors. Users may save
+   * one pillar or one field at a time and continue editing later.
    */
   const validateTreatmentPlan = () => {
-    const pillars: Array<
-      keyof Omit<
-        TreatmentPlanStructure,
-        "clientOverview"
-      >
-    > = [
-      "body",
-      "mind",
-      "spirit",
-      "life",
-    ];
-
-    for (const pillarKey of pillars) {
-      const actions =
-        structure[pillarKey].actions;
-
-      const emptyActionIndex =
-        actions.findIndex(
-          (action) =>
-            !action.trim()
-        );
-
-      if (emptyActionIndex !== -1) {
-        const pillarTitle =
-          PILLAR_CONFIG[pillarKey]
-            .title;
-
-        setError(
-          `Please complete Action ${
-            emptyActionIndex + 1
-          } in ${pillarTitle} before saving.`
-        );
-
-        return false;
-      }
-    }
-
     return true;
   };
 
@@ -604,8 +622,25 @@ export function TreatmentPlansPage({
 
     try {
       const payload = {
-        goals_and_milestones:
-          JSON.stringify(structure),
+        goals_and_milestones: JSON.stringify({
+          ...structure,
+          body: {
+            ...structure.body,
+            actions: structure.body.actions.filter((action) => action.trim()),
+          },
+          mind: {
+            ...structure.mind,
+            actions: structure.mind.actions.filter((action) => action.trim()),
+          },
+          spirit: {
+            ...structure.spirit,
+            actions: structure.spirit.actions.filter((action) => action.trim()),
+          },
+          life: {
+            ...structure.life,
+            actions: structure.life.actions.filter((action) => action.trim()),
+          },
+        }),
       };
 
       if (currentPlanId) {
@@ -642,6 +677,9 @@ export function TreatmentPlansPage({
       bumpTreatmentPlansVersion();
 
       setSaveSuccess(true);
+      setIsEditing(false);
+      toast.success("Treatment plan saved successfully");
+      window.setTimeout(() => navigate("/users"), 700);
 
       setTimeout(() => {
         setSaveSuccess(false);
@@ -674,6 +712,42 @@ export function TreatmentPlansPage({
     );
   }
 
+  if (!selectedPatientId && !initialPlanId) {
+    return (
+      <div className="flex-1 min-w-0 overflow-y-auto bg-[var(--app-bg,#f8f9fa)] dark:bg-[#0d0d0d] text-[var(--app-text,#1a1a1a)] dark:text-white">
+        <div className="max-w-[1200px] mx-auto p-[24px] lg:p-[32px] flex flex-col gap-[24px]">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="font-['JetBrains_Mono'] text-[11px] uppercase tracking-wider text-[#f37422]">CARE MANAGEMENT</span>
+              <h1 className="font-['Figtree'] font-bold text-[28px] leading-tight mt-[8px]">Treatment Plans</h1>
+            </div>
+            <span className="font-['JetBrains_Mono'] text-[11px] text-[var(--app-muted,#8a8073)]">{plans.length} PLAN{plans.length === 1 ? "" : "S"}</span>
+          </div>
+
+          <div className="rounded-[12px] overflow-hidden bg-[var(--app-surface,#ffffff)] dark:bg-[#141414] border border-[var(--app-border,#e5e7eb)] dark:border-[#262626] shadow-sm dark:shadow-none">
+            {plans.length === 0 ? (
+              <div className="p-[32px] text-center font-['Figtree'] text-[14px] text-[var(--app-muted,#8a8073)]">No treatment plans found.</div>
+            ) : (
+              <div className="divide-y divide-[var(--app-border,#e5e7eb)] dark:divide-[#262626]">
+                {plans.map((item) => (
+                  <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_120px_100px] gap-[16px] items-center p-[18px] hover:bg-[var(--app-hover,#f3f4f6)] dark:hover:bg-[#1b1b1b]">
+                    <div>
+                      <p className="font-['Figtree'] font-semibold text-[14px] truncate">{item.title || "Untitled treatment plan"}</p>
+                      <p className="font-['Figtree'] text-[12px] text-[var(--app-muted,#8a8073)] truncate">{item.patient_name || item.patient_email || personName(item.patient) || "No patient assigned"}</p>
+                    </div>
+                    <p className="font-['Figtree'] text-[13px] text-[var(--app-muted,#8a8073)] truncate">{item.counselor_name || personName(item.counselor) || "Unassigned"}</p>
+                    <span className="capitalize font-['Figtree'] text-[12px]">{(item.status || "draft").replace("_", " ")}</span>
+                    <span className="font-['JetBrains_Mono'] text-[12px] text-[#f37422]">{item.progress ?? 0}%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 min-w-0 overflow-y-auto bg-[var(--app-bg,#f8f9fa)] dark:bg-[#0d0d0d] text-[var(--app-text,#1a1a1a)] dark:text-white transition-colors duration-200">
 
@@ -691,13 +765,12 @@ export function TreatmentPlansPage({
 
             <button
               type="button"
-              onClick={() =>
-                window.history.back()
-              }
-              className="inline-flex items-center gap-[6px] text-[13px] font-['Figtree'] text-[var(--app-muted,#8a8073)] hover:text-[var(--app-text,#1a1a1a)] dark:hover:text-white transition-colors cursor-pointer"
+              onClick={() => setIsEditing(true)}
+              disabled={isEditing}
+              className="inline-flex items-center gap-[6px] rounded-[8px] bg-[#f37422] px-[14px] py-[8px] text-[13px] font-['Figtree'] font-semibold text-white shadow-[0_4px_12px_rgba(243,116,34,0.2)] transition-colors hover:bg-[#e5681e] cursor-pointer disabled:cursor-default disabled:opacity-40"
             >
-              <ArrowLeft size={14} />
-              Back to User Directory
+              <Pencil size={14} />
+              Edit
             </button>
 
           </div>
@@ -724,6 +797,8 @@ export function TreatmentPlansPage({
             {" · Assigned to "}
 
             {plan?.counselor_name ||
+              assignedCounselor ||
+              personName(plan?.counselor) ||
               "Unassigned"}
 
           </p>
@@ -765,6 +840,7 @@ export function TreatmentPlansPage({
                   e.target.value,
               })
             }
+            disabled={!isEditing}
             placeholder="Enter client overview notes..."
             rows={3}
             className="w-full bg-[var(--app-bg,#f9fafb)] dark:bg-[#1a1a1a] border border-[var(--app-border,#e5e7eb)] dark:border-[#2a2a2a] rounded-[8px] p-[14px] text-[13px] font-['Figtree'] text-[var(--app-text,#1a1a1a)] dark:text-white placeholder-[#9ca3af] dark:placeholder-[#525252] focus:outline-none focus:border-[#f37422] transition-colors resize-none"
@@ -859,6 +935,7 @@ export function TreatmentPlansPage({
                       e.target.value
                     )
                   }
+                  disabled={!isEditing}
                   placeholder="Enter objective..."
                   className="w-full h-[44px] bg-[var(--app-bg,#f9fafb)] dark:bg-[#1a1a1a] border border-[var(--app-border,#e5e7eb)] dark:border-[#2a2a2a] rounded-[8px] px-[14px] text-[13px] font-['Figtree'] text-[var(--app-text,#1a1a1a)] dark:text-white placeholder-[#9ca3af] dark:placeholder-[#525252] focus:outline-none focus:border-[var(--app-border-strong,#d1d5db)] dark:focus:border-[#404040] transition-colors"
                 />
@@ -900,6 +977,7 @@ export function TreatmentPlansPage({
                             idx
                           )
                         }
+                        disabled={!isEditing}
                         placeholder="Enter action item..."
                         className={`flex-1 h-[40px] bg-[var(--app-bg,#f9fafb)] dark:bg-[#1a1a1a] border rounded-[6px] px-[14px] text-[13px] font-['Figtree'] text-[var(--app-text,#1a1a1a)] dark:text-white placeholder-[#9ca3af] dark:placeholder-[#525252] focus:outline-none transition-colors ${
                           !action.trim() &&
@@ -927,6 +1005,7 @@ export function TreatmentPlansPage({
                           }
                           className="p-[8px] text-[var(--app-muted,#8a8073)] hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer"
                           title="Delete action"
+                          disabled={!isEditing}
                         >
                           <Trash2
                             size={16}
@@ -949,11 +1028,11 @@ export function TreatmentPlansPage({
                     )
                   }
                   disabled={
-                    !isAddActionEnabled
+                    !isAddActionEnabled || !isEditing
                   }
                   className={`w-fit inline-flex items-center gap-[6px] font-['Figtree'] font-semibold text-[13px] mt-[4px] transition-colors ${
                     isAddActionEnabled
-                      ? `${config.badgeText} cursor-pointer hover:underline`
+                      ? "text-[#f37422] cursor-pointer hover:text-[#ff9a5c]"
                       : "text-[var(--app-muted,#8a8073)] opacity-40 cursor-not-allowed"
                   }`}
                 >
@@ -961,9 +1040,9 @@ export function TreatmentPlansPage({
                   Add Action
                 </button>
 
-              </div>
+      </div>
 
-            </div>
+    </div>
           );
         })}
 
@@ -973,9 +1052,8 @@ export function TreatmentPlansPage({
 
           <button
             type="button"
-            onClick={() =>
-              window.history.back()
-            }
+            onClick={() => setIsEditing(false)}
+            disabled={!isEditing}
             className="h-[42px] px-[24px] rounded-[8px] border border-[var(--app-border,#d1d5db)] dark:border-[#2a2a2a] bg-[var(--app-surface,#ffffff)] dark:bg-[#141414] hover:bg-[var(--app-hover,#f3f4f6)] dark:hover:bg-[#1f1f1f] font-['Figtree'] font-semibold text-[13px] text-[var(--app-text,#1a1a1a)] dark:text-white transition-colors cursor-pointer"
           >
             Cancel
@@ -984,8 +1062,8 @@ export function TreatmentPlansPage({
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving}
-            className="h-[42px] px-[24px] rounded-[8px] bg-[#1a1a1a] dark:bg-white hover:bg-[#333333] dark:hover:bg-[#e5e5e5] disabled:opacity-50 font-['Figtree'] font-semibold text-[13px] text-white dark:text-black transition-colors cursor-pointer shadow-sm"
+            disabled={saving || !isEditing}
+            className="h-[42px] px-[24px] rounded-[8px] bg-[#f37422] hover:bg-[#e5681e] disabled:opacity-50 font-['Figtree'] font-semibold text-[13px] text-white transition-colors cursor-pointer shadow-[0_4px_12px_rgba(243,116,34,0.2)]"
           >
             {saving
               ? "Saving..."

@@ -2,6 +2,7 @@ import { apiFetch } from "./api";
 
 export interface PillarGoal {
   objective: string;
+  actions?: string[];
 }
 
 export interface ApiGoalRecord {
@@ -11,6 +12,7 @@ export interface ApiGoalRecord {
   patient_email: string;
   category: "body" | "mind" | "recovery" | "life" | string;
   objective: string;
+  actions?: string[];
   title?: string;
   updated_at?: string;
 }

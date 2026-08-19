@@ -3,7 +3,7 @@ import { AppProvider } from "./app-context";
 import { AppLayout } from "./layout/AppLayout";
 import {
   SupportGroupsPage,
-  EventsPage,
+  RealWorldResourcesPage,
   UsersPage,
   CounselorsPage,
   TreatmentPlansPage,
@@ -11,6 +11,7 @@ import {
   ResourcesAppPage,
   IntakeScriptsPage,
   AggregateDataPage,
+  MetricDetailPage,
   InsightsPage,
   RelapseSignalsPage,
   SettingsPage,
@@ -37,8 +38,9 @@ function renderPage(pageKey: AppPageKey) {
     case "resources-app":    return <ResourcesAppPage />;
     case "intake-scripts":   return <IntakeScriptsPage />;
     case "aggregate-data":   return <AggregateDataPage />;
+    case "metric-detail":    return <MetricDetailPage />;
     case "insights":         return <InsightsPage />;
-    case "resources-real":   return <EventsPage />;
+    case "resources-real":   return <RealWorldResourcesPage />;
     case "relapse-signals":  return <RelapseSignalsPage />;
     case "settings":         return <SettingsPage />;
     case "privacy":          return <PlaceholderPage title="Privacy & Compliance" subtitle="COMPLIANCE CENTER" />;

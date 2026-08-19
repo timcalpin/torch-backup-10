@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Edit3 } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useParams } from "react-router-dom";
-import { getUsersdetails } from "@/lib/users";
+import { getUsersdetails, updateUser } from "@/lib/users";
+import { counselorDisplayName, listCounselors, type ApiCounselor } from "@/lib/counselors";
+import { ApiError } from "@/lib/api";
 import type { Recoveryuser } from "@/types/users";
 
 const moodClasses: Record<string, string> = {
@@ -285,6 +287,116 @@ function normalizeMood(mood: string | null) {
   return normalizedMood.toUpperCase();
 }
 
+function AssignCounselorModal({
+  user,
+  onClose,
+  onAssigned,
+}: {
+  user: Recoveryuser;
+  onClose: () => void;
+  onAssigned: (counselor: ApiCounselor) => void;
+}) {
+  const [counselors, setCounselors] = useState<ApiCounselor[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listCounselors()
+      .then((response) => {
+        if (!cancelled) {
+          setCounselors(response.results.filter((c) => c.status === "active"));
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof ApiError ? err.message : "Unable to load counselors.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const filtered = counselors.filter((counselor) => {
+    const query = search.trim().toLowerCase();
+    return !query || [counselorDisplayName(counselor), counselor.specialization_label, counselor.email]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(query));
+  });
+
+  const handleAssign = async () => {
+    const selected = counselors.find((counselor) => String(counselor.id) === selectedId);
+    if (!selected) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await updateUser(user.id, {
+        full_name: user.full_name,
+        role: user.role,
+        counselor: selected.id,
+        counselor_name: counselorDisplayName(selected),
+        is_active: user.is_active,
+      });
+      onAssigned(selected);
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Unable to assign counselor. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/75" onClick={onClose} />
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-[540px] flex-col overflow-hidden rounded-[24px] border border-[var(--app-border)] bg-[var(--app-bg)] shadow-[0_32px_80px_rgba(0,0,0,0.65)]">
+        <div className="flex items-center justify-between border-b border-[var(--app-border)] px-[24px] py-[22px]">
+          <h2 className="font-['Figtree'] text-[21px] font-bold">Assign Counselor</h2>
+          <button onClick={onClose} aria-label="Close" className="rounded-[8px] border border-[var(--app-border)] p-[6px] text-[var(--app-muted)] hover:text-[var(--app-text)]"><X size={17} /></button>
+        </div>
+
+        <div className="flex items-center justify-between bg-[var(--app-surface)] px-[24px] py-[16px]">
+          <div>
+            <p className="font-['JetBrains_Mono'] text-[10px] uppercase tracking-wider text-[var(--app-muted)]">For user</p>
+            <p className="font-['Figtree'] text-[15px] font-bold">{user.full_name} <span className="font-normal text-[var(--app-muted)]">· {user.email}</span></p>
+          </div>
+          <span className="rounded-[6px] bg-[rgba(243,116,34,0.12)] px-[10px] py-[5px] font-['JetBrains_Mono'] text-[10px] font-bold uppercase text-[#f37422]">{user.counselor ? "ASSIGNED" : "UNASSIGNED"}</span>
+        </div>
+
+        <div className="overflow-y-auto px-[24px] py-[22px]">
+          <div className="mb-[18px] flex items-center gap-[10px] rounded-[10px] border border-[var(--app-border)] bg-[var(--app-bg)] px-[13px] py-[10px]">
+            <Search size={18} className="text-[var(--app-muted)]" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search counselors..." className="w-full bg-transparent font-['Figtree'] text-[14px] outline-none placeholder:text-[var(--app-muted)]" autoFocus />
+          </div>
+
+          {loading ? <p className="py-[32px] text-center font-['JetBrains_Mono'] text-[11px] uppercase text-[var(--app-muted)]">Loading counselors...</p> :
+            filtered.length === 0 ? <p className="py-[32px] text-center font-['JetBrains_Mono'] text-[11px] uppercase text-[var(--app-muted)]">No counselors found</p> :
+              <div className="space-y-[10px]">
+                {filtered.map((counselor) => {
+                  const id = String(counselor.id);
+                  const selected = id === selectedId;
+                  return <button key={id} onClick={() => setSelectedId(id)} className={`flex w-full items-center gap-[14px] rounded-[12px] border px-[12px] py-[11px] text-left transition-colors ${selected ? "border-[#f37422] bg-[rgba(243,116,34,0.06)]" : "border-[var(--app-border)] hover:border-[#6f665c]"}`}>
+                    <span className={`flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full font-['Figtree'] text-[13px] font-bold ${selected ? "bg-[#f37422] text-white" : "bg-[var(--app-hover)] text-[var(--app-text)]"}`}>{counselor.initials || counselorDisplayName(counselor).slice(0, 2).toUpperCase()}</span>
+                    <span className="min-w-0 flex-1"><span className="block truncate font-['Figtree'] text-[14px] font-bold">{counselorDisplayName(counselor)}</span><span className="block truncate font-['Figtree'] text-[12px] text-[var(--app-muted)]">{counselor.specialization_label || counselor.role}</span></span>
+                    <span className="font-['JetBrains_Mono'] text-[11px] text-[var(--app-muted)]">{counselor.patient_count} users</span>
+                    <span className={`h-[20px] w-[20px] rounded-full border-2 ${selected ? "border-[#f37422] bg-[#f37422] shadow-[inset_0_0_0_4px_var(--app-bg)]" : "border-[#6f665c]"}`} />
+                  </button>;
+                })}
+              </div>}
+          {error && <p className="mt-[14px] text-[13px] text-[#ef4444]">{error}</p>}
+        </div>
+
+        <div className="flex justify-end border-t border-[var(--app-border)] bg-[var(--app-surface)] px-[24px] py-[18px]">
+          <button disabled={!selectedId || submitting} onClick={handleAssign} className="rounded-[9px] bg-[#f37422] px-[24px] py-[11px] font-['Figtree'] text-[14px] font-bold text-white shadow-[0_4px_16px_rgba(243,116,34,0.25)] transition-opacity disabled:cursor-not-allowed disabled:opacity-50">{submitting ? "Assigning..." : "Assign Counselor"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function RecoveryPage() {
   const { userId } =
     useParams<{ userId: string }>();
@@ -297,6 +409,7 @@ export function RecoveryPage() {
 
   const [error, setError] =
     useState<string | null>(null);
+  const [assigning, setAssigning] = useState(false);
 
   useEffect(() => {
     if (!userId) {
@@ -380,7 +493,7 @@ export function RecoveryPage() {
         {/* HEADER */}
 
         <header>
-  <div className="flex min-h-[72px] items-center justify-between">
+  <div className="flex min-h-[72px] items-center justify-between gap-[20px]">
 
     <div>
       {/* SAME STYLE AS TREATMENT PLAN / GOALS */}
@@ -412,6 +525,8 @@ export function RecoveryPage() {
         {user.counselor || "Unassigned"}
       </p>
     </div>
+
+    <button onClick={() => setAssigning(true)} className="shrink-0 rounded-[10px] bg-[#f37422] px-[22px] py-[11px] font-['Figtree'] text-[13px] font-bold text-white shadow-[0_5px_18px_rgba(243,116,34,0.25)] hover:bg-[#e5681e]">Assign Counselor</button>
 
 
 
@@ -597,11 +712,6 @@ export function RecoveryPage() {
               Recent Check-Ins (Last 7 Days)
             </h2>
 
-            <button className="flex items-center gap-[6px] font-['JetBrains_Mono'] text-[10px] font-bold uppercase tracking-wider text-[#f37422]">
-              View chronology
-              <ArrowRight size={13} />
-            </button>
-
           </div>
 
           <div className="overflow-x-auto">
@@ -630,7 +740,7 @@ export function RecoveryPage() {
 
               {/* TABLE ROWS */}
 
-              {user.checkins.length === 0 ? (
+        {user.checkins.length === 0 ? (
                 <div className="px-[20px] py-[28px] text-center font-['JetBrains_Mono'] text-[10px] uppercase text-[var(--app-muted)]">
                   No completed check-ins
                 </div>
@@ -682,6 +792,8 @@ export function RecoveryPage() {
         </section>
 
       </div>
+
+      {assigning && <AssignCounselorModal user={user} onClose={() => setAssigning(false)} onAssigned={(counselor) => setUser((current) => current ? { ...current, counselor: counselorDisplayName(counselor) } : current)} />}
 
     </div>
   );
