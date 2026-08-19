@@ -8,7 +8,8 @@ import { MetricCard } from "@/components/common/MetricCard";
 import { TableCard, TableToolbar, TableHead, TableRow } from "@/components/common/Table";
 import { ActionBtn } from "@/components/common/ActionBtn";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter } from "@/components/common/Modal";
-import { FormField, TextInput } from "@/components/common/FormFields";
+import { FormField, SelectInput, TextArea, TextInput } from "@/components/common/FormFields";
+import { CATEGORY_OPTIONS, DAY_OPTIONS, FORMAT_OPTIONS } from "@/components/modals/CreateGroupModal";
 import { FilterIcon, HashIcon, EyeIcon, EditIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api";
 import {
@@ -147,12 +148,49 @@ function GroupDetailModal({ groupId, onClose }: { groupId: string; onClose: () =
 }
 
 function EditGroupModal({ group, onClose, onSaved }: { group: DisplayGroup; onClose: () => void; onSaved: () => void }) {
-  const [maxCapacity, setMaxCapacity] = useState(String(group.capacity));
+  const [detail, setDetail] = useState<ApiSupportGroup | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState(CATEGORY_OPTIONS[0]);
+  const [description, setDescription] = useState("");
+  const [meetingDay, setMeetingDay] = useState(DAY_OPTIONS[0]);
+  const [meetingTime, setMeetingTime] = useState("09:00");
+  const [format, setFormat] = useState<(typeof FORMAT_OPTIONS)[number]>("In-Person");
+  const [maxCapacity, setMaxCapacity] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    getSupportGroup(group.id)
+      .then((response) => {
+        if (cancelled) return;
+        setDetail(response);
+        setName(response.name);
+        setCategory(CATEGORY_OPTIONS.find((option) => option.toLowerCase() === response.category.toLowerCase()) ?? capitalize(response.category));
+        setDescription(response.description ?? "");
+        setMeetingDay(DAY_OPTIONS.find((option) => option.toLowerCase() === response.meeting_day.toLowerCase()) ?? capitalize(response.meeting_day));
+        setMeetingTime(response.meeting_time ? response.meeting_time.slice(0, 5) : "09:00");
+        setFormat(response.format.toLowerCase() === "online" ? "Online" : "In-Person");
+        setMaxCapacity(String(response.max_capacity));
+        setTagsInput(response.tags.join(", "));
+      })
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Unable to load group details."))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [group.id]);
+
   const handleSubmit = async () => {
     const parsed = Number(maxCapacity);
+    if (!name.trim()) {
+      setError("Group name is required.");
+      return;
+    }
     if (!Number.isInteger(parsed) || parsed <= 0) {
       setError("Max capacity must be a positive whole number.");
       return;
@@ -160,7 +198,16 @@ function EditGroupModal({ group, onClose, onSaved }: { group: DisplayGroup; onCl
     setSubmitting(true);
     setError(null);
     try {
-      await updateSupportGroup(group.id, { max_capacity: parsed });
+      await updateSupportGroup(group.id, {
+        name: name.trim(),
+        description: description.trim(),
+        category: category.toLowerCase(),
+        meeting_day: meetingDay.toLowerCase(),
+        meeting_time: `${meetingTime}:00`,
+        format: format === "Online" ? "online" : "in_person",
+        max_capacity: parsed,
+        tags: tagsInput.split(",").map((tag) => tag.trim()).filter(Boolean),
+      });
       onSaved();
       onClose();
     } catch (err) {
@@ -174,17 +221,30 @@ function EditGroupModal({ group, onClose, onSaved }: { group: DisplayGroup; onCl
     <ModalOverlay onClose={onClose}>
       <ModalCard>
         <ModalHeader title={`Edit ${group.name}`} onClose={onClose} />
-        <div className="flex flex-col gap-[16px]">
-          <FormField label="Max capacity" required>
-            <TextInput type="number" value={maxCapacity} onChange={setMaxCapacity} />
-          </FormField>
+        {loading && <p className="font-['Figtree'] text-[13px] text-[var(--app-muted)]">Loading group details...</p>}
+        {!loading && detail && <div className="flex flex-col gap-[16px]">
+          <div className="flex gap-[16px] flex-wrap">
+            <div className="flex-1 min-w-[200px]"><FormField label="Group Name" required><TextInput placeholder="e.g. Wednesday Morning Recovery" value={name} onChange={setName} /></FormField></div>
+            <div className="w-full sm:w-[220px]"><FormField label="Category"><SelectInput options={CATEGORY_OPTIONS.includes(category) ? CATEGORY_OPTIONS : [...CATEGORY_OPTIONS, category]} value={category} onChange={setCategory} /></FormField></div>
+          </div>
+          <FormField label="Description"><TextArea placeholder="Describe the purpose and goals of this group..." value={description} onChange={setDescription} /></FormField>
+          <div className="flex gap-[16px] flex-wrap">
+            <div className="flex-1 min-w-[160px]"><FormField label="Meeting Day"><SelectInput options={DAY_OPTIONS.includes(meetingDay) ? DAY_OPTIONS : [...DAY_OPTIONS, meetingDay]} value={meetingDay} onChange={setMeetingDay} /></FormField></div>
+            <div className="flex-1 min-w-[160px]"><FormField label="Meeting Time"><TextInput type="time" value={meetingTime} onChange={setMeetingTime} /></FormField></div>
+          </div>
+          <div className="flex gap-[16px] flex-wrap">
+            <div className="flex-1 min-w-[160px]"><FormField label="Format"><div className="flex items-center gap-[12px] py-[12px]">{FORMAT_OPTIONS.map((option) => <button type="button" key={option} onClick={() => setFormat(option)} className="flex items-center gap-[8px] cursor-pointer"><div className="w-[16px] h-[16px] rounded-full flex items-center justify-center" style={{ border: `2px solid ${format === option ? "#f37422" : "rgba(244,237,227,0.2)"}`, background: format === option ? "#f37422" : "transparent" }}>{format === option && <div className="w-[6px] h-[6px] rounded-full bg-white" />}</div><span className={`font-['Figtree'] text-[14px] ${format === option ? "text-[var(--app-text)]" : "text-[var(--app-muted)]"}`}>{option}</span></button>)}</div></FormField></div>
+            <div className="flex-1 min-w-[160px]"><FormField label="Max Capacity" required><TextInput type="number" placeholder="15" value={maxCapacity} onChange={setMaxCapacity} /></FormField></div>
+          </div>
+          <FormField label="Tags"><TextInput placeholder="recovery, morning" value={tagsInput} onChange={setTagsInput} /></FormField>
           {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
-        </div>
+        </div>}
+        {!loading && !detail && error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
         <ModalFooter
           onCancel={onClose}
           onConfirm={handleSubmit}
           confirmLabel={submitting ? "Saving..." : "Save changes"}
-          confirmDisabled={submitting}
+          confirmDisabled={submitting || loading || !detail}
         />
       </ModalCard>
     </ModalOverlay>

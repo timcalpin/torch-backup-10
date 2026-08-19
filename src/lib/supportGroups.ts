@@ -46,7 +46,14 @@ export function createSupportGroup(payload: CreateSupportGroupPayload): Promise<
 }
 
 export interface UpdateSupportGroupPayload {
+  name: string;
+  description: string;
+  category: string;
+  meeting_day: string;
+  meeting_time: string;
+  format: string;
   max_capacity: number;
+  tags: string[];
 }
 
 export function updateSupportGroup(id: string, payload: UpdateSupportGroupPayload): Promise<ApiSupportGroup> {

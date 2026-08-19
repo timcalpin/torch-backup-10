@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { getUsersdetails, updateUser } from "@/lib/users";
 import { counselorDisplayName, listCounselors, type ApiCounselor } from "@/lib/counselors";
@@ -711,11 +711,6 @@ export function RecoveryPage() {
             <h2 className="font-['Figtree'] text-[18px] font-bold">
               Recent Check-Ins (Last 7 Days)
             </h2>
-
-            <button className="flex items-center gap-[6px] font-['JetBrains_Mono'] text-[10px] font-bold uppercase tracking-wider text-[#f37422]">
-              View chronology
-              <ArrowRight size={13} />
-            </button>
 
           </div>
 
