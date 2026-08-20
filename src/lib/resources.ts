@@ -1,5 +1,6 @@
 import { apiFetch } from "./api";
 import type { PaginatedResponse } from "./pagination";
+import { withAdminQuery, type AdminQuery } from "./adminQuery";
 
 export type { PaginatedResponse };
 
@@ -282,11 +283,11 @@ export type UpdateResourcePayload =
    LIST RESOURCES
 ========================================================= */
 
-export function listResources(): Promise<
+export function listResources(query: AdminQuery = {}): Promise<
   PaginatedResponse<ApiResource>
 > {
   return apiFetch<PaginatedResponse<ApiResource>>(
-    "/api/v1/admin/resources/"
+    withAdminQuery("/api/v1/admin/resources/", query)
   );
 }
 
@@ -358,4 +359,24 @@ export function deleteResource(
       method: "DELETE",
     }
   );
+}
+
+export function listEvents(query: AdminQuery = {}): Promise<PaginatedResponse<ApiResource>> {
+  return apiFetch<PaginatedResponse<ApiResource>>(withAdminQuery("/api/v1/admin/events/", query));
+}
+
+export interface ResourceImportResult {
+  created: number;
+  updated: number;
+  failed: number;
+  errors: Array<{ row?: number; field?: string; message: string }>;
+}
+
+export function importResources(file: File): Promise<ResourceImportResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<ResourceImportResult>("/api/v1/admin/resources/import/", {
+    method: "POST",
+    body: formData,
+  });
 }

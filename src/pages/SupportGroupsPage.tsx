@@ -2,15 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
 import { PageHeader } from "@/components/common/PageHeader";
+import { PrimaryBtn } from "@/components/common/Buttons";
 import { SearchBox } from "@/components/common/SearchBox";
-import { GhostBtn, PrimaryBtn } from "@/components/common/Buttons";
 import { MetricCard } from "@/components/common/MetricCard";
 import { TableCard, TableToolbar, TableHead, TableRow } from "@/components/common/Table";
 import { ActionBtn } from "@/components/common/ActionBtn";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter } from "@/components/common/Modal";
 import { FormField, SelectInput, TextArea, TextInput } from "@/components/common/FormFields";
 import { CATEGORY_OPTIONS, DAY_OPTIONS, FORMAT_OPTIONS } from "@/components/modals/CreateGroupModal";
-import { FilterIcon, HashIcon, EyeIcon, EditIcon } from "@/components/icons";
+import { HashIcon, EyeIcon, EditIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api";
 import {
   listSupportGroups,
@@ -255,6 +255,9 @@ export function SupportGroupsPage() {
   const { setModal, groupsVersion, bumpGroupsVersion } = useAppContext();
   const [formatTab, setFormatTab] = useState("All");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrev, setHasPrev] = useState(false);
   const [groups, setGroups] = useState<DisplayGroup[]>([]);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -270,11 +273,13 @@ export function SupportGroupsPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    listSupportGroups()
+    listSupportGroups({ search, page, page_size: 10, ...(formatTab !== "All" ? { format: formatTab } : {}) })
       .then((response) => {
         if (cancelled) return;
         setGroups(response.results.map(toDisplayGroup));
         setTotalCount(response.count);
+        setHasNext(Boolean(response.next));
+        setHasPrev(Boolean(response.previous));
       })
       .catch((err) => {
         if (cancelled) return;
@@ -286,7 +291,9 @@ export function SupportGroupsPage() {
     return () => {
       cancelled = true;
     };
-  }, [groupsVersion]);
+  }, [groupsVersion, search, page, formatTab]);
+
+  useEffect(() => setPage(1), [search, formatTab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -306,11 +313,7 @@ export function SupportGroupsPage() {
 
   const formatTabs = useMemo(() => ["All", ...Array.from(new Set(groups.map((g) => g.format)))], [groups]);
 
-  const filtered = groups.filter((g) => {
-    if (formatTab !== "All" && g.format !== formatTab) return false;
-    if (search && !g.name.toLowerCase().includes(search.toLowerCase()) && !g.description.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  const filtered = groups;
 
   const handleDelete = async (group: DisplayGroup) => {
     if (!window.confirm(`Delete ${group.name}? This cannot be undone.`)) return;
@@ -331,8 +334,6 @@ export function SupportGroupsPage() {
       <div className="p-[24px] lg:p-[32px] flex flex-col gap-[20px]">
         <PageHeader eyebrow={totalCount !== null ? `${totalCount} TOTAL GROUPS` : "LOADING GROUPS…"} title="Support Groups">
           <SearchBox placeholder="Search groups..." value={search} onChange={setSearch} />
-          <GhostBtn label="Filter" icon={<FilterIcon />} />
-          <GhostBtn label="Export" />
           <PrimaryBtn label="+ Create Group" onClick={() => setModal("create-group")} />
         </PageHeader>
 
@@ -415,13 +416,17 @@ export function SupportGroupsPage() {
               {!loading && !error && filtered.length === 0 && (
                 <div className="py-[48px] text-center">
                   <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">
-                    {groups.length === 0 ? "No support groups yet." : "No groups match your search."}
+                    "No support groups yet."
                   </p>
                 </div>
               )}
             </div>
           </div>
         </TableCard>
+        <div className="flex items-center justify-between border-t border-[var(--app-border)] px-[13px] py-[10px]">
+          <span className="font-['JetBrains_Mono'] text-[8px] text-[var(--app-muted)]">Page {page} · {totalCount ?? 0} groups</span>
+          <div className="flex items-center gap-[4px]"><button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={!hasPrev || loading} className="px-2 py-1 border rounded disabled:opacity-30">‹</button><span className="px-2 py-1 rounded bg-[#f37422] text-[#15110e]">{page}</span><button type="button" onClick={() => setPage((value) => value + 1)} disabled={!hasNext || loading} className="px-2 py-1 border rounded disabled:opacity-30">›</button></div>
+        </div>
         {viewGroupId && <GroupDetailModal groupId={viewGroupId} onClose={() => setViewGroupId(null)} />}
         {editGroup && (
           <EditGroupModal

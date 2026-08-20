@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
 import { PageHeader } from "@/components/common/PageHeader";
-import { GhostBtn, PrimaryBtn } from "@/components/common/Buttons";
+import { SearchBox } from "@/components/common/SearchBox";
+import { PrimaryBtn } from "@/components/common/Buttons";
 import { MetricCard } from "@/components/common/MetricCard";
 import { TableCard, TableHead, TableRow } from "@/components/common/Table";
 import { StatusPill } from "@/components/common/StatusPill";
@@ -11,7 +12,7 @@ import { ActionBtn } from "@/components/common/ActionBtn";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter, SectionLabel } from "@/components/common/Modal";
 import { FormField, TextInput, TextArea, SelectInput } from "@/components/common/FormFields";
 import { FileDropzone } from "@/components/common/FileDropzone";
-import { FilterIcon, EditIcon, MicIcon, VideoIcon, BookIcon, SparklesIcon, FileIcon } from "@/components/icons";
+import { EditIcon, MicIcon, VideoIcon, BookIcon, SparklesIcon, FileIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api";
 import {
   listContent,
@@ -306,6 +307,7 @@ export function ResourcesAppPage() {
     bumpLiteratureVersion,
   } = useAppContext();
   const [activeCategory, setActiveCategory] = useState("All");
+  const [search, setSearch] = useState("");
   const [activeStatus, setActiveStatus] = useState("All");
   const [editContentItem, setEditContentItem] = useState<ApiContentItem | null>(null);
   const [editLiteratureItem, setEditLiteratureItem] = useState<ApiLiterature | null>(null);
@@ -325,7 +327,7 @@ export function ResourcesAppPage() {
     let cancelled = false;
     setContentLoading(true);
     setContentError(null);
-    listContent()
+    listContent({ search, page_size: 100 })
       .then((response) => {
         if (!cancelled) setContent(response.results);
       })
@@ -343,13 +345,13 @@ export function ResourcesAppPage() {
     return () => {
       cancelled = true;
     };
-  }, [contentVersion]);
+  }, [contentVersion, search]);
 
   useEffect(() => {
     let cancelled = false;
     setLiteratureLoading(true);
     setLiteratureError(null);
-    listLiterature()
+    listLiterature({ search, page_size: 100 })
       .then((response) => {
         if (!cancelled) setLiterature(response.results);
       })
@@ -362,7 +364,7 @@ export function ResourcesAppPage() {
     return () => {
       cancelled = true;
     };
-  }, [literatureVersion]);
+  }, [literatureVersion, search]);
 
   const categoryCounts: Record<string, number> = {
     All: content.length + literature.length,
@@ -452,8 +454,7 @@ export function ResourcesAppPage() {
           eyebrow={stats ? `CONTENT · ${stats.total_content} ITEMS · ${stats.total_plays.toLocaleString()} TOTAL PLAYS` : "LOADING CONTENT…"}
           title="In-App Resources"
         >
-          <GhostBtn label="Filter" icon={<FilterIcon />} />
-          <GhostBtn label="Export" />
+          <SearchBox placeholder="Search resources..." value={search} onChange={setSearch} />
           <PrimaryBtn label="+ Add Content" onClick={() => setModal("add-content")} />
         </PageHeader>
 

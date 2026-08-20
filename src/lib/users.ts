@@ -1,5 +1,6 @@
 import { apiFetch } from "./api";
 import type { PaginatedResponse } from "./pagination";
+import { withAdminQuery, type AdminQuery } from "./adminQuery";
 
 export type { PaginatedResponse };
 
@@ -63,9 +64,9 @@ export interface Recoveryuser {
   }[];
 }
 
-export function listUsers(page: number = 1): Promise<PaginatedResponse<ApiUser>> {
-  return apiFetch<PaginatedResponse<ApiUser>>(`/api/v1/admin/users/?page=${page}`);
-}  
+export function listUsers(query: AdminQuery = {}): Promise<PaginatedResponse<ApiUser>> {
+  return apiFetch<PaginatedResponse<ApiUser>>(withAdminQuery("/api/v1/admin/users/", query));
+}
 
 export function getUser(id: string): Promise<ApiUser> {
   return apiFetch<ApiUser>(`/api/v1/admin/users/${id}/`);
