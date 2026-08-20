@@ -295,6 +295,10 @@ export function EventsPage() {
   const [activeCategory, setActiveCategory] =
     useState<string>("all");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrev, setHasPrev] = useState(false);
 
   const [sortAscending, setSortAscending] = useState(true);
 
@@ -313,11 +317,12 @@ export function EventsPage() {
       setLoading(true);
       setError(null);
 
-      const response = await listEvents({ search, page: 1, page_size: 100, ...(activeCategory !== "all" ? { category: activeCategory } : {}) });
+      const response = await listEvents({ search, page, page_size: 10, ...(activeCategory !== "all" ? { category: activeCategory } : {}) });
 
-      setResources(
-        ((response as any)?.results || []) as AdminResource[]
-      );
+      setResources(response.results as AdminResource[]);
+      setTotalCount(response.count);
+      setHasNext(Boolean(response.next));
+      setHasPrev(Boolean(response.previous));
     } catch (err) {
       console.error(err);
 
@@ -353,7 +358,9 @@ export function EventsPage() {
   useEffect(() => {
     loadResources();
     loadStats();
-  }, [search, activeCategory]);
+  }, [search, activeCategory, page]);
+
+  useEffect(() => setPage(1), [search, activeCategory]);
 
   /* ---------------------------------------------------------------------- */
   /* CATEGORY FILTER                                                        */
@@ -361,13 +368,6 @@ export function EventsPage() {
 
   const filteredResources = useMemo(() => {
     let result = [...resources];
-
-    if (activeCategory !== "all") {
-      result = result.filter(
-        (resource) =>
-          resource.category === activeCategory
-      );
-    }
 
     result.sort((a, b) => {
       const first =
@@ -388,7 +388,6 @@ export function EventsPage() {
     sortAscending,
   ]);
 
-  const totalFiltered = filteredResources.length;
   const visibleResources = filteredResources;
 
 
@@ -676,7 +675,7 @@ export function EventsPage() {
                 </span>
 
                 <span className="ml-[7px] font-['JetBrains_Mono'] text-[8px] text-[#f37422]">
-                  {totalFiltered}
+                  {totalCount}
                 </span>
               </div>
 
@@ -867,22 +866,20 @@ export function EventsPage() {
             <div className="flex flex-col gap-[8px] border-t border-[#2a2724] px-[13px] py-[10px] sm:flex-row sm:items-center sm:justify-between">
 
               <span className="font-['JetBrains_Mono'] text-[7px] text-[#756c61]">
-                Showing{" "}
-                {totalFiltered === 0 ? 0 : 1}
+                Page {page} · {totalCount} resources{/*
                 –
-                {totalFiltered}{" "}
                 of{" "}
-                {totalFiltered}{" "}
-                resources
+                resources*/}
               </span>
 
               <div className="flex items-center gap-[4px]">
 
-                {/* PREVIOUS */}
+                <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={!hasPrev || loading} className="px-2 py-1 border rounded disabled:opacity-30">‹</button>
+                <span className="px-2 py-1 rounded bg-[#f37422] text-[#15110e]">{page}</span>
 
                 {/* PAGE NUMBERS */}
 
-                {/* NEXT */}
+                <button type="button" onClick={() => setPage((value) => value + 1)} disabled={!hasNext || loading} className="px-2 py-1 border rounded disabled:opacity-30">›</button>
 
               </div>
 

@@ -11,7 +11,7 @@ import { Toggle } from "@/components/common/Toggle";
 import { ActionBtn } from "@/components/common/ActionBtn";
 import { FileIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api";
-import { importResources, listResources, updateResource, deleteResource, type ApiResource } from "@/lib/resources";
+import { getResourceStats, importResources, listResources, updateResource, deleteResource, type ApiResource, type ResourceStats } from "@/lib/resources";
 
 function toTitleCase(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -24,6 +24,7 @@ export function RealWorldResourcesPage() {
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
   const [totalResources, setTotalResources] = useState(0);
+  const [stats, setStats] = useState<ResourceStats | null>(null);
   const [resources, setResources] = useState<ApiResource[]>([]);
   const [resourceModalOpen, setResourceModalOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<ApiResource | null>(null);
@@ -41,8 +42,8 @@ export function RealWorldResourcesPage() {
     listResources({ search, page, page_size: 10 })
       .then((response) => {
         if (!cancelled) {
-          setResources(response.results ?? []);
-          setTotalResources(response.count ?? response.results?.length ?? 0);
+          setResources(response.results);
+          setTotalResources(response.count);
           setHasNext(Boolean(response.next));
           setHasPrev(Boolean(response.previous));
         }
@@ -53,17 +54,13 @@ export function RealWorldResourcesPage() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    getResourceStats().then(setStats).catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [resourcesVersion, search, page]);
 
   useEffect(() => setPage(1), [search]);
-
-  const filtered = resources;
-  const featuredCount = resources.filter((r) => r.is_featured).length;
-  const categoryCount = new Set(resources.map((r) => r.category)).size;
-  const recoveryCount = resources.filter((r) => r.category === "recovery_meetings").length;
 
   const handleToggleFeatured = async (item: ApiResource) => {
     setActionError(null);
@@ -85,8 +82,6 @@ export function RealWorldResourcesPage() {
     setActionError(null);
     try {
       await deleteResource(item.id);
-      setResources((current) => current.filter((resource) => resource.id !== item.id));
-      setTotalResources((count) => Math.max(0, count - 1));
       bumpResourcesVersion();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Unable to delete resource.");
@@ -119,7 +114,7 @@ export function RealWorldResourcesPage() {
   return (
     <div className="flex-1 min-w-0 overflow-y-auto">
       <div className="p-[24px] lg:p-[32px] flex flex-col gap-[20px]">
-        <PageHeader eyebrow={`${totalResources} RESOURCES · ${categoryCount} CATEGORIES`} title="Real World Resources">
+        <PageHeader eyebrow={stats ? `RESOURCES · ${stats.count} TOTAL · ${stats.category_count} CATEGORIES · ${stats.active_count} ACTIVE` : "RESOURCES"} title="Real World Resources">
           <SearchBox placeholder="Search resources..." value={search} onChange={setSearch} />
           <GhostBtn label={importing ? "Importing..." : "Import"} icon={<Upload size={14} />} onClick={() => !importing && importInputRef.current?.click()} />
           <input ref={importInputRef} id="resource-import-input" type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" aria-label="Import resources" />
@@ -137,10 +132,10 @@ export function RealWorldResourcesPage() {
         {importMessage && <p className="font-['Figtree'] text-[13px] text-[#35d47b]">{importMessage}</p>}
 
         <div className="flex gap-[10px] flex-wrap">
-          <MetricCard label="TOTAL RESOURCES" value={String(totalResources)} delta="Live from server" deltaColor="#8a8073" accentColor="#f37422" />
-          <MetricCard label="RECOVERY MEETINGS" value={String(recoveryCount)} delta="Live from server" deltaColor="#8a8073" accentColor="#facc15" />
-          <MetricCard label="CATEGORIES" value={String(categoryCount)} delta="Live from server" deltaColor="#8a8073" accentColor="#6b8ab0" />
-          <MetricCard label="FEATURED" value={String(featuredCount)} delta="Live from server" deltaColor="#8a8073" accentColor="#4ade80" />
+          <MetricCard label="TOTAL RESOURCES" value={stats ? String(stats.count) : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#f37422" />
+          <MetricCard label="ACTIVE" value={stats ? String(stats.active_count) : "—"} delta="Currently listed" deltaColor="#8a8073" accentColor="#4ade80" />
+          <MetricCard label="CATEGORIES" value={stats ? String(stats.category_count) : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#6b8ab0" />
+          <MetricCard label="PENDING REVIEW" value={stats ? String(stats.pending_count) : "—"} delta="Awaiting review" deltaColor="#8a8073" accentColor="#facc15" />
         </div>
 
         <TableCard>
@@ -159,7 +154,7 @@ export function RealWorldResourcesPage() {
                   <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">Loading resources...</p>
                 </div>
               )}
-              {!loading && filtered.map((item) => (
+              {!loading && resources.map((item) => (
                 <TableRow key={item.id}>
                   <div className="flex items-center gap-[10px] flex-1 min-w-[220px]">
                     <div className="w-[32px] h-[32px] rounded-full bg-[rgba(107,138,176,0.2)] flex items-center justify-center flex-shrink-0">
@@ -202,7 +197,7 @@ export function RealWorldResourcesPage() {
                   </div>
                 </TableRow>
               ))}
-              {!loading && filtered.length === 0 && (
+              {!loading && resources.length === 0 && (
                 <div className="py-[48px] text-center">
                   <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">
                     "No resources yet."
