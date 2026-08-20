@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Lightbulb, SlidersHorizontal, FileText, Target, UserIcon, ClipboardList } from "lucide-react";
+import { Lightbulb, SlidersHorizontal, FileText, Target, UserIcon, ClipboardList, Activity } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   TorchFlame,
@@ -83,6 +83,7 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
   const { user, usersVersion, groupsVersion } = useAppContext();
   const is = (path: string) => pathname === path;
   const iconColor = (path: string) => is(path) ? "#F37422" : lightMode ? "#2C241D" : "#8A8073";
+  const isMetricsDebug = pathname.startsWith("/metrics-debug");
 
   // These links are only available after a user has been selected from Users.
   // Keep the id in the URL so the selection survives navigation between cards.
@@ -160,6 +161,13 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
           <NavSection label="SYSTEM" lightMode={lightMode}>
             <NavItem to="/settings" icon={<SlidersHorizontal size={14} strokeWidth={1.7} color={iconColor("/settings")} />} label="Settings" active={is("/settings")} lightMode={lightMode} />
             <NavItem to="/privacy" icon={<CircleXIcon color={iconColor("/privacy")} />} label="Privacy & Compliance" active={is("/privacy")} lightMode={lightMode} />
+            <NavItem
+              to="/metrics-debug"
+              icon={<Activity size={14} strokeWidth={1.7} color={isMetricsDebug ? "#F37422" : lightMode ? "#2C241D" : "#8A8073"} />}
+              label="Metrics Test"
+              active={isMetricsDebug}
+              lightMode={lightMode}
+            />
           </NavSection>
         </div>
       </div>

@@ -19,6 +19,9 @@ import {
   ProfilePage,
   LoginPage,
   RecoveryPage,
+  MetricsDebugPage,
+  MetricsDebugDetailPage,
+  PayloadInspectorPage,
 } from "../pages";
 import { RouterProvider } from "react-router-dom";
 
@@ -42,6 +45,9 @@ function renderPage(pageKey: AppPageKey) {
     case "settings":         return <SettingsPage />;
     case "privacy":          return <PlaceholderPage title="Privacy & Compliance" subtitle="COMPLIANCE CENTER" />;
     case "profile":          return <ProfilePage />;
+    case "metrics-debug":         return <MetricsDebugPage />;
+    case "metrics-debug-detail":  return <MetricsDebugDetailPage />;
+    case "payload-inspector":     return <PayloadInspectorPage />;
     default:                 return <SupportGroupsPage />;
   }
 }
