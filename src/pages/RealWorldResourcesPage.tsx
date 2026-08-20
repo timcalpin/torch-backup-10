@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Trash2, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Trash2, Upload } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
+import { AddResourceModal } from "@/components/modals";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GhostBtn, PrimaryBtn } from "@/components/common/Buttons";
 import { SearchBox } from "@/components/common/SearchBox";
@@ -17,12 +18,15 @@ function toTitleCase(value: string): string {
 }
 
 export function RealWorldResourcesPage() {
-  const { setModal, resourcesVersion, bumpResourcesVersion } = useAppContext();
+  const { resourcesVersion, bumpResourcesVersion } = useAppContext();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
+  const [totalResources, setTotalResources] = useState(0);
   const [resources, setResources] = useState<ApiResource[]>([]);
+  const [resourceModalOpen, setResourceModalOpen] = useState(false);
+  const [editingResource, setEditingResource] = useState<ApiResource | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -36,7 +40,12 @@ export function RealWorldResourcesPage() {
     setError(null);
     listResources({ search, page, page_size: 10 })
       .then((response) => {
-        if (!cancelled) { setResources(response.results); setHasNext(Boolean(response.next)); setHasPrev(Boolean(response.previous)); }
+        if (!cancelled) {
+          setResources(response.results ?? []);
+          setTotalResources(response.count ?? response.results?.length ?? 0);
+          setHasNext(Boolean(response.next));
+          setHasPrev(Boolean(response.previous));
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof ApiError ? err.message : "Unable to load resources.");
@@ -60,6 +69,11 @@ export function RealWorldResourcesPage() {
     setActionError(null);
     try {
       await updateResource(item.id, { is_featured: !item.is_featured });
+      setResources((current) => current.map((resource) =>
+        resource.id === item.id
+          ? { ...resource, is_featured: !item.is_featured }
+          : resource
+      ));
       bumpResourcesVersion();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Unable to update resource.");
@@ -71,6 +85,8 @@ export function RealWorldResourcesPage() {
     setActionError(null);
     try {
       await deleteResource(item.id);
+      setResources((current) => current.filter((resource) => resource.id !== item.id));
+      setTotalResources((count) => Math.max(0, count - 1));
       bumpResourcesVersion();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Unable to delete resource.");
@@ -103,11 +119,17 @@ export function RealWorldResourcesPage() {
   return (
     <div className="flex-1 min-w-0 overflow-y-auto">
       <div className="p-[24px] lg:p-[32px] flex flex-col gap-[20px]">
-        <PageHeader eyebrow={`${resources.length} RESOURCES · ${categoryCount} CATEGORIES`} title="Real World Resources">
+        <PageHeader eyebrow={`${totalResources} RESOURCES · ${categoryCount} CATEGORIES`} title="Real World Resources">
           <SearchBox placeholder="Search resources..." value={search} onChange={setSearch} />
           <GhostBtn label={importing ? "Importing..." : "Import"} icon={<Upload size={14} />} onClick={() => !importing && importInputRef.current?.click()} />
           <input ref={importInputRef} id="resource-import-input" type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" aria-label="Import resources" />
-          <PrimaryBtn label="+ Add Resource" onClick={() => setModal("add-resource")} />
+          <PrimaryBtn
+            label="+ Add Resource"
+            onClick={() => {
+              setEditingResource(null);
+              setResourceModalOpen(true);
+            }}
+          />
         </PageHeader>
 
         {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
@@ -115,7 +137,7 @@ export function RealWorldResourcesPage() {
         {importMessage && <p className="font-['Figtree'] text-[13px] text-[#35d47b]">{importMessage}</p>}
 
         <div className="flex gap-[10px] flex-wrap">
-          <MetricCard label="TOTAL RESOURCES" value={String(resources.length)} delta="Live from server" deltaColor="#8a8073" accentColor="#f37422" />
+          <MetricCard label="TOTAL RESOURCES" value={String(totalResources)} delta="Live from server" deltaColor="#8a8073" accentColor="#f37422" />
           <MetricCard label="RECOVERY MEETINGS" value={String(recoveryCount)} delta="Live from server" deltaColor="#8a8073" accentColor="#facc15" />
           <MetricCard label="CATEGORIES" value={String(categoryCount)} delta="Live from server" deltaColor="#8a8073" accentColor="#6b8ab0" />
           <MetricCard label="FEATURED" value={String(featuredCount)} delta="Live from server" deltaColor="#8a8073" accentColor="#4ade80" />
@@ -168,6 +190,14 @@ export function RealWorldResourcesPage() {
                     </button>
                   </div>
                   <div className="w-[70px] flex items-center justify-end gap-[10px]">
+                    <ActionBtn
+                      onClick={() => {
+                        setEditingResource(item);
+                        setResourceModalOpen(true);
+                      }}
+                      title="Edit"
+                      icon={<Pencil size={15} strokeWidth={1.8} />}
+                    />
                     <ActionBtn onClick={() => handleDelete(item)} title="Delete" icon={<Trash2 size={15} strokeWidth={1.8} />} />
                   </div>
                 </TableRow>
@@ -182,8 +212,30 @@ export function RealWorldResourcesPage() {
             </div>
           </div>
         </TableCard>
-        <div className="flex items-center justify-between border-t border-[var(--app-border)] px-[13px] py-[10px]"><span className="font-['JetBrains_Mono'] text-[8px] text-[var(--app-muted)]">Page {page}</span><div className="flex items-center gap-[4px]"><button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={!hasPrev || loading} className="px-2 py-1 border rounded disabled:opacity-30">‹</button><span className="px-2 py-1 rounded bg-[#f37422] text-[#15110e]">{page}</span><button type="button" onClick={() => setPage((value) => value + 1)} disabled={!hasNext || loading} className="px-2 py-1 border rounded disabled:opacity-30">›</button></div></div>
+        <div className="flex items-center justify-between border-t border-[var(--app-border)] px-[13px] py-[10px]">
+          <span className="font-['JetBrains_Mono'] text-[8px] text-[var(--app-muted)]">
+            Page {page} · {totalResources.toLocaleString()} resources
+          </span>
+          <div className="flex items-center gap-[4px]">
+            <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={!hasPrev || loading} className="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] border border-[var(--app-border)] text-[var(--app-muted)] disabled:opacity-30" aria-label="Previous page">
+              <ChevronLeft size={13} />
+            </button>
+            <span className="flex h-[26px] min-w-[26px] items-center justify-center rounded-[5px] bg-[#f37422] px-[7px] font-['JetBrains_Mono'] text-[9px] font-bold text-[#15110e]">{page}</span>
+            <button type="button" onClick={() => setPage((value) => value + 1)} disabled={!hasNext || loading} className="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] border border-[var(--app-border)] text-[var(--app-muted)] disabled:opacity-30" aria-label="Next page">
+              <ChevronRight size={13} />
+            </button>
+          </div>
+        </div>
       </div>
+      <AddResourceModal
+        open={resourceModalOpen}
+        resource={editingResource}
+        onClose={() => {
+          setResourceModalOpen(false);
+          setEditingResource(null);
+        }}
+        onCreated={() => bumpResourcesVersion()}
+      />
     </div>
   );
 }
