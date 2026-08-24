@@ -239,6 +239,14 @@ const STATUS_OPTIONS: {
   },
 ];
 
+function normalizeDeliveryFormat(value: unknown): DeliveryFormat | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase().replace(/[ -]+/g, "_");
+  return FORMAT_OPTIONS.some((item) => item.value === normalized)
+    ? (normalized as DeliveryFormat)
+    : null;
+}
+
 /* ============================================================================
    COMPONENT
 ============================================================================ */
@@ -309,11 +317,12 @@ export function AddResourceModal({
           ? resource.sub_category
           : categoryOption.subCategories[0]?.value ?? "";
 
-      const validFormat = FORMAT_OPTIONS.some(
-        (item) => item.value === resource.delivery_format
-      )
-        ? resource.delivery_format!
-        : "not_applicable";
+      // UAT writes delivery_format, while some responses expose the display
+      // alias as format. Accept either shape when opening an existing item.
+      const resourceFormat = normalizeDeliveryFormat(
+        resource.delivery_format || resource.format
+      );
+      const validFormat = resourceFormat ?? "not_applicable";
 
       const validStatus = STATUS_OPTIONS.some(
         (item) => item.value === resource.status

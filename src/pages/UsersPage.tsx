@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Download, Plus, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Plus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "@/app/app-context";
 import { StatusPill } from "@/components/common/StatusPill";
@@ -20,7 +20,6 @@ import {
 const ROLE_OPTIONS = ["Patient", "Counselor", "Admin", "Super Admin"];
 const COUNSELOR_OPTIONS = ["Unassigned", "Dr. Chen", "Dr. Smith", "Dr. Adams"];
 const STATUS_OPTIONS = ["Active", "Inactive"];
-const PAGE_SIZE = 10;
 
 interface DisplayUser {
   id: string;
@@ -478,13 +477,13 @@ export function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("All Users");
+  const pageSize = 10;
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    listUsers(page)
+    listUsers({ search, page, page_size: pageSize })
       .then((response) => {
         if (cancelled) return;
         setUsers(response.results.map(toDisplayUser));
@@ -502,7 +501,9 @@ export function UsersPage() {
     return () => {
       cancelled = true;
     };
-  }, [usersVersion, page]);
+  }, [usersVersion, search, page]);
+
+  useEffect(() => setPage(1), [search]);
 
   useEffect(() => {
     let cancelled = false;
@@ -525,22 +526,6 @@ export function UsersPage() {
     [users]
   );
 
-  const filtered = enrichedUsers.filter(({ user, extras }) => {
-    const matchesSearch =
-      !search ||
-      user.name.toLowerCase().includes(search.toLowerCase()) ||
-      user.email.toLowerCase().includes(search.toLowerCase());
-
-    if (!matchesSearch) return false;
-    if (activeTab === "Active") return user.status === "ACTIVE";
-    if (activeTab === "High Risk") return extras.risk === "HIGH" || extras.risk === "ELEVATED";
-    if (activeTab === "Flagged") return extras.flagged;
-    if (activeTab === "New (7d)") return extras.isNew;
-    return true;
-  });
-
-  const startItem = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const endItem = Math.min(page * PAGE_SIZE, totalCount);
   const avgDaysSober = 61;
   const highRiskAlerts = 12;
   const checkInRate = 78;
@@ -552,14 +537,8 @@ export function UsersPage() {
   const exportUsersCsv = async () => {
     try {
       const allUsers: ApiUser[] = [];
-      let currentPage = 1;
-      let nextPage = true;
-      while (nextPage) {
-        const response = await listUsers(currentPage);
-        allUsers.push(...response.results);
-        nextPage = Boolean(response.next);
-        currentPage += 1;
-      }
+      const response = await listUsers({ page_size: 100 });
+      allUsers.push(...response.results);
 
       const headers = ["id", "email", "full_name", "phone", "role", "counselor", "sobriety_days", "sobriety_start_date", "primary_substance", "is_active", "created_at"];
       const escapeCsv = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
@@ -594,8 +573,6 @@ export function UsersPage() {
     }
   };
 
-  const tabs = ["All Users", "Active", "High Risk", "Flagged", "New (7d)"];
-
   return (
     <div className="flex min-w-0 flex-1 overflow-y-auto bg-[var(--app-bg)] text-[var(--app-text)] transition-colors duration-200">
       <div className="w-full p-[20px] lg:p-[22px]">
@@ -611,24 +588,19 @@ export function UsersPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-[8px]">
-              <div className="relative w-[220px]">
-                <Search className="pointer-events-none absolute left-[10px] top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search users..."
-                  className="h-[31px] w-full rounded-[7px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] pl-[29px] pr-[10px] font-['Figtree'] text-[11px] text-[var(--app-text)] outline-none placeholder:text-[var(--app-muted)] focus:border-[#f37422]"
-                />
+              <div className="relative w-[240px]">
+                <Search className="pointer-events-none absolute left-[11px] top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={15} />
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search users..." className="h-[36px] w-full rounded-[8px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] pl-[32px] pr-[10px] font-['Figtree'] text-[13px] text-[var(--app-text)] outline-none placeholder:text-[var(--app-muted)] focus:border-[#f37422]" />
               </div>
-              <button onClick={exportUsersCsv} className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-[11px] font-['Figtree'] text-[11px] text-[var(--app-muted)] hover:border-[#f37422]">
-                <Download size={12} />
+              <button onClick={exportUsersCsv} className="flex h-[36px] items-center gap-[7px] rounded-[8px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-[13px] font-['Figtree'] text-[13px] text-[var(--app-muted)] hover:border-[#f37422]">
+                <Download size={15} />
                 Export CSV
               </button>
               <button
                 onClick={() => setModal("add-user")}
-                className="flex h-[31px] items-center gap-[5px] rounded-[7px] bg-[#f37422] px-[12px] font-['Figtree'] text-[11px] font-bold text-[#15110e] shadow-[0_4px_14px_rgba(243,116,34,0.2)] hover:bg-[#ff8535]"
+                className="flex h-[38px] items-center gap-[8px] rounded-[9px] bg-gradient-to-r from-[#f37422] to-[#c04a12] px-[16px] font-['Figtree'] text-[13px] font-semibold text-white shadow-[0_4px_8px_rgba(243,116,34,0.22)] transition-all hover:brightness-110"
               >
-                <Plus size={12} strokeWidth={2.5} />
+                <Plus size={14} strokeWidth={2.5} />
                 Add User
               </button>
             </div>
@@ -685,30 +657,8 @@ export function UsersPage() {
 
           <div className="overflow-hidden rounded-[10px] border border-[var(--app-border-strong)] bg-[var(--app-surface)]">
             <div className="flex flex-col border-b border-[var(--app-border-strong)] lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-center gap-[2px] overflow-x-auto px-[10px] py-[8px]">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`whitespace-nowrap rounded-[6px] px-[10px] py-[5px] font-['Figtree'] text-[12px] transition-colors ${
-                      activeTab === tab
-                        ? "bg-[rgba(243,116,34,0.12)] font-bold text-[#f37422]"
-                        : "text-[var(--app-muted)] hover:bg-[var(--app-hover)] hover:text-[var(--app-text)]"
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-[7px] px-[10px] pb-[8px] lg:pb-0">
-                <span className="rounded-full border border-[#7b3f00] bg-[rgba(243,116,34,0.05)] px-[8px] py-[4px] font-['JetBrains_Mono'] text-[8px] font-bold text-[#f37422]">
-                  SUPER ADMIN · JUST ONLY
-                </span>
-                <button className="flex items-center gap-[5px] rounded-[6px] border border-[var(--app-border-strong)] px-[8px] py-[4px] font-['Figtree'] text-[9px] text-[var(--app-muted)]">
-                  Sort by: Risk
-                  <ChevronDown size={10} />
-                </button>
+              <div className="flex items-center gap-[7px] px-[10px] py-[8px]">
+                <span className="rounded-full border border-[#7b3f00] bg-[rgba(243,116,34,0.05)] px-[8px] py-[4px] font-['JetBrains_Mono'] text-[8px] font-bold text-[#f37422]">SUPER ADMIN · JUST ONLY</span>
               </div>
             </div>
 
@@ -734,9 +684,9 @@ export function UsersPage() {
 
                 {loading && <div className="px-[15px] py-[28px] font-['Figtree'] text-[13px] text-[#756c61]">Loading users...</div>}
                 {!loading && error && <div className="px-[15px] py-[28px] font-['Figtree'] text-[13px] text-red-500">{error}</div>}
-                {!loading && !error && filtered.length === 0 && <div className="px-[15px] py-[28px] font-['Figtree'] text-center font-['Figtree'] text-[13px] text-[#756c61]">No users found.</div>}
+                {!loading && !error && enrichedUsers.length === 0 && <div className="px-[15px] py-[28px] font-['Figtree'] text-center font-['Figtree'] text-[13px] text-[#756c61]">No users found.</div>}
 
-                {!loading && !error && filtered.map(({ user: u, extras }) => (
+                {!loading && !error && enrichedUsers.map(({ user: u, extras }) => (
                   <div key={u.id} className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px] items-center border-b border-[var(--app-border-soft)] px-[13px] py-[9px] transition-colors hover:bg-[var(--app-hover)]">
                     <div className="flex min-w-0 items-center gap-[9px]">
                       <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[var(--app-hover)] font-['Figtree'] text-[12px] font-bold text-[var(--app-muted)]">
@@ -767,33 +717,17 @@ export function UsersPage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-[8px] border-t border-[var(--app-border-strong)] px-[13px] py-[10px] sm:flex-row sm:items-center sm:justify-between">
-              <span className="font-['JetBrains_Mono'] text-[8px] text-[#756c61]">
-                Showing {startItem}–{endItem} of {totalCount.toLocaleString()} users
-              </span>
-              <div className="flex items-center gap-[4px]">
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                  disabled={!hasPrev || loading}
-                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[var(--app-border-strong)] text-[var(--app-muted)] hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <ChevronLeft size={12} />
-                </button>
-                <span className="flex h-[24px] min-w-[24px] items-center justify-center rounded-[5px] bg-[#f37422] px-[7px] font-['JetBrains_Mono'] text-[9px] font-bold text-[#15110e]">{page}</span>
-                {hasNext && <span className="flex h-[24px] min-w-[24px] items-center justify-center rounded-[5px] px-[7px] font-['JetBrains_Mono'] text-[9px] text-[#8b8174]">{page + 1}</span>}
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => p + 1)}
-                  disabled={!hasNext || loading}
-                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[var(--app-border-strong)] text-[var(--app-muted)] hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <ChevronRight size={12} />
-                </button>
-              </div>
+          </div>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-[var(--app-border-strong)] px-[13px] py-[10px]">
+            <span className="font-['JetBrains_Mono'] text-[8px] text-[#756c61]">Page {page} · {totalCount.toLocaleString()} users</span>
+            <div className="flex items-center gap-[4px]">
+              <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={!hasPrev || loading} className="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] border border-[var(--app-border-strong)] text-[var(--app-muted)] disabled:opacity-30"><ChevronLeft size={13} /></button>
+              <span className="flex h-[26px] min-w-[26px] items-center justify-center rounded-[5px] bg-[#f37422] px-[7px] font-['JetBrains_Mono'] text-[9px] font-bold text-[#15110e]">{page}</span>
+              <button type="button" onClick={() => setPage((value) => value + 1)} disabled={!hasNext || loading} className="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] border border-[var(--app-border-strong)] text-[var(--app-muted)] disabled:opacity-30"><ChevronRight size={13} /></button>
             </div>
           </div>
-        </div>
 
         {modal === "add-user" && <AddUserModal onClose={() => setModal(null)} />}
         {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} onSaved={bumpUsersVersion} />}

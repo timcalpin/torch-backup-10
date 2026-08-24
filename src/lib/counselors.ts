@@ -1,5 +1,6 @@
 import { apiFetch } from "./api";
 import type { PaginatedResponse } from "./pagination";
+import { withAdminQuery, type AdminQuery } from "./adminQuery";
 
 export const COUNSELOR_STATUSES = ["active", "inactive", "pending"] as const;
 export type CounselorStatus = (typeof COUNSELOR_STATUSES)[number];
@@ -57,8 +58,8 @@ export function counselorDisplayName(counselor: ApiCounselor): string {
   return counselor.role || "Unnamed counselor";
 }
 
-export function listCounselors(): Promise<PaginatedResponse<ApiCounselor>> {
-  return apiFetch<PaginatedResponse<ApiCounselor>>("/api/v1/admin/counselors/");
+export function listCounselors(query: AdminQuery = {}): Promise<PaginatedResponse<ApiCounselor>> {
+  return apiFetch<PaginatedResponse<ApiCounselor>>(withAdminQuery("/api/v1/admin/counselors/", query));
 }
 
 export function getCounselor(id: string): Promise<ApiCounselor> {

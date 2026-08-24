@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
 import { PageHeader } from "@/components/common/PageHeader";
-import { GhostBtn, PrimaryBtn } from "@/components/common/Buttons";
+import { SearchBox } from "@/components/common/SearchBox";
+import { PrimaryBtn } from "@/components/common/Buttons";
 import { MetricCard } from "@/components/common/MetricCard";
 import { TableCard, TableHead, TableRow } from "@/components/common/Table";
 import { StatusPill } from "@/components/common/StatusPill";
@@ -11,7 +12,7 @@ import { ActionBtn } from "@/components/common/ActionBtn";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter, SectionLabel } from "@/components/common/Modal";
 import { FormField, TextInput, TextArea, SelectInput } from "@/components/common/FormFields";
 import { FileDropzone } from "@/components/common/FileDropzone";
-import { FilterIcon, EditIcon, MicIcon, VideoIcon, BookIcon, SparklesIcon, FileIcon } from "@/components/icons";
+import { EditIcon, MicIcon, VideoIcon, BookIcon, SparklesIcon, FileIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api";
 import {
   listContent,
@@ -306,7 +307,16 @@ export function ResourcesAppPage() {
     bumpLiteratureVersion,
   } = useAppContext();
   const [activeCategory, setActiveCategory] = useState("All");
+  const [search, setSearch] = useState("");
   const [activeStatus, setActiveStatus] = useState("All");
+  const [contentPage, setContentPage] = useState(1);
+  const [literaturePage, setLiteraturePage] = useState(1);
+  const [contentTotal, setContentTotal] = useState(0);
+  const [literatureTotal, setLiteratureTotal] = useState(0);
+  const [contentHasNext, setContentHasNext] = useState(false);
+  const [contentHasPrev, setContentHasPrev] = useState(false);
+  const [literatureHasNext, setLiteratureHasNext] = useState(false);
+  const [literatureHasPrev, setLiteratureHasPrev] = useState(false);
   const [editContentItem, setEditContentItem] = useState<ApiContentItem | null>(null);
   const [editLiteratureItem, setEditLiteratureItem] = useState<ApiLiterature | null>(null);
 
@@ -325,9 +335,21 @@ export function ResourcesAppPage() {
     let cancelled = false;
     setContentLoading(true);
     setContentError(null);
-    listContent()
+    listContent({
+      search,
+      page: contentPage,
+      page_size: 10,
+      ...(activeCategory !== "All" && activeCategory !== "Literature" ? { content_type: activeCategory.toLowerCase() } : {}),
+      ...(activeStatus !== "All" && activeStatus !== "Featured" && activeStatus !== "New" ? { status: activeStatus.toLowerCase() } : {}),
+      ...(activeStatus === "Featured" ? { is_featured: true } : {}),
+    })
       .then((response) => {
-        if (!cancelled) setContent(response.results);
+        if (!cancelled) {
+          setContent(response.results);
+          setContentTotal(response.count);
+          setContentHasNext(Boolean(response.next));
+          setContentHasPrev(Boolean(response.previous));
+        }
       })
       .catch((err) => {
         if (!cancelled) setContentError(err instanceof ApiError ? err.message : "Unable to load content.");
@@ -343,15 +365,20 @@ export function ResourcesAppPage() {
     return () => {
       cancelled = true;
     };
-  }, [contentVersion]);
+  }, [contentVersion, search, contentPage, activeCategory, activeStatus]);
 
   useEffect(() => {
     let cancelled = false;
     setLiteratureLoading(true);
     setLiteratureError(null);
-    listLiterature()
+    listLiterature({ search, page: literaturePage, page_size: 10, ...(activeStatus === "Featured" ? { is_featured: true } : {}) })
       .then((response) => {
-        if (!cancelled) setLiterature(response.results);
+        if (!cancelled) {
+          setLiterature(response.results);
+          setLiteratureTotal(response.count);
+          setLiteratureHasNext(Boolean(response.next));
+          setLiteratureHasPrev(Boolean(response.previous));
+        }
       })
       .catch((err) => {
         if (!cancelled) setLiteratureError(err instanceof ApiError ? err.message : "Unable to load literature.");
@@ -362,46 +389,14 @@ export function ResourcesAppPage() {
     return () => {
       cancelled = true;
     };
-  }, [literatureVersion]);
-
-  const categoryCounts: Record<string, number> = {
-    All: content.length + literature.length,
-    Audio: content.filter((item) => toTitleCase(item.content_type) === "Audio").length,
-    Video: content.filter((item) => toTitleCase(item.content_type) === "Video").length,
-    Podcast: content.filter((item) => toTitleCase(item.content_type) === "Podcast").length,
-    Meditation: content.filter((item) => toTitleCase(item.content_type) === "Meditation").length,
-    Text: content.filter((item) => toTitleCase(item.content_type) === "Text").length,
-    Literature: literature.length,
-  };
-
-  const matchesStatus = (item: ApiContentItem) => {
-    if (activeStatus === "All") return true;
-    if (activeStatus === "Featured") return item.is_featured;
-    if (activeStatus === "Draft") return item.status === "draft";
-    if (activeStatus === "Review") return item.status === "review";
-    if (activeStatus === "Archived") return item.status === "archived";
-    if (activeStatus === "New") {
-      const createdAt = new Date(item.created_at).getTime();
-      return createdAt >= Date.now() - 7 * 24 * 60 * 60 * 1000;
-    }
-    return true;
-  };
+  }, [literatureVersion, search, literaturePage, activeCategory, activeStatus]);
 
   const isLiterature = activeCategory === "Literature";
-  const filteredContent = content.filter((item) => {
-    const categoryMatches = activeCategory === "All" || toTitleCase(item.content_type) === activeCategory;
-    return categoryMatches && matchesStatus(item);
-  });
 
-  const filteredLiterature = literature.filter((item) => {
-    if (activeStatus === "All") return true;
-    if (activeStatus === "Featured") return item.is_featured;
-    if (activeStatus === "New") {
-      const createdAt = new Date(item.created_at).getTime();
-      return createdAt >= Date.now() - 7 * 24 * 60 * 60 * 1000;
-    }
-    return true;
-  });
+  useEffect(() => {
+    setContentPage(1);
+    setLiteraturePage(1);
+  }, [search, activeCategory, activeStatus]);
 
   const handleToggleContentFeatured = async (item: ApiContentItem) => {
     setActionError(null);
@@ -452,8 +447,7 @@ export function ResourcesAppPage() {
           eyebrow={stats ? `CONTENT · ${stats.total_content} ITEMS · ${stats.total_plays.toLocaleString()} TOTAL PLAYS` : "LOADING CONTENT…"}
           title="In-App Resources"
         >
-          <GhostBtn label="Filter" icon={<FilterIcon />} />
-          <GhostBtn label="Export" />
+          <SearchBox placeholder="Search resources..." value={search} onChange={setSearch} />
           <PrimaryBtn label="+ Add Content" onClick={() => setModal("add-content")} />
         </PageHeader>
 
@@ -472,8 +466,6 @@ export function ResourcesAppPage() {
           <div className="grid grid-cols-2 gap-[4px] sm:grid-cols-4 lg:grid-cols-7">
             {CONTENT_TABS.map((tab) => {
               const active = activeCategory === tab;
-              const count = categoryCounts[tab] ?? 0;
-
               return (
                 <button
                   key={tab}
@@ -485,9 +477,6 @@ export function ResourcesAppPage() {
                   }`}
                 >
                   <span>{tab}</span>
-                  <span className={`rounded-[4px] px-[5px] py-[2px] font-['JetBrains_Mono'] text-[8px] font-bold ${active ? "bg-[rgba(255,255,255,0.15)] text-white" : "bg-[rgba(138,128,115,0.1)] text-[var(--app-muted)]"}`}>
-                    {count}
-                  </span>
                 </button>
               );
             })}
@@ -540,7 +529,7 @@ export function ResourcesAppPage() {
                     <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">Loading content...</p>
                   </div>
                 )}
-                {!contentLoading && filteredContent.map((item) => {
+                {!contentLoading && !isLiterature && content.map((item) => {
                   const typeLabel = toTitleCase(item.content_type);
                   const tc = CONTENT_TYPE_COLORS[typeLabel] ?? { bg: "rgba(138,128,115,0.15)", color: "#8a8073" };
                   return (
@@ -579,7 +568,7 @@ export function ResourcesAppPage() {
                     </TableRow>
                   );
                 })}
-                {!contentLoading && filteredContent.length === 0 && (
+                {!contentLoading && !isLiterature && content.length === 0 && (
                   <div className="py-[48px] text-center">
                     <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">No content matches this filter.</p>
                   </div>
@@ -601,7 +590,7 @@ export function ResourcesAppPage() {
                     <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">Loading literature...</p>
                   </div>
                 )}
-                {!literatureLoading && filteredLiterature.map((item) => (
+                {!literatureLoading && literature.map((item) => (
                   <TableRow key={item.id}>
                     <div className="flex items-center gap-[10px] flex-1 min-w-[220px]">
                       <div className="w-[32px] h-[32px] rounded-full bg-[rgba(183,163,110,0.2)] flex items-center justify-center flex-shrink-0">
@@ -628,7 +617,7 @@ export function ResourcesAppPage() {
                     </div>
                   </TableRow>
                 ))}
-                {!literatureLoading && filteredLiterature.length === 0 && (
+                {!literatureLoading && literature.length === 0 && (
                   <div className="py-[48px] text-center">
                     <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">No literature uploaded yet.</p>
                   </div>
@@ -637,6 +626,16 @@ export function ResourcesAppPage() {
             </div>
           )}
         </TableCard>
+        <div className="flex items-center justify-between border-t border-[var(--app-border)] px-[13px] py-[10px]">
+          <span className="font-['JetBrains_Mono'] text-[8px] text-[var(--app-muted)]">
+            Page {isLiterature ? literaturePage : contentPage} · {isLiterature ? literatureTotal : contentTotal} total
+          </span>
+          <div className="flex items-center gap-[4px]">
+            <button type="button" onClick={() => isLiterature ? setLiteraturePage((value) => Math.max(1, value - 1)) : setContentPage((value) => Math.max(1, value - 1))} disabled={isLiterature ? !literatureHasPrev || literatureLoading : !contentHasPrev || contentLoading} className="px-2 py-1 border rounded disabled:opacity-30">‹</button>
+            <span className="px-2 py-1 rounded bg-[#f37422] text-[#15110e]">{isLiterature ? literaturePage : contentPage}</span>
+            <button type="button" onClick={() => isLiterature ? setLiteraturePage((value) => value + 1) : setContentPage((value) => value + 1)} disabled={isLiterature ? !literatureHasNext || literatureLoading : !contentHasNext || contentLoading} className="px-2 py-1 border rounded disabled:opacity-30">›</button>
+          </div>
+        </div>
         {editContentItem && (
           <EditContentModal
             item={editContentItem}

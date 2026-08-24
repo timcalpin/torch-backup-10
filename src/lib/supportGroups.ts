@@ -1,5 +1,6 @@
 import { apiFetch } from "./api";
 import type { PaginatedResponse } from "./pagination";
+import { withAdminQuery, type AdminQuery } from "./adminQuery";
 
 export interface ApiSupportGroup {
   id: string;
@@ -19,8 +20,8 @@ export interface ApiSupportGroup {
   updated_at: string;
 }
 
-export function listSupportGroups(): Promise<PaginatedResponse<ApiSupportGroup>> {
-  return apiFetch<PaginatedResponse<ApiSupportGroup>>("/api/v1/admin/support-groups/");
+export function listSupportGroups(query: AdminQuery = {}): Promise<PaginatedResponse<ApiSupportGroup>> {
+  return apiFetch<PaginatedResponse<ApiSupportGroup>>(withAdminQuery("/api/v1/admin/support-groups/", query));
 }
 
 export function getSupportGroup(id: string): Promise<ApiSupportGroup> {
