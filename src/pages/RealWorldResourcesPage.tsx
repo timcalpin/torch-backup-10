@@ -17,6 +17,10 @@ function toTitleCase(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function formatLabel(value?: string | null): string {
+  return value ? toTitleCase(value) : "—";
+}
+
 export function RealWorldResourcesPage() {
   const { resourcesVersion, bumpResourcesVersion } = useAppContext();
   const [search, setSearch] = useState("");
@@ -163,7 +167,7 @@ export function RealWorldResourcesPage() {
                     <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[13px]">{item.title}</p>
                   </div>
                   <div className="w-[140px] font-['Figtree'] font-normal text-[var(--app-text)] text-[12px]">
-                    {item.format || item.delivery_format || "—"}
+                    {formatLabel(item.format || item.delivery_format)}
                   </div>
                   <div className="w-[160px]">
                     <span className="inline-flex px-[8px] py-[3px] rounded-[4px] bg-[rgba(107,138,176,0.15)] font-['JetBrains_Mono'] font-bold text-[10px] text-[#6b8ab0]">

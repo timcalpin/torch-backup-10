@@ -251,8 +251,10 @@ function formatCheckInDate(date: string) {
   );
 }
 
-function normalizeMood(mood: string | null) {
-  if (!mood) return "—";
+function normalizeMood(mood: unknown) {
+  // Check-in payloads can contain a structured mood value (or another
+  // non-string value). Keep one malformed row from crashing the profile.
+  if (typeof mood !== "string" || !mood.trim()) return "—";
 
   const normalizedMood =
     mood.trim().toLowerCase();

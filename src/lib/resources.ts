@@ -243,7 +243,9 @@ export interface CreateResourcePayload {
 
   country?: string;
 
+  // UAT writes this field; `format` is the response/display alias.
   delivery_format: DeliveryFormat;
+  format?: DeliveryFormat;
 
   day?: string;
 
@@ -278,6 +280,19 @@ export type UpdateResourcePayload =
   Partial<CreateResourcePayload> & {
     is_active?: boolean;
   };
+
+function isFormatValidationError(error: unknown): boolean {
+  if (!(error instanceof Error) || !("body" in error)) return false;
+  const body = (error as { body?: unknown }).body;
+  if (!body || typeof body !== "object") return false;
+  const record = body as Record<string, unknown>;
+  return "format" in record || "delivery_format" in record;
+}
+
+function withLegacyFormat(payload: CreateResourcePayload | UpdateResourcePayload) {
+  const { delivery_format, format: _format, ...rest } = payload;
+  return { ...rest, format: delivery_format ?? _format };
+}
 
 /* =========================================================
    LIST RESOURCES
@@ -320,13 +335,18 @@ export function getResourceStats(): Promise<ResourceStats> {
 export function createResource(
   payload: CreateResourcePayload
 ): Promise<ApiResource> {
-  return apiFetch<ApiResource>(
-    "/api/v1/admin/resources/",
-    {
+  return apiFetch<ApiResource>("/api/v1/admin/resources/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }).catch((error) => {
+    if (!(error instanceof Error) || !("status" in error) || !isFormatValidationError(error)) throw error;
+    const status = (error as { status?: number }).status;
+    if (status !== 400) throw error;
+    return apiFetch<ApiResource>("/api/v1/admin/resources/", {
       method: "POST",
-      body: JSON.stringify(payload),
-    }
-  );
+      body: JSON.stringify(withLegacyFormat(payload)),
+    });
+  });
 }
 
 /* =========================================================
@@ -337,13 +357,27 @@ export function updateResource(
   id: number,
   payload: UpdateResourcePayload
 ): Promise<ApiResource> {
-  return apiFetch<ApiResource>(
-    `/api/v1/admin/resources/${id}/`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(payload),
+  const path = `/api/v1/admin/resources/${id}/`;
+  return apiFetch<ApiResource>(path, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  }).catch((error) => {
+    if (!(error instanceof Error) || !("status" in error)) throw error;
+    const status = (error as { status?: number }).status;
+    if (status === 400 && isFormatValidationError(error)) {
+      return apiFetch<ApiResource>(path, {
+        method: "PATCH",
+        body: JSON.stringify(withLegacyFormat(payload)),
+      });
     }
-  );
+    if (status === 405) {
+      return apiFetch<ApiResource>(path, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+    }
+    throw error;
+  });
 }
 
 /* =========================================================

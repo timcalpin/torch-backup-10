@@ -83,7 +83,34 @@ export function getUserStats(): Promise<UserStats> {
 }
 
 export function getUsersdetails(id: string): Promise<Recoveryuser> {
-  return apiFetch<Recoveryuser>(`/api/v1/admin/users/views/${id}/`);
+  return apiFetch<Recoveryuser>(`/api/v1/admin/users/views/${id}/`).catch((error) => {
+    // The recovery view aggregates check-ins and relapse data. If that
+    // aggregation fails for a single user, keep the profile usable with the
+    // canonical user endpoint instead of showing a generic 500 error page.
+    if (!(error instanceof Error) || !("status" in error)) throw error;
+    const status = (error as { status?: number }).status;
+    if (status === undefined || status < 500 || status >= 600) throw error;
+
+    return getUser(id).then((user): Recoveryuser => ({
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role,
+      counselor:
+        typeof user.counselor === "string"
+          ? user.counselor
+          : user.counselor?.full_name ?? user.counselor?.name ?? null,
+      is_active: user.is_active,
+      is_staff: user.is_staff,
+      is_superuser: user.is_superuser,
+      created_at: user.created_at,
+      days_sober: user.sobriety_days ?? 0,
+      sobriety_date: user.sobriety_start_date,
+      session_mode: null,
+      relapse_spectrum: null,
+      checkins: [],
+    }));
+  });
 }
 
 export interface CreateUserPayload {
