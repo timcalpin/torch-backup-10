@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Lightbulb, SlidersHorizontal, FileText, Target, UserIcon, ClipboardList, Activity } from "lucide-react";
+import { Bell, Lightbulb, SlidersHorizontal, FileText, Target, UserIcon, ClipboardList, Database } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   TorchFlame,
@@ -83,8 +83,6 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
   const { user, usersVersion, groupsVersion } = useAppContext();
   const is = (path: string) => pathname === path;
   const iconColor = (path: string) => is(path) ? "#F37422" : lightMode ? "#2C241D" : "#8A8073";
-  const isMetricsDebug = pathname.startsWith("/metrics-debug");
-
   // These links are only available after a user has been selected from Users.
   // Keep the id in the URL so the selection survives navigation between cards.
   const selectedUserMatch = pathname.match(/^\/(?:recovery|treatment-plans|goals)\/([^/]+)$/);
@@ -149,6 +147,7 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
             <NavItem to="/resources/in-app" icon={<FileIcon color={iconColor("/resources/in-app")} />} label="In-App Resources" active={is("/resources/in-app")} lightMode={lightMode} />
             <NavItem to="/intake-scripts" icon={<FileText size={14} strokeWidth={1.7} color={iconColor("/intake-scripts")} />} label="Intake Scripts" active={is("/intake-scripts")} lightMode={lightMode} />
             <NavItem to="/counselors" icon={<UsersNavIcon color={iconColor("/counselors")} />} label="Counselors" active={is("/counselors")} lightMode={lightMode} />
+            <NavItem to="/testdata" icon={<Database size={14} strokeWidth={1.7} color={iconColor("/testdata")} />} label="testdata" active={is("/testdata")} lightMode={lightMode} />
 
           </NavSection>
 
@@ -159,15 +158,9 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
           </NavSection>
 
           <NavSection label="SYSTEM" lightMode={lightMode}>
+            <NavItem to="/push-notifications" icon={<Bell size={14} strokeWidth={1.7} color={iconColor("/push-notifications")} />} label="Push Notifications" active={pathname.startsWith("/push-notifications")} lightMode={lightMode} />
             <NavItem to="/settings" icon={<SlidersHorizontal size={14} strokeWidth={1.7} color={iconColor("/settings")} />} label="Settings" active={is("/settings")} lightMode={lightMode} />
             <NavItem to="/privacy" icon={<CircleXIcon color={iconColor("/privacy")} />} label="Privacy & Compliance" active={is("/privacy")} lightMode={lightMode} />
-            <NavItem
-              to="/metrics-debug"
-              icon={<Activity size={14} strokeWidth={1.7} color={isMetricsDebug ? "#F37422" : lightMode ? "#2C241D" : "#8A8073"} />}
-              label="Metrics Test"
-              active={isMetricsDebug}
-              lightMode={lightMode}
-            />
           </NavSection>
         </div>
       </div>

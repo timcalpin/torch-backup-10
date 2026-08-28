@@ -6,6 +6,7 @@ import { PageHeader } from "../components/common/PageHeader";
 import { GhostBtn } from "../components/common/Buttons";
 import { MetricCard } from "../components/common/MetricCard";
 import { getAggregateDashboard, type AggregateCohortRow, type AggregateDashboardResponse } from "../lib/aggregate";
+import { useAppContext } from "@/app/app-context";
 
 const panel = "relative rounded-[12px] border border-[var(--app-border)] bg-[var(--app-surface)]";
 const riskTiers = [
@@ -35,6 +36,7 @@ function FilterDropdown({ label, value, options, onChange }: { label: string; va
 }
 
 export function AggregateDataPage() {
+  const { dataRefreshVersion } = useAppContext();
   const navigate = useNavigate();
   const [dashboard, setDashboard] = useState<AggregateDashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,7 +50,7 @@ export function AggregateDataPage() {
     setLoading(true);
     getAggregateDashboard(localDate(start), localDate(end), filters).then((data) => { if (!cancelled) setDashboard(data); }).catch(() => { if (!cancelled) setError("Failed to load aggregate data."); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [start, end, filters]);
+  }, [start, end, filters, dataRefreshVersion]);
 
   if (loading && !dashboard) return <div className="flex flex-1 items-center justify-center"><Loader2 className="animate-spin text-[#f37422]" size={30} /></div>;
   if (!dashboard) return <div className="flex-1 p-[32px] text-red-500">{error ?? "No data available."}</div>;

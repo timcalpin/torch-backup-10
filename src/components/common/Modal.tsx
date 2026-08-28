@@ -9,10 +9,10 @@ export function ModalOverlay({ onClose, children }: { onClose: () => void; child
   );
 }
 
-export function ModalCard({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
+export function ModalCard({ children, wide, className = "" }: { children: React.ReactNode; wide?: boolean; className?: string }) {
   return (
     <div
-      className="bg-[var(--app-bg)] rounded-[24px] p-[32px] relative shadow-[0_32px_64px_rgba(0,0,0,0.5)] w-full"
+      className={`bg-[var(--app-bg)] rounded-[24px] p-[32px] relative shadow-[0_32px_64px_rgba(0,0,0,0.5)] w-full ${className}`}
       style={{ maxWidth: wide ? "720px" : "640px" }}
     >
       <div className="absolute inset-0 rounded-[24px] border border-[var(--app-border)] pointer-events-none" />

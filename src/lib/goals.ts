@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { ApiError, apiFetch } from "./api";
 
 export interface PillarGoal {
   objective: string;
@@ -24,13 +24,22 @@ export interface ApiGoalsData {
 
   body: PillarGoal;
   mind: PillarGoal;
-  spirit: PillarGoal;
+  recovery?: PillarGoal;
+  spirit?: PillarGoal;
   life: PillarGoal;
 
   updated_at?: string;
 }
 
 export type ApiGoalsResponse = ApiGoalRecord[] | ApiGoalsData;
+
+export interface UpdateGoalsPayload {
+  body: PillarGoal;
+  mind: PillarGoal;
+  /** Goals use the same Spirit key as the working treatment-plan payload. */
+  spirit: PillarGoal;
+  life: PillarGoal;
+}
 
 /**
  * Get all goals for a specific patient.
@@ -54,18 +63,17 @@ export function getPatientGoals(
  */
 export function updatePatientGoals(
   patientId: string,
-  payload: {
-    body: PillarGoal;
-    mind: PillarGoal;
-    spirit: PillarGoal;
-    life: PillarGoal;
-  }
+  payload: UpdateGoalsPayload,
 ): Promise<ApiGoalsResponse> {
-  return apiFetch<ApiGoalsResponse>(
-    `/api/v1/admin/goals/${patientId}/`,
-    {
-      method: "PUT",
-      body: JSON.stringify(payload),
+  const path = `/api/v1/admin/goals/${patientId}/`;
+  const body = JSON.stringify(payload);
+
+  // Goals are documented as a full PUT update. Keep PATCH as a compatibility
+  // fallback for deployments that expose the newer partial-update route.
+  return apiFetch<ApiGoalsResponse>(path, { method: "PUT", body }).catch((error) => {
+    if (!(error instanceof ApiError) || error.status !== 405) {
+      throw error;
     }
-  );
+    return apiFetch<ApiGoalsResponse>(path, { method: "PATCH", body });
+  });
 }
