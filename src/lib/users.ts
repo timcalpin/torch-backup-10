@@ -18,8 +18,11 @@ export interface ApiUser {
   phone?: string | null;
   role: string;
   counselor?: ApiCounselor | string | null;
+  counselor_name?: string | null;
   sobriety_days: number | null;
+  days_sober?: number | null;
   sobriety_start_date: string | null;
+  sobriety_date?: string | null;
   primary_substance?: string | null;
   is_active: boolean;
   is_staff: boolean;

@@ -29,6 +29,8 @@ const EMPTY_GOALS: GoalsStructure = {
   actions: { body: [""], mind: [""], spirit: [""], life: [""] },
 };
 
+const MAX_PERSONALIZED_GOAL_LENGTH = 60;
+
 function cleanPatientName(name: string, email: string): string {
   const trimmedName = name.trim();
   const trimmedEmail = email.trim();
@@ -101,7 +103,6 @@ export function GoalsPage({
     params.userId ||
     params.id;
   const navigate = useNavigate();
-
   const [goals, setGoals] = useState<GoalsStructure>(EMPTY_GOALS);
 
   const [patientName, setPatientName] = useState("");
@@ -210,12 +211,16 @@ export function GoalsPage({
         setGoals({
           body: response.body?.objective || "",
           mind: response.mind?.objective || "",
-          spirit: response.spirit?.objective || "",
+          spirit: response.recovery?.objective || response.spirit?.objective || "",
           life: response.life?.objective || "",
           actions: {
             body: response.body?.actions?.length ? response.body.actions : [""],
             mind: response.mind?.actions?.length ? response.mind.actions : [""],
-            spirit: response.spirit?.actions?.length ? response.spirit.actions : [""],
+            spirit: response.recovery?.actions?.length
+              ? response.recovery.actions
+              : response.spirit?.actions?.length
+                ? response.spirit.actions
+                : [""],
             life: response.life?.actions?.length ? response.life.actions : [""],
           },
         });
@@ -266,7 +271,6 @@ export function GoalsPage({
   const addGoalAction = (pillarKey: keyof GoalsStructure["actions"]) => {
     setGoals((prev) => {
       const actions = prev.actions[pillarKey];
-      if (!actions[actions.length - 1]?.trim()) return prev;
       return { ...prev, actions: { ...prev.actions, [pillarKey]: [...actions, ""] } };
     });
   };
@@ -303,6 +307,7 @@ export function GoalsPage({
           actions: goals.actions.mind.filter((action) => action.trim()),
         },
 
+        // The goals endpoint expects the Spirit key, matching treatment plans.
         spirit: {
           objective: goals.spirit.trim(),
           actions: goals.actions.spirit.filter((action) => action.trim()),
@@ -316,7 +321,7 @@ export function GoalsPage({
 
       setSaveSuccess(true);
       setIsEditing(false);
-      toast.success("Goals saved successfully");
+      toast.success("Personalized goals saved successfully");
       window.setTimeout(() => navigate("/users"), 700);
 
       setTimeout(() => {
@@ -447,12 +452,13 @@ export function GoalsPage({
               <div className="flex flex-col gap-[6px]">
 
                 <label className="font-['JetBrains_Mono'] text-[9px] uppercase tracking-wider text-[var(--app-muted,#8a8073)]">
-                  GOAL OBJECTIVE
+                  PERSONALIZED GOAL
                 </label>
 
                 <input
                   type="text"
                   value={objectiveValue}
+                  maxLength={MAX_PERSONALIZED_GOAL_LENGTH}
                   onChange={(e) =>
                     updateGoalObjective(
                       pillarKey,
@@ -462,7 +468,11 @@ export function GoalsPage({
                   disabled={!isEditing}
                   placeholder="Enter goal objective..."
                   className="w-full h-[48px] bg-[var(--app-bg,#f9fafb)] dark:bg-[#1a1a1a] border border-[var(--app-border,#e5e7eb)] dark:border-[#2a2a2a] rounded-[8px] px-[16px] text-[13px] font-['Figtree'] text-[var(--app-text,#1a1a1a)] dark:text-white placeholder-[#9ca3af] dark:placeholder-[#525252] focus:outline-none focus:border-[var(--app-border-strong,#d1d5db)] dark:focus:border-[#404040] transition-colors"
-                />
+                  />
+
+                <p className="text-right font-['JetBrains_Mono'] text-[9px] text-[var(--app-muted,#8a8073)]">
+                  {objectiveValue.length}/{MAX_PERSONALIZED_GOAL_LENGTH}
+                </p>
 
               </div>
 
@@ -475,7 +485,7 @@ export function GoalsPage({
                     {goals.actions[pillarKey].length > 1 && <button type="button" disabled={!isEditing} onClick={() => removeGoalAction(pillarKey, index)} className="px-[6px] text-[18px] text-[#f37422] hover:text-[#ff9a5c] disabled:opacity-40" aria-label="Delete action">×</button>}
                   </div>
                 ))}
-                <button type="button" disabled={!isEditing || !goals.actions[pillarKey][goals.actions[pillarKey].length - 1]?.trim()} onClick={() => addGoalAction(pillarKey)} className="inline-flex w-fit items-center gap-[6px] font-['Figtree'] text-[13px] font-semibold text-[#f37422] hover:text-[#ff9a5c] disabled:cursor-not-allowed disabled:opacity-40">+ Add Action</button>
+                <button type="button" disabled={!isEditing} onClick={() => addGoalAction(pillarKey)} className="inline-flex w-fit items-center gap-[6px] font-['Figtree'] text-[13px] font-semibold text-[#f37422] hover:text-[#ff9a5c] disabled:cursor-not-allowed disabled:opacity-40">+ Add Action</button>
               </div>
 
             </div>

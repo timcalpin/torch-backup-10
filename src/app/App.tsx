@@ -6,6 +6,7 @@ import {
   RealWorldResourcesPage,
   UsersPage,
   CounselorsPage,
+  TestDataPage,
   TreatmentPlansPage,
   GoalsPage, // 1. Added Import
   ResourcesAppPage,
@@ -22,6 +23,8 @@ import {
   MetricsDebugPage,
   MetricsDebugDetailPage,
   PayloadInspectorPage,
+  PushNotificationsPage,
+  CreateNotificationPage,
 } from "../pages";
 import { RouterProvider } from "react-router-dom";
 
@@ -33,6 +36,7 @@ function renderPage(pageKey: AppPageKey) {
     case "users":            return <UsersPage />;
     case "recovery":         return <RecoveryPage />;
     case "counselors":       return <CounselorsPage />;
+    case "testdata":         return <TestDataPage />;
     case "treatment-plans":  return <TreatmentPlansPage />;
     case "goals":            return <GoalsPage />; // 2. Added Render Case
     case "resources-app":    return <ResourcesAppPage />;
@@ -48,6 +52,8 @@ function renderPage(pageKey: AppPageKey) {
     case "metrics-debug":         return <MetricsDebugPage />;
     case "metrics-debug-detail":  return <MetricsDebugDetailPage />;
     case "payload-inspector":     return <PayloadInspectorPage />;
+    case "push-notifications": return <PushNotificationsPage />;
+    case "create-notification": return <CreateNotificationPage />;
     default:                 return <SupportGroupsPage />;
   }
 }

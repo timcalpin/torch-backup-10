@@ -7,6 +7,7 @@ import { EditIcon } from "@/components/icons";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter, SectionLabel } from "@/components/common/Modal";
 import { FormField, TextInput, SelectInput } from "@/components/common/FormFields";
 import { ApiError } from "@/lib/api";
+import { counselorDisplayName, listCounselors, type ApiCounselor } from "@/lib/counselors";
 import {
   listUsers,
   getUser,
@@ -18,7 +19,6 @@ import {
 } from "@/lib/users";
 
 const ROLE_OPTIONS = ["Patient", "Counselor", "Admin", "Super Admin"];
-const COUNSELOR_OPTIONS = ["Unassigned", "Dr. Chen", "Dr. Smith", "Dr. Adams"];
 const STATUS_OPTIONS = ["Active", "Inactive"];
 
 interface DisplayUser {
@@ -28,6 +28,7 @@ interface DisplayUser {
   phone: string;
   role: string;
   counselor: string;
+  counselorId: string | null;
   sobriety: string;
   sobrietyDate: string;
   primarySubstance: string;
@@ -60,15 +61,20 @@ function getUserUiExtras(index: number): UserUiExtras {
 
 function toDisplayUser(user: ApiUser): DisplayUser {
   let counselorName = "Unassigned";
+  let counselorId: string | null = null;
+  const soberDays = user.sobriety_days ?? user.days_sober;
+  const sobrietyDate = user.sobriety_start_date || user.sobriety_date || "";
 
   if (user.counselor) {
     if (typeof user.counselor === "object") {
       counselorName = user.counselor.full_name || user.counselor.name || "Unassigned";
+      counselorId = String(user.counselor.id);
     } else if (typeof user.counselor === "string") {
-      counselorName = user.counselor;
+      counselorName = user.counselor_name || user.counselor;
+      counselorId = user.counselor_name ? user.counselor : null;
     }
-  } else if ((user as any).counselor_name) {
-    counselorName = (user as any).counselor_name;
+  } else if (user.counselor_name) {
+    counselorName = user.counselor_name;
   }
 
   return {
@@ -78,11 +84,32 @@ function toDisplayUser(user: ApiUser): DisplayUser {
     phone: user.phone || "",
     role: user.role,
     counselor: counselorName,
-    sobriety: user.sobriety_days != null ? `${user.sobriety_days}d` : "—",
-    sobrietyDate: user.sobriety_start_date || "",
+    counselorId,
+    sobriety: soberDays != null ? `${soberDays}d` : "—",
+    sobrietyDate,
     primarySubstance: user.primary_substance || "",
     status: user.is_active ? "ACTIVE" : "ARCHIVED",
   };
+}
+
+function useAvailableCounselors() {
+  const [counselors, setCounselors] = useState<ApiCounselor[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listCounselors({ page_size: 100 })
+      .then((response) => {
+        if (!cancelled) setCounselors(response.results);
+      })
+      .catch(() => {
+        if (!cancelled) setCounselors([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return counselors;
 }
 
 function RiskPill({ risk }: { risk: UserUiExtras["risk"] }) {
@@ -131,11 +158,12 @@ function UserStatus({ status, flagged }: { status: DisplayUser["status"]; flagge
    ========================================================================== */
 export function AddUserModal({ onClose }: { onClose: () => void }) {
   const { bumpUsersVersion } = useAppContext();
+  const counselors = useAvailableCounselors();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState(ROLE_OPTIONS[0]);
-  const [counselor, setCounselor] = useState(COUNSELOR_OPTIONS[1]);
+  const [counselor, setCounselor] = useState("Unassigned");
   const [status, setStatus] = useState(STATUS_OPTIONS[0]);
   const [sobrietyDate, setSobrietyDate] = useState("");
   const [primarySubstance, setPrimarySubstance] = useState("");
@@ -151,7 +179,7 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
     setSubmitting(true);
     setError(null);
 
-    const selectedCounselor = counselor === "Unassigned" ? null : counselor;
+    const selectedCounselor = counselors.find((item) => counselor === counselorDisplayName(item));
 
     try {
       await createUser({
@@ -159,8 +187,8 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
         full_name: fullName.trim(),
         phone: phone.trim() || null,
         role,
-        counselor: selectedCounselor,
-        counselor_name: selectedCounselor,
+        counselor: selectedCounselor?.id ?? null,
+        counselor_name: selectedCounselor ? counselorDisplayName(selectedCounselor) : null,
         is_active: status === "Active",
         sobriety_start_date: sobrietyDate || null,
         primary_substance: primarySubstance.trim() || null,
@@ -210,7 +238,7 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
               </div>
               <div className="flex-1 min-w-[180px]">
                 <FormField label="Assigned Counselor">
-                  <SelectInput options={COUNSELOR_OPTIONS} value={counselor} onChange={setCounselor} />
+                  <SelectInput options={["Unassigned", ...counselors.map(counselorDisplayName)]} value={counselor} onChange={setCounselor} />
                 </FormField>
               </div>
             </div>
@@ -257,18 +285,22 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
    EDIT USER MODAL
    ========================================================================== */
 function EditUserModal({ user, onClose, onSaved }: { user: DisplayUser; onClose: () => void; onSaved: () => void }) {
+  const counselors = useAvailableCounselors();
   const [fullName, setFullName] = useState(user.name);
-  const [phone, setPhone] = useState(user.phone);
   const [role, setRole] = useState(ROLE_OPTIONS.includes(user.role) ? user.role : ROLE_OPTIONS[0]);
-  const [counselor, setCounselor] = useState(
-    COUNSELOR_OPTIONS.includes(user.counselor) ? user.counselor : COUNSELOR_OPTIONS[0]
-  );
+  const [counselor, setCounselor] = useState(user.counselor);
   const [status, setStatus] = useState(user.status === "ACTIVE" ? "Active" : "Inactive");
   const [sobrietyDate, setSobrietyDate] = useState(user.sobrietyDate);
-  const [primarySubstance, setPrimarySubstance] = useState(user.primarySubstance);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const assigned = counselors.find((item) =>
+      user.counselorId === String(item.id) || user.counselor === counselorDisplayName(item),
+    );
+    if (assigned) setCounselor(counselorDisplayName(assigned));
+  }, [counselors, user.counselor, user.counselorId]);
 
   const handleSubmit = async () => {
     if (!fullName.trim()) {
@@ -279,18 +311,16 @@ function EditUserModal({ user, onClose, onSaved }: { user: DisplayUser; onClose:
     setSubmitting(true);
     setError(null);
 
-    const selectedCounselor = counselor === "Unassigned" ? null : counselor;
+    const selectedCounselor = counselors.find((item) => counselor === counselorDisplayName(item));
 
     try {
       await updateUser(user.id, {
         full_name: fullName.trim(),
-        phone: phone.trim() || null,
         role,
-        counselor: selectedCounselor,
-        counselor_name: selectedCounselor,
+        counselor: selectedCounselor?.id ?? null,
+        counselor_name: selectedCounselor ? counselorDisplayName(selectedCounselor) : null,
         is_active: status === "Active",
         sobriety_start_date: sobrietyDate || null,
-        primary_substance: primarySubstance.trim() || null,
       });
       onSaved();
       onClose();
@@ -323,11 +353,6 @@ function EditUserModal({ user, onClose, onSaved }: { user: DisplayUser; onClose:
                   />
                 </FormField>
               </div>
-              <div className="flex-1 min-w-[180px]">
-                <FormField label="Phone Number">
-                  <TextInput placeholder="+1 (555) 000-0000" value={phone} onChange={setPhone} />
-                </FormField>
-              </div>
             </div>
           </div>
 
@@ -342,7 +367,7 @@ function EditUserModal({ user, onClose, onSaved }: { user: DisplayUser; onClose:
               </div>
               <div className="flex-1 min-w-[180px]">
                 <FormField label="Assigned Counselor">
-                  <SelectInput options={COUNSELOR_OPTIONS} value={counselor} onChange={setCounselor} />
+                  <SelectInput options={["Unassigned", ...counselors.map(counselorDisplayName)]} value={counselor} onChange={setCounselor} />
                 </FormField>
               </div>
             </div>
@@ -362,11 +387,6 @@ function EditUserModal({ user, onClose, onSaved }: { user: DisplayUser; onClose:
               <div className="flex-1 min-w-[180px]">
                 <FormField label="Sobriety Date">
                   <TextInput type="date" value={sobrietyDate} onChange={setSobrietyDate} />
-                </FormField>
-              </div>
-              <div className="flex-1 min-w-[180px]">
-                <FormField label="Primary Substance">
-                  <TextInput placeholder="e.g. Alcohol" value={primarySubstance} onChange={setPrimarySubstance} />
                 </FormField>
               </div>
             </div>
@@ -464,10 +484,11 @@ function UserDetailModal({ userId, onClose }: { userId: string; onClose: () => v
    USERS PAGE
    ========================================================================== */
 export function UsersPage() {
-  const { modal, setModal, usersVersion, bumpUsersVersion } = useAppContext();
+  const { modal, setModal, usersVersion, dataRefreshVersion, bumpUsersVersion } = useAppContext();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [editUser, setEditUser] = useState<DisplayUser | null>(null);
+  const [loadingEditId, setLoadingEditId] = useState<string | null>(null);
   const [users, setUsers] = useState<DisplayUser[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -501,7 +522,7 @@ export function UsersPage() {
     return () => {
       cancelled = true;
     };
-  }, [usersVersion, search, page]);
+  }, [usersVersion, dataRefreshVersion, search, page]);
 
   useEffect(() => setPage(1), [search]);
 
@@ -519,7 +540,7 @@ export function UsersPage() {
     return () => {
       cancelled = true;
     };
-  }, [usersVersion]);
+  }, [usersVersion, dataRefreshVersion]);
 
   const enrichedUsers = useMemo(
     () => users.map((user, index) => ({ user, extras: getUserUiExtras(index) })),
@@ -532,6 +553,19 @@ export function UsersPage() {
 
   const goToRecovery = (id: string) => {
     navigate(`/recovery/${id}`);
+  };
+
+  const openEditUser = async (user: DisplayUser) => {
+    setLoadingEditId(user.id);
+    try {
+      const detail = await getUser(user.id);
+      setEditUser(toDisplayUser(detail));
+    } catch {
+      // Keep the table data available if the detail request fails.
+      setEditUser(user);
+    } finally {
+      setLoadingEditId(null);
+    }
   };
 
   const exportUsersCsv = async () => {
@@ -664,7 +698,7 @@ export function UsersPage() {
 
             <div className="overflow-x-auto">
               <div className="min-w-[980px]">
-                <div className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px] items-center border-b border-[var(--app-border-strong)] px-[13px] py-[9px]">
+                <div className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px_38px] items-center border-b border-[var(--app-border-strong)] px-[13px] py-[9px]">
                   {[
                     "USER",
                     "DAYS SOBER",
@@ -674,6 +708,7 @@ export function UsersPage() {
                     "LAST ACTIVE",
                     "STATUS",
                     "COUNSELOR",
+                    "",
                     "ACTION",
                   ].map((heading) => (
                       <span key={heading} className="font-['JetBrains_Mono'] text-[9px] uppercase text-[#756c61]">
@@ -687,7 +722,7 @@ export function UsersPage() {
                 {!loading && !error && enrichedUsers.length === 0 && <div className="px-[15px] py-[28px] font-['Figtree'] text-center font-['Figtree'] text-[13px] text-[#756c61]">No users found.</div>}
 
                 {!loading && !error && enrichedUsers.map(({ user: u, extras }) => (
-                  <div key={u.id} className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px] items-center border-b border-[var(--app-border-soft)] px-[13px] py-[9px] transition-colors hover:bg-[var(--app-hover)]">
+                  <div key={u.id} className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px_38px] items-center border-b border-[var(--app-border-soft)] px-[13px] py-[9px] transition-colors hover:bg-[var(--app-hover)]">
                     <div className="flex min-w-0 items-center gap-[9px]">
                       <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[var(--app-hover)] font-['Figtree'] text-[12px] font-bold text-[var(--app-muted)]">
                         {u.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
@@ -705,6 +740,16 @@ export function UsersPage() {
                     <span className="font-['Figtree'] text-[11px] text-[#8b8174]">{extras.lastActive}</span>
                     <UserStatus status={u.status} flagged={extras.flagged} />
                     <span className="truncate pr-[8px] font-['Figtree'] text-[11px] text-[#c4b9aa]">{u.counselor}</span>
+                    <button
+                      type="button"
+                      title={`Edit ${u.name}`}
+                      aria-label={`Edit ${u.name}`}
+                      onClick={() => openEditUser(u)}
+                      disabled={loadingEditId === u.id}
+                      className="flex h-[25px] w-[25px] items-center justify-center rounded-[5px] text-[var(--app-muted)] transition-colors hover:bg-[rgba(243,116,34,0.12)] hover:text-[#f37422] disabled:cursor-wait disabled:opacity-50"
+                    >
+                      <EditIcon />
+                    </button>
                     <button
                       type="button"
                       onClick={() => navigate(`/recovery/${u.id}`)}

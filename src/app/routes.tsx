@@ -6,6 +6,7 @@ export type AppPageKey =
   | "support-groups"
   | "users"
   | "counselors"
+  | "testdata"
   | "intake-scripts"
   | "resources-real"
   | "resources-app"
@@ -20,7 +21,9 @@ export type AppPageKey =
   | "recovery"
   | "metrics-debug"
   | "metrics-debug-detail"
-  | "payload-inspector";
+  | "payload-inspector"
+  | "push-notifications"
+  | "create-notification";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { authenticated } = useAppContext();
@@ -63,6 +66,7 @@ export function createAppRouter({ AdminLayout, LoginPage, renderPage }: RouterOp
         { path: "support-groups", element: <PageRoute pageKey="support-groups" renderPage={renderPage} /> },
         { path: "users", element: <PageRoute pageKey="users" renderPage={renderPage} /> },
         { path: "counselors", element: <PageRoute pageKey="counselors" renderPage={renderPage} /> },
+        { path: "testdata", element: <PageRoute pageKey="testdata" renderPage={renderPage} /> },
         { path: "intake-scripts", element: <PageRoute pageKey="intake-scripts" renderPage={renderPage} /> },
         { path: "treatment-plans", element: <PageRoute pageKey="treatment-plans" renderPage={renderPage} /> },
         { path: "treatment-plans/:userId", element: <PageRoute pageKey="treatment-plans" renderPage={renderPage} /> },
@@ -75,6 +79,8 @@ export function createAppRouter({ AdminLayout, LoginPage, renderPage }: RouterOp
         { path: "relapse-signals", element: <PageRoute pageKey="relapse-signals" renderPage={renderPage} /> },
         { path: "insights", element: <PageRoute pageKey="insights" renderPage={renderPage} /> },
         { path: "settings", element: <PageRoute pageKey="settings" renderPage={renderPage} /> },
+        { path: "push-notifications", element: <PageRoute pageKey="push-notifications" renderPage={renderPage} /> },
+        { path: "push-notifications/create", element: <PageRoute pageKey="create-notification" renderPage={renderPage} /> },
         { path: "privacy", element: <PageRoute pageKey="privacy" renderPage={renderPage} /> },
         { path: "profile", element: <PageRoute pageKey="profile" renderPage={renderPage} /> },
         { path: "recovery/:userId", element: <PageRoute pageKey="recovery" renderPage={renderPage} /> },

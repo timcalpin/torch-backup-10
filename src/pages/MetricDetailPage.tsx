@@ -4,6 +4,7 @@ import { ArrowLeft, CalendarDays, Download, GitCompareArrows, Loader2 } from "lu
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { GhostBtn } from "../components/common/Buttons";
 import { getMetricDetail, type MetricDetailResponse, type MetricFilters } from "../lib/metricDetail";
+import { useAppContext } from "@/app/app-context";
 
 const panel = "rounded-[12px] border border-[var(--app-border)] bg-[var(--app-surface)]";
 const colors = ["#f37422", "#6b8ab0"];
@@ -25,6 +26,7 @@ function CohortSelect({ label, value, options, color, onChange }: { label: strin
 }
 
 export function MetricDetailPage() {
+  const { dataRefreshVersion } = useAppContext();
   const navigate = useNavigate();
   const { metric = "avg-days-sober" } = useParams();
   const [params, setParams] = useSearchParams();
@@ -43,7 +45,7 @@ export function MetricDetailPage() {
     const request: MetricFilters = { metric, ...filters, compare, cohortA, cohortB };
     getMetricDetail(request).then((result) => { if (!cancelled) setData(result); }).catch((reason: Error) => { if (!cancelled) setError(reason.message || "Metric detail could not be loaded."); });
     return () => { cancelled = true; };
-  }, [metric, filters, compare, cohortA, cohortB]);
+  }, [metric, filters, compare, cohortA, cohortB, dataRefreshVersion]);
 
   const toggleCompare = () => {
     const next = !compare;

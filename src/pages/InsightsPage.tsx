@@ -1,3 +1,5 @@
+import { useRef, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GhostBtn } from "@/components/common/Buttons";
@@ -52,10 +54,42 @@ const INSIGHTS = [
 
 export function InsightsPage() {
   const { setModal } = useAppContext();
+  const [visibleInsights, setVisibleInsights] = useState(INSIGHTS.length);
+  const [generating, setGenerating] = useState(false);
+  const [animateInsights, setAnimateInsights] = useState(false);
+  const generationTimer = useRef<number | null>(null);
+
+  const generateInsights = () => {
+    if (generationTimer.current !== null) window.clearInterval(generationTimer.current);
+    setGenerating(true);
+    setAnimateInsights(true);
+    setVisibleInsights(0);
+    let count = 0;
+    generationTimer.current = window.setInterval(() => {
+      count += 1;
+      setVisibleInsights(count);
+      if (count >= INSIGHTS.length) {
+        if (generationTimer.current !== null) window.clearInterval(generationTimer.current);
+        generationTimer.current = null;
+        setGenerating(false);
+      }
+    }, 220);
+  };
+
   return (
     <div className="flex-1 min-w-0 overflow-y-auto">
+      <style>{`@keyframes insight-reveal { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }`}</style>
       <div className="p-[24px] lg:p-[32px] flex flex-col gap-[20px]">
         <PageHeader eyebrow="GENERATED THIS WEEK 5 · SOURCES 14 COHORTS" title="Insights">
+          <button
+            type="button"
+            onClick={generateInsights}
+            disabled={generating}
+            className="inline-flex h-[38px] items-center gap-[7px] rounded-[9px] bg-gradient-to-r from-[#f37422] to-[#c04a12] px-[16px] font-['Figtree'] text-[13px] font-semibold text-white shadow-[0_4px_8px_rgba(243,116,34,0.22)] transition-all hover:brightness-110 disabled:cursor-wait disabled:opacity-60"
+          >
+            <Sparkles size={14} className={generating ? "animate-spin" : ""} />
+            {generating ? "Generating..." : "Generate"}
+          </button>
           <GhostBtn label="Export" onClick={() => setModal("export-insights")} />
         </PageHeader>
 
@@ -63,9 +97,19 @@ export function InsightsPage() {
           Patterns surfaced from aggregate, de-identified member data. Correlational — not causal.
         </p>
 
+        {generating && (
+          <p className="font-['JetBrains_Mono'] text-[10px] font-bold uppercase tracking-widest text-[#f37422] animate-pulse">
+            Generating insight details...
+          </p>
+        )}
+
         <div className="flex flex-col gap-[4px]">
-          {INSIGHTS.map((ins, i) => (
-            <div key={ins.num} className="flex gap-[20px]">
+          {INSIGHTS.slice(0, visibleInsights).map((ins, i) => (
+            <div
+              key={ins.num}
+              className="flex gap-[20px]"
+              style={animateInsights ? { animation: "insight-reveal 500ms ease-out both", animationDelay: `${i * 90}ms` } : undefined}
+            >
               {/* Left rail */}
               <div className="flex flex-col items-center flex-shrink-0 w-[32px]">
                 <div className="w-[32px] h-[32px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: ins.bg }}>
