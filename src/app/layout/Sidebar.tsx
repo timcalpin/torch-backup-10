@@ -147,8 +147,6 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
             <NavItem to="/resources/in-app" icon={<FileIcon color={iconColor("/resources/in-app")} />} label="In-App Resources" active={is("/resources/in-app")} lightMode={lightMode} />
             <NavItem to="/intake-scripts" icon={<FileText size={14} strokeWidth={1.7} color={iconColor("/intake-scripts")} />} label="Intake Scripts" active={is("/intake-scripts")} lightMode={lightMode} />
             <NavItem to="/counselors" icon={<UsersNavIcon color={iconColor("/counselors")} />} label="Counselors" active={is("/counselors")} lightMode={lightMode} />
-            <NavItem to="/testdata" icon={<Database size={14} strokeWidth={1.7} color={iconColor("/testdata")} />} label="testdata" active={is("/testdata")} lightMode={lightMode} />
-
           </NavSection>
 
           <NavSection label="ANALYTICS" lightMode={lightMode}>
@@ -161,6 +159,7 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
             <NavItem to="/push-notifications" icon={<Bell size={14} strokeWidth={1.7} color={iconColor("/push-notifications")} />} label="Push Notifications" active={pathname.startsWith("/push-notifications")} lightMode={lightMode} />
             <NavItem to="/settings" icon={<SlidersHorizontal size={14} strokeWidth={1.7} color={iconColor("/settings")} />} label="Settings" active={is("/settings")} lightMode={lightMode} />
             <NavItem to="/privacy" icon={<CircleXIcon color={iconColor("/privacy")} />} label="Privacy & Compliance" active={is("/privacy")} lightMode={lightMode} />
+            <NavItem to="/test-data" icon={<Database size={14} strokeWidth={1.7} color={iconColor("/test-data")} />} label="Test Data" active={is("/test-data") || is("/testdata")} lightMode={lightMode} />
           </NavSection>
         </div>
       </div>

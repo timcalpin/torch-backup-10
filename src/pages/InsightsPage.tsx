@@ -1,8 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GhostBtn } from "@/components/common/Buttons";
+import { Skeleton } from "@/app/components/ui/skeleton";
 
 const INSIGHTS = [
   {
@@ -52,12 +53,44 @@ const INSIGHTS = [
   },
 ];
 
+function InsightSkeleton({ index }: { index: number }) {
+  return (
+    <div
+      className="flex gap-[20px]"
+      style={{ animation: "insight-reveal 500ms ease-out both" }}
+      aria-label={`Generating insight ${index + 1}`}
+    >
+      <div className="flex w-[32px] flex-shrink-0 flex-col items-center">
+        <Skeleton className="h-[32px] w-[32px] rounded-full bg-[rgba(243,116,34,0.14)]" />
+        {index < INSIGHTS.length - 1 && <div className="min-h-[20px] w-[2px] flex-1 bg-[rgba(243,116,34,0.12)]" />}
+      </div>
+      <div className="relative mb-[8px] min-w-0 flex-1 rounded-[12px] bg-[var(--app-surface)]">
+        <div className="pointer-events-none absolute inset-0 rounded-[12px] border border-[var(--app-border)]" />
+        <div className="flex flex-col gap-[16px] p-[20px]">
+          <div className="flex items-center justify-between gap-2">
+            <Skeleton className="h-[20px] w-[104px] rounded-full bg-[rgba(243,116,34,0.14)]" />
+            <Skeleton className="h-[14px] w-[190px] rounded bg-[var(--app-border)]" />
+          </div>
+          <div className="flex flex-col gap-[8px]">
+            <Skeleton className="h-[15px] w-full bg-[var(--app-border)]" />
+            <Skeleton className="h-[15px] w-[78%] bg-[var(--app-border)]" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function InsightsPage() {
   const { setModal } = useAppContext();
   const [visibleInsights, setVisibleInsights] = useState(INSIGHTS.length);
   const [generating, setGenerating] = useState(false);
   const [animateInsights, setAnimateInsights] = useState(false);
   const generationTimer = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (generationTimer.current !== null) window.clearInterval(generationTimer.current);
+  }, []);
 
   const generateInsights = () => {
     if (generationTimer.current !== null) window.clearInterval(generationTimer.current);
@@ -104,7 +137,10 @@ export function InsightsPage() {
         )}
 
         <div className="flex flex-col gap-[4px]">
-          {INSIGHTS.slice(0, visibleInsights).map((ins, i) => (
+          {INSIGHTS.slice(0, generating ? Math.min(visibleInsights + 1, INSIGHTS.length) : visibleInsights).map((ins, i) => (
+            generating && i === visibleInsights ? (
+              <InsightSkeleton key={`skeleton-${ins.num}`} index={i} />
+            ) : (
             <div
               key={ins.num}
               className="flex gap-[20px]"
@@ -139,6 +175,7 @@ export function InsightsPage() {
                 </div>
               </div>
             </div>
+            )
           ))}
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { apiFetch } from "./api";
 import type { PaginatedResponse } from "./pagination";
+import { withAdminQuery, type AdminQuery } from "./adminQuery";
 
 export type { PaginatedResponse };
 
@@ -38,8 +39,10 @@ export interface TreatmentPlanStats {
   avg_progress: number;
 }
 
-export function listTreatmentPlans(): Promise<PaginatedResponse<ApiTreatmentPlan>> {
-  return apiFetch<PaginatedResponse<ApiTreatmentPlan>>("/api/v1/admin/treatment-plans/");
+export function listTreatmentPlans(query: AdminQuery = {}): Promise<PaginatedResponse<ApiTreatmentPlan>> {
+  return apiFetch<PaginatedResponse<ApiTreatmentPlan>>(
+    withAdminQuery("/api/v1/admin/treatment-plans/", query),
+  );
 }
 
 export function getTreatmentPlan(id: string): Promise<ApiTreatmentPlan> {
@@ -48,7 +51,10 @@ export function getTreatmentPlan(id: string): Promise<ApiTreatmentPlan> {
 
 /** Resolve a patient's plan, then load its full detail representation. */
 export async function getTreatmentPlanForPatient(patientId: string): Promise<ApiTreatmentPlan | null> {
-  const response = await listTreatmentPlans();
+  // The plans endpoint is paginated. Request a sufficiently large page here
+  // because this lookup is used by the patient detail screen and must not miss
+  // a plan simply because it was created after the first page was filled.
+  const response = await listTreatmentPlans({ page_size: 100 });
   const plan = response.results.find(
     (item) => {
       if (item.patient == null) return false;
