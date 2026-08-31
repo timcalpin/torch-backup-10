@@ -5,6 +5,7 @@ import { getUsersdetails, updateUser } from "@/lib/users";
 import { counselorDisplayName, listCounselors, type ApiCounselor } from "@/lib/counselors";
 import { ApiError } from "@/lib/api";
 import type { Recoveryuser } from "@/types/users";
+import { useAppContext } from "@/app/app-context";
 
 const moodClasses: Record<string, string> = {
   ELEVATED:
@@ -298,6 +299,7 @@ function AssignCounselorModal({
   onClose: () => void;
   onAssigned: (counselor: ApiCounselor) => void;
 }) {
+  const { bumpUsersVersion, bumpDataRefreshVersion } = useAppContext();
   const [counselors, setCounselors] = useState<ApiCounselor[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -343,6 +345,8 @@ function AssignCounselorModal({
         is_active: user.is_active,
       });
       onAssigned(selected);
+      bumpUsersVersion();
+      bumpDataRefreshVersion();
       onClose();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Unable to assign counselor. Please try again.");

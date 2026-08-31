@@ -12,6 +12,7 @@ import {
   type ApiGoalsResponse,
 } from "@/lib/goals";
 import { getUser } from "@/lib/users";
+import { useAppContext } from "@/app/app-context";
 
 interface GoalsStructure {
   body: string;
@@ -103,6 +104,7 @@ export function GoalsPage({
     params.userId ||
     params.id;
   const navigate = useNavigate();
+  const { bumpDataRefreshVersion } = useAppContext();
   const [goals, setGoals] = useState<GoalsStructure>(EMPTY_GOALS);
 
   const [patientName, setPatientName] = useState("");
@@ -307,7 +309,7 @@ export function GoalsPage({
           actions: goals.actions.mind.filter((action) => action.trim()),
         },
 
-        // The goals endpoint expects the Spirit key, matching treatment plans.
+        // Spirit is the existing category consumed by the Flutter app.
         spirit: {
           objective: goals.spirit.trim(),
           actions: goals.actions.spirit.filter((action) => action.trim()),
@@ -321,6 +323,7 @@ export function GoalsPage({
 
       setSaveSuccess(true);
       setIsEditing(false);
+      bumpDataRefreshVersion();
       toast.success("Personalized goals saved successfully");
       window.setTimeout(() => navigate("/users"), 700);
 

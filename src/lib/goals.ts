@@ -36,7 +36,7 @@ export type ApiGoalsResponse = ApiGoalRecord[] | ApiGoalsData;
 export interface UpdateGoalsPayload {
   body: PillarGoal;
   mind: PillarGoal;
-  /** Goals use the same Spirit key as the working treatment-plan payload. */
+  /** `spirit` is the existing API contract used by Torch Flutter. */
   spirit: PillarGoal;
   life: PillarGoal;
 }
@@ -68,12 +68,10 @@ export function updatePatientGoals(
   const path = `/api/v1/admin/goals/${patientId}/`;
   const body = JSON.stringify(payload);
 
-  // Goals are documented as a full PUT update. Keep PATCH as a compatibility
-  // fallback for deployments that expose the newer partial-update route.
+  // Spirit is the shared Flutter/API field. PATCH is only a method fallback;
+  // do not silently rewrite the payload to a different category.
   return apiFetch<ApiGoalsResponse>(path, { method: "PUT", body }).catch((error) => {
-    if (!(error instanceof ApiError) || error.status !== 405) {
-      throw error;
-    }
+    if (!(error instanceof ApiError) || error.status !== 405) throw error;
     return apiFetch<ApiGoalsResponse>(path, { method: "PATCH", body });
   });
 }

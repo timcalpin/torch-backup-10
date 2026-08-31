@@ -66,6 +66,7 @@ export function createAppRouter({ AdminLayout, LoginPage, renderPage }: RouterOp
         { path: "support-groups", element: <PageRoute pageKey="support-groups" renderPage={renderPage} /> },
         { path: "users", element: <PageRoute pageKey="users" renderPage={renderPage} /> },
         { path: "counselors", element: <PageRoute pageKey="counselors" renderPage={renderPage} /> },
+        { path: "test-data", element: <PageRoute pageKey="testdata" renderPage={renderPage} /> },
         { path: "testdata", element: <PageRoute pageKey="testdata" renderPage={renderPage} /> },
         { path: "intake-scripts", element: <PageRoute pageKey="intake-scripts" renderPage={renderPage} /> },
         { path: "treatment-plans", element: <PageRoute pageKey="treatment-plans" renderPage={renderPage} /> },
