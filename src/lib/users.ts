@@ -49,11 +49,11 @@ export interface Recoveryuser {
   is_staff: boolean;
   is_superuser: boolean;
   created_at: string;
-
+  checkin_rate: number;
   days_sober: number;
+  primary_substance: string;
   sobriety_date: string | null;
   session_mode: string | null;
-
   relapse_spectrum: {
     score: number;
     score_date: string;
