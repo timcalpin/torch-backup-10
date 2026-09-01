@@ -79,3 +79,21 @@ export interface SupportGroupStats {
 export function getSupportGroupStats(): Promise<SupportGroupStats> {
   return apiFetch<SupportGroupStats>("/api/v1/admin/support-groups/stats/");
 }
+
+
+export interface ApiSupportGroupMember {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+}
+
+export function listSupportGroupMembers(
+  groupId: string,
+  page: number = 1,
+  pageSize: number = 10,
+): Promise<PaginatedResponse<ApiSupportGroupMember>> {
+  return apiFetch<PaginatedResponse<ApiSupportGroupMember>>(
+    `/api/v1/admin/support-groups/${groupId}/members/?page=${page}&page_size=${pageSize}`,
+  );
+}
