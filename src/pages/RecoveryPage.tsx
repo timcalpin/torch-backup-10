@@ -8,14 +8,20 @@ import type { Recoveryuser } from "@/types/users";
 import { useAppContext } from "@/app/app-context";
 
 const moodClasses: Record<string, string> = {
-  ELEVATED:
+  elevated:
     "border-[#f37422] text-[#f37422] bg-[rgba(243,116,34,0.08)]",
-  GOOD:
+
+  good:
     "border-[#4ade80] text-[#4ade80] bg-[rgba(74,222,128,0.08)]",
-  STABLE:
+
+  stable:
     "border-[#facc15] text-[#facc15] bg-[rgba(250,204,21,0.08)]",
-  "LOW URGE":
+
+  "low urge":
     "border-[#4ade80] text-[#4ade80] bg-[rgba(74,222,128,0.08)]",
+
+  low:
+    "border-[#ef4444] text-[#ef4444] bg-[rgba(239,68,68,0.08)]",
 };
 
 function Pill({
@@ -664,7 +670,7 @@ export function RecoveryPage() {
 
         </section>
 
-        {/* DOMAIN HEALTH SCORES */}
+        {/* DOMAIN HEALTH SCORES
 
         <section>
 
@@ -706,7 +712,7 @@ export function RecoveryPage() {
 
           </div>
 
-        </section>
+        </section> */}
 
         {/* RECENT CHECK-INS */}
 
@@ -746,32 +752,31 @@ export function RecoveryPage() {
 
               {/* TABLE ROWS */}
 
-        {user.checkins.length === 0 ? (
+              {!Array.isArray(user.checkins) || user.checkins.length === 0 ? (
                 <div className="px-[20px] py-[28px] text-center font-['JetBrains_Mono'] text-[10px] uppercase text-[var(--app-muted)]">
                   No completed check-ins
                 </div>
               ) : (
                 user.checkins.map((row) => {
-                  const mood =
-                    normalizeMood(
-                      row.mood,
-                    );
+                  const mood = normalizeMood(row?.mood?.label);
+
+                  const moodScore =
+                    typeof row?.mood?.score === "number"
+                      ? `${row.mood.score}/10`
+                      : "—/10";
 
                   return (
                     <div
                       key={row.id}
                       className="grid grid-cols-[90px_140px_90px_minmax(0,1fr)] items-center border-b border-[var(--app-border)] px-[20px] py-[13px] last:border-b-0"
                     >
-
                       <span className="font-['Figtree'] text-[13px] text-[var(--app-text)]">
-                        {formatCheckInDate(
-                          row.date,
-                        )}
+                        {formatCheckInDate(row.date)}
                       </span>
 
                       <span
                         className={`w-fit rounded-full border px-[9px] py-[3px] font-['JetBrains_Mono'] text-[9px] font-bold ${
-                          moodClasses[mood] ||
+                          moodClasses[mood.toLowerCase()] ||
                           "border-[var(--app-border)] text-[var(--app-muted)]"
                         }`}
                       >
@@ -779,13 +784,12 @@ export function RecoveryPage() {
                       </span>
 
                       <span className="font-['JetBrains_Mono'] text-[11px] font-bold">
-                        —
+                        {moodScore}
                       </span>
 
                       <span className="truncate font-['Figtree'] text-[13px] text-[var(--app-muted)]">
-                        —
+                        {row.notes_snippet || "—"}
                       </span>
-
                     </div>
                   );
                 })
