@@ -741,9 +741,10 @@ export function CounselorsPage() {
     bumpCounselorsVersion,
   } = useAppContext();
 
-
-  const [search, setSearch] =
-    useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrev, setHasPrev] = useState(false);
 
 
   const [counselors, setCounselors] =
@@ -802,7 +803,7 @@ export function CounselorsPage() {
     setLoading(true);
     setError(null);
 
-    listCounselors()
+    listCounselors({ search, page, page_size: 10 })
       .then((response) => {
 
         if (cancelled) return;
@@ -814,6 +815,8 @@ export function CounselorsPage() {
         );
 
         setTotalCount(response.count);
+        setHasNext(Boolean(response.next));
+        setHasPrev(Boolean(response.previous));
 
       })
       .catch((err) => {
@@ -839,7 +842,9 @@ export function CounselorsPage() {
       cancelled = true;
     };
 
-  }, [counselorsVersion]);
+  }, [counselorsVersion, search, page]);
+
+  useEffect(() => setPage(1), [search]);
 
 
   /* =====================================================
@@ -879,36 +884,7 @@ export function CounselorsPage() {
   }, [counselorsVersion]);
 
 
-  /* =====================================================
-     SEARCH
-     ===================================================== */
-
-  const normalizedSearch =
-    search.trim().toLowerCase();
-
-
-  const filtered = counselors.filter(
-    (counselor) => {
-
-      if (!normalizedSearch) {
-        return true;
-      }
-
-      return (
-        counselor.name
-          .toLowerCase()
-          .includes(normalizedSearch) ||
-
-        counselor.role
-          .toLowerCase()
-          .includes(normalizedSearch) ||
-
-        counselor.specializationLabel
-          .toLowerCase()
-          .includes(normalizedSearch)
-      );
-    }
-  );
+  const filtered = counselors;
 
 
   /* =====================================================
@@ -1027,11 +1003,7 @@ export function CounselorsPage() {
           title="Counselor Management"
         >
 
-          <SearchBox
-            placeholder="Search counselors..."
-            value={search}
-            onChange={setSearch}
-          />
+          <SearchBox placeholder="Search counselors..." value={search} onChange={setSearch} />
 
           <PrimaryBtn
             label="+ Add Counselor"
@@ -1295,6 +1267,8 @@ export function CounselorsPage() {
           </div>
 
         </TableCard>
+
+        <div className="flex items-center justify-between border-t border-[var(--app-border)] px-[13px] py-[10px]"><span className="font-['JetBrains_Mono'] text-[8px] text-[var(--app-muted)]">Page {page} · {totalCount ?? 0} counselors</span><div className="flex items-center gap-[4px]"><button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={!hasPrev || loading} className="px-2 py-1 border rounded disabled:opacity-30">‹</button><span className="px-2 py-1 rounded bg-[#f37422] text-[#15110e]">{page}</span><button type="button" onClick={() => setPage((value) => value + 1)} disabled={!hasNext || loading} className="px-2 py-1 border rounded disabled:opacity-30">›</button></div></div>
 
 
         {/* =================================================

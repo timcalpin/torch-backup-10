@@ -7,6 +7,7 @@ import { listUsers, type ApiUser } from "@/lib/users";
 import { listCounselors, counselorDisplayName, type ApiCounselor } from "@/lib/counselors";
 import { buildUniqueOptions } from "@/lib/selectOptions";
 import { useAppContext } from "@/app/app-context";
+import { toast } from "sonner";
 
 const DURATION_OPTIONS = ["30 days", "60 days", "90 days", "6 months", "1 year"];
 
@@ -78,6 +79,7 @@ export function NewPlanModal({ onClose }: { onClose: () => void }) {
       });
       
       bumpTreatmentPlansVersion();
+      toast.success("Treatment plan created successfully");
       onClose();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Unable to create plan. Please try again.");

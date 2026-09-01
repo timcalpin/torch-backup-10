@@ -5,8 +5,9 @@ import { ApiError } from "@/lib/api";
 import { createSupportGroup, updateSupportGroup, type ApiSupportGroup } from "@/lib/supportGroups";
 import { useAppContext } from "@/app/app-context";
 
-const CATEGORY_OPTIONS = ["Recovery", "Wellness", "Spiritual", "Community", "Clinical"];
-const DAY_OPTIONS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+export const CATEGORY_OPTIONS = ["Recovery", "Wellness", "Spiritual", "Community", "Clinical"];
+export const DAY_OPTIONS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+export const FORMAT_OPTIONS = ["In-Person", "Online"] as const;
 
 function toTitleOption(value: string) {
   return value
@@ -50,7 +51,7 @@ export function CreateGroupModal({ onClose, group, onSaved }: CreateGroupModalPr
   const [description, setDescription] = useState(group?.description ?? "");
   const [meetingDay, setMeetingDay] = useState(initialDay);
   const [meetingTime, setMeetingTime] = useState(toTimeInputValue(group?.meeting_time ?? null));
-  const [format, setFormat] = useState<"In-Person" | "Online">(initialFormat);
+  const [format, setFormat] = useState<(typeof FORMAT_OPTIONS)[number]>(initialFormat);
   const [maxCapacity, setMaxCapacity] = useState(String(group?.max_capacity ?? 15));
   const [tagsInput, setTagsInput] = useState(group?.tags.join(", ") ?? "");
   const [submitting, setSubmitting] = useState(false);
@@ -130,7 +131,7 @@ export function CreateGroupModal({ onClose, group, onSaved }: CreateGroupModalPr
             <div className="flex-1 min-w-[160px]">
               <FormField label="Format">
                 <div className="flex items-center gap-[12px] py-[12px]">
-                  {(["In-Person", "Online"] as const).map((f) => (
+                  {FORMAT_OPTIONS.map((f) => (
                     <button key={f} onClick={() => setFormat(f)} className="flex items-center gap-[8px] cursor-pointer">
                       <div className="w-[16px] h-[16px] rounded-full flex items-center justify-center" style={{ border: `2px solid ${format === f ? "#f37422" : "rgba(244,237,227,0.2)"}`, background: format === f ? "#f37422" : "transparent" }}>
                         {format === f && <div className="w-[6px] h-[6px] rounded-full bg-white" />}

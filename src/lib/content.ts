@@ -1,5 +1,6 @@
 import { apiFetch } from "./api";
 import type { PaginatedResponse } from "./pagination";
+import { withAdminQuery, type AdminQuery } from "./adminQuery";
 
 export type { PaginatedResponse };
 
@@ -74,8 +75,8 @@ export interface ContentStats {
   published_count: number;
 }
 
-export function listContent(): Promise<PaginatedResponse<ApiContentItem>> {
-  return apiFetch<PaginatedResponse<ApiContentItem>>("/api/v1/admin/content/");
+export function listContent(query: AdminQuery = {}): Promise<PaginatedResponse<ApiContentItem>> {
+  return apiFetch<PaginatedResponse<ApiContentItem>>(withAdminQuery("/api/v1/admin/content/", query));
 }
 
 export function getContentItem(id: number): Promise<ApiContentItem> {

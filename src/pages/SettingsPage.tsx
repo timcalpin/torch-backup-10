@@ -1,7 +1,10 @@
 import { useAppContext } from "@/app/app-context";
+import { Activity, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export function SettingsPage() {
   const { darkMode, setDarkMode } = useAppContext();
+  const navigate = useNavigate();
   const onToggleTheme = () => setDarkMode((value) => !value);
   const surface = darkMode ? "#15110e" : "#ffffff";
   const text = darkMode ? "#f4ede3" : "#25211d";
@@ -43,20 +46,23 @@ export function SettingsPage() {
           </div>
         </section>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-[16px]">
-          <section className="rounded-[12px] p-[20px]" style={{ background: surface, border: `1px solid ${rule}` }}>
-            <p className="font-['JetBrains_Mono'] font-bold text-[#f37422] text-[10px] tracking-widest">NOTIFICATIONS</p>
-            <p className="font-['Figtree'] font-semibold text-[15px] mt-[10px]" style={{ color: text }}>Admin notifications</p>
-            <p className="font-['Figtree'] text-[13px] mt-[4px] leading-relaxed" style={{ color: muted }}>Critical member safety signals and event changes are sent to the administrator inbox.</p>
-            <button className="mt-[16px] rounded-[8px] px-[12px] py-[8px] font-['Figtree'] font-semibold text-[12px] text-[#f37422] bg-[rgba(243,116,34,0.1)] cursor-pointer">Manage notifications</button>
-          </section>
-          <section className="rounded-[12px] p-[20px]" style={{ background: surface, border: `1px solid ${rule}` }}>
-            <p className="font-['JetBrains_Mono'] font-bold text-[#f37422] text-[10px] tracking-widest">ACCESS</p>
-            <p className="font-['Figtree'] font-semibold text-[15px] mt-[10px]" style={{ color: text }}>Session security</p>
-            <p className="font-['Figtree'] text-[13px] mt-[4px] leading-relaxed" style={{ color: muted }}>Sessions expire after 30 minutes of inactivity. Multi-factor authentication is required for super admins.</p>
-            <button className="mt-[16px] rounded-[8px] px-[12px] py-[8px] font-['Figtree'] font-semibold text-[12px] text-[#f37422] bg-[rgba(243,116,34,0.1)] cursor-pointer">Review access controls</button>
-          </section>
-        </div>
+        <button
+          type="button"
+          onClick={() => navigate("/metrics-debug")}
+          className="flex w-full items-center justify-between gap-[20px] rounded-[12px] p-[20px] text-left transition-colors hover:border-[#f37422]"
+          style={{ background: surface, border: `1px solid ${rule}` }}
+        >
+          <div className="flex items-start gap-[14px]">
+            <div className="flex h-[38px] w-[38px] items-center justify-center rounded-[10px] bg-[rgba(243,116,34,0.14)] text-[#f37422]">
+              <Activity size={18} />
+            </div>
+            <div>
+              <p className="font-['JetBrains_Mono'] font-bold text-[#f37422] text-[10px] tracking-widest">METRIC TEST</p>
+              <p className="mt-[8px] font-['Figtree'] text-[13px]" style={{ color: muted }}>Inspect user metric sync health and review detailed metric payloads.</p>
+            </div>
+          </div>
+          <ArrowRight size={18} className="flex-shrink-0 text-[#f37422]" />
+        </button>
       </div>
     </div>
   );

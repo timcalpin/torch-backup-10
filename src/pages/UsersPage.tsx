@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Download, Filter, Plus, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Plus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "@/app/app-context";
 import { StatusPill } from "@/components/common/StatusPill";
@@ -7,6 +7,7 @@ import { EditIcon } from "@/components/icons";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter, SectionLabel } from "@/components/common/Modal";
 import { FormField, TextInput, SelectInput } from "@/components/common/FormFields";
 import { ApiError } from "@/lib/api";
+import { counselorDisplayName, listCounselors, type ApiCounselor } from "@/lib/counselors";
 import {
   listUsers,
   getUser,
@@ -18,9 +19,7 @@ import {
 } from "@/lib/users";
 
 const ROLE_OPTIONS = ["Patient", "Counselor", "Admin", "Super Admin"];
-const COUNSELOR_OPTIONS = ["Unassigned", "Dr. Chen", "Dr. Smith", "Dr. Adams"];
 const STATUS_OPTIONS = ["Active", "Inactive"];
-const PAGE_SIZE = 10;
 
 interface DisplayUser {
   id: string;
@@ -29,6 +28,7 @@ interface DisplayUser {
   phone: string;
   role: string;
   counselor: string;
+  counselorId: string | null;
   sobriety: string;
   sobrietyDate: string;
   primarySubstance: string;
@@ -61,15 +61,20 @@ function getUserUiExtras(index: number): UserUiExtras {
 
 function toDisplayUser(user: ApiUser): DisplayUser {
   let counselorName = "Unassigned";
+  let counselorId: string | null = null;
+  const soberDays = user.sobriety_days ?? user.days_sober;
+  const sobrietyDate = user.sobriety_start_date || user.sobriety_date || "";
 
   if (user.counselor) {
     if (typeof user.counselor === "object") {
       counselorName = user.counselor.full_name || user.counselor.name || "Unassigned";
+      counselorId = String(user.counselor.id);
     } else if (typeof user.counselor === "string") {
-      counselorName = user.counselor;
+      counselorName = user.counselor_name || user.counselor;
+      counselorId = user.counselor_name ? user.counselor : null;
     }
-  } else if ((user as any).counselor_name) {
-    counselorName = (user as any).counselor_name;
+  } else if (user.counselor_name) {
+    counselorName = user.counselor_name;
   }
 
   return {
@@ -79,11 +84,32 @@ function toDisplayUser(user: ApiUser): DisplayUser {
     phone: user.phone || "",
     role: user.role,
     counselor: counselorName,
-    sobriety: user.sobriety_days != null ? `${user.sobriety_days}d` : "—",
-    sobrietyDate: user.sobriety_start_date || "",
+    counselorId,
+    sobriety: soberDays != null ? `${soberDays}d` : "—",
+    sobrietyDate,
     primarySubstance: user.primary_substance || "",
     status: user.is_active ? "ACTIVE" : "ARCHIVED",
   };
+}
+
+function useAvailableCounselors() {
+  const [counselors, setCounselors] = useState<ApiCounselor[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listCounselors({ page_size: 100 })
+      .then((response) => {
+        if (!cancelled) setCounselors(response.results);
+      })
+      .catch(() => {
+        if (!cancelled) setCounselors([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return counselors;
 }
 
 function RiskPill({ risk }: { risk: UserUiExtras["risk"] }) {
@@ -95,7 +121,7 @@ function RiskPill({ risk }: { risk: UserUiExtras["risk"] }) {
   };
 
   return (
-    <span className={`inline-flex w-fit items-center gap-[4px] rounded-full border px-[6px] py-[2px] font-['JetBrains_Mono'] text-[6px] font-bold leading-none ${styles[risk]}`}>
+    <span className={`inline-flex w-fit items-center gap-[4px] rounded-full border px-[7px] py-[3px] font-['JetBrains_Mono'] text-[9px] font-bold leading-none ${styles[risk]}`}>
       <span className="h-[4px] w-[4px] rounded-full bg-current" />
       {risk}
     </span>
@@ -111,7 +137,7 @@ function CheckInBar({ rate }: { rate: number }) {
       <div className="h-[4px] w-[30px] overflow-hidden rounded-full bg-[#2b2927]">
         <div className={`h-full ${barClass}`} style={{ width }} />
       </div>
-      <span className="font-['JetBrains_Mono'] text-[9px] text-[var(--app-muted)]">{rate}%</span>
+    <span className="font-['JetBrains_Mono'] text-[11px] text-[var(--app-muted)]">{rate}%</span>
     </div>
   );
 }
@@ -132,11 +158,12 @@ function UserStatus({ status, flagged }: { status: DisplayUser["status"]; flagge
    ========================================================================== */
 export function AddUserModal({ onClose }: { onClose: () => void }) {
   const { bumpUsersVersion } = useAppContext();
+  const counselors = useAvailableCounselors();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState(ROLE_OPTIONS[0]);
-  const [counselor, setCounselor] = useState(COUNSELOR_OPTIONS[1]);
+  const [counselor, setCounselor] = useState("Unassigned");
   const [status, setStatus] = useState(STATUS_OPTIONS[0]);
   const [sobrietyDate, setSobrietyDate] = useState("");
   const [primarySubstance, setPrimarySubstance] = useState("");
@@ -152,7 +179,7 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
     setSubmitting(true);
     setError(null);
 
-    const selectedCounselor = counselor === "Unassigned" ? null : counselor;
+    const selectedCounselor = counselors.find((item) => counselor === counselorDisplayName(item));
 
     try {
       await createUser({
@@ -160,8 +187,8 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
         full_name: fullName.trim(),
         phone: phone.trim() || null,
         role,
-        counselor: selectedCounselor,
-        counselor_name: selectedCounselor,
+        counselor: selectedCounselor?.id ?? null,
+        counselor_name: selectedCounselor ? counselorDisplayName(selectedCounselor) : null,
         is_active: status === "Active",
         sobriety_start_date: sobrietyDate || null,
         primary_substance: primarySubstance.trim() || null,
@@ -211,7 +238,7 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
               </div>
               <div className="flex-1 min-w-[180px]">
                 <FormField label="Assigned Counselor">
-                  <SelectInput options={COUNSELOR_OPTIONS} value={counselor} onChange={setCounselor} />
+                  <SelectInput options={["Unassigned", ...counselors.map(counselorDisplayName)]} value={counselor} onChange={setCounselor} />
                 </FormField>
               </div>
             </div>
@@ -258,18 +285,22 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
    EDIT USER MODAL
    ========================================================================== */
 function EditUserModal({ user, onClose, onSaved }: { user: DisplayUser; onClose: () => void; onSaved: () => void }) {
+  const counselors = useAvailableCounselors();
   const [fullName, setFullName] = useState(user.name);
-  const [phone, setPhone] = useState(user.phone);
   const [role, setRole] = useState(ROLE_OPTIONS.includes(user.role) ? user.role : ROLE_OPTIONS[0]);
-  const [counselor, setCounselor] = useState(
-    COUNSELOR_OPTIONS.includes(user.counselor) ? user.counselor : COUNSELOR_OPTIONS[0]
-  );
+  const [counselor, setCounselor] = useState(user.counselor);
   const [status, setStatus] = useState(user.status === "ACTIVE" ? "Active" : "Inactive");
   const [sobrietyDate, setSobrietyDate] = useState(user.sobrietyDate);
-  const [primarySubstance, setPrimarySubstance] = useState(user.primarySubstance);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const assigned = counselors.find((item) =>
+      user.counselorId === String(item.id) || user.counselor === counselorDisplayName(item),
+    );
+    if (assigned) setCounselor(counselorDisplayName(assigned));
+  }, [counselors, user.counselor, user.counselorId]);
 
   const handleSubmit = async () => {
     if (!fullName.trim()) {
@@ -280,18 +311,16 @@ function EditUserModal({ user, onClose, onSaved }: { user: DisplayUser; onClose:
     setSubmitting(true);
     setError(null);
 
-    const selectedCounselor = counselor === "Unassigned" ? null : counselor;
+    const selectedCounselor = counselors.find((item) => counselor === counselorDisplayName(item));
 
     try {
       await updateUser(user.id, {
         full_name: fullName.trim(),
-        phone: phone.trim() || null,
         role,
-        counselor: selectedCounselor,
-        counselor_name: selectedCounselor,
+        counselor: selectedCounselor?.id ?? null,
+        counselor_name: selectedCounselor ? counselorDisplayName(selectedCounselor) : null,
         is_active: status === "Active",
         sobriety_start_date: sobrietyDate || null,
-        primary_substance: primarySubstance.trim() || null,
       });
       onSaved();
       onClose();
@@ -324,11 +353,6 @@ function EditUserModal({ user, onClose, onSaved }: { user: DisplayUser; onClose:
                   />
                 </FormField>
               </div>
-              <div className="flex-1 min-w-[180px]">
-                <FormField label="Phone Number">
-                  <TextInput placeholder="+1 (555) 000-0000" value={phone} onChange={setPhone} />
-                </FormField>
-              </div>
             </div>
           </div>
 
@@ -343,7 +367,7 @@ function EditUserModal({ user, onClose, onSaved }: { user: DisplayUser; onClose:
               </div>
               <div className="flex-1 min-w-[180px]">
                 <FormField label="Assigned Counselor">
-                  <SelectInput options={COUNSELOR_OPTIONS} value={counselor} onChange={setCounselor} />
+                  <SelectInput options={["Unassigned", ...counselors.map(counselorDisplayName)]} value={counselor} onChange={setCounselor} />
                 </FormField>
               </div>
             </div>
@@ -363,11 +387,6 @@ function EditUserModal({ user, onClose, onSaved }: { user: DisplayUser; onClose:
               <div className="flex-1 min-w-[180px]">
                 <FormField label="Sobriety Date">
                   <TextInput type="date" value={sobrietyDate} onChange={setSobrietyDate} />
-                </FormField>
-              </div>
-              <div className="flex-1 min-w-[180px]">
-                <FormField label="Primary Substance">
-                  <TextInput placeholder="e.g. Alcohol" value={primarySubstance} onChange={setPrimarySubstance} />
                 </FormField>
               </div>
             </div>
@@ -465,10 +484,11 @@ function UserDetailModal({ userId, onClose }: { userId: string; onClose: () => v
    USERS PAGE
    ========================================================================== */
 export function UsersPage() {
-  const { modal, setModal, usersVersion, bumpUsersVersion } = useAppContext();
+  const { modal, setModal, usersVersion, dataRefreshVersion, bumpUsersVersion } = useAppContext();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [editUser, setEditUser] = useState<DisplayUser | null>(null);
+  const [loadingEditId, setLoadingEditId] = useState<string | null>(null);
   const [users, setUsers] = useState<DisplayUser[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -478,13 +498,13 @@ export function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("All Users");
+  const pageSize = 10;
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    listUsers(page)
+    listUsers({ search, page, page_size: pageSize })
       .then((response) => {
         if (cancelled) return;
         setUsers(response.results.map(toDisplayUser));
@@ -502,7 +522,9 @@ export function UsersPage() {
     return () => {
       cancelled = true;
     };
-  }, [usersVersion, page]);
+  }, [usersVersion, dataRefreshVersion, search, page]);
+
+  useEffect(() => setPage(1), [search]);
 
   useEffect(() => {
     let cancelled = false;
@@ -518,29 +540,13 @@ export function UsersPage() {
     return () => {
       cancelled = true;
     };
-  }, [usersVersion]);
+  }, [usersVersion, dataRefreshVersion]);
 
   const enrichedUsers = useMemo(
     () => users.map((user, index) => ({ user, extras: getUserUiExtras(index) })),
     [users]
   );
 
-  const filtered = enrichedUsers.filter(({ user, extras }) => {
-    const matchesSearch =
-      !search ||
-      user.name.toLowerCase().includes(search.toLowerCase()) ||
-      user.email.toLowerCase().includes(search.toLowerCase());
-
-    if (!matchesSearch) return false;
-    if (activeTab === "Active") return user.status === "ACTIVE";
-    if (activeTab === "High Risk") return extras.risk === "HIGH" || extras.risk === "ELEVATED";
-    if (activeTab === "Flagged") return extras.flagged;
-    if (activeTab === "New (7d)") return extras.isNew;
-    return true;
-  });
-
-  const startItem = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const endItem = Math.min(page * PAGE_SIZE, totalCount);
   const avgDaysSober = 61;
   const highRiskAlerts = 12;
   const checkInRate = 78;
@@ -549,7 +555,57 @@ export function UsersPage() {
     navigate(`/recovery/${id}`);
   };
 
-  const tabs = ["All Users", "Active", "High Risk", "Flagged", "New (7d)"];
+  const openEditUser = async (user: DisplayUser) => {
+    setLoadingEditId(user.id);
+    try {
+      const detail = await getUser(user.id);
+      setEditUser(toDisplayUser(detail));
+    } catch {
+      // Keep the table data available if the detail request fails.
+      setEditUser(user);
+    } finally {
+      setLoadingEditId(null);
+    }
+  };
+
+  const exportUsersCsv = async () => {
+    try {
+      const allUsers: ApiUser[] = [];
+      const response = await listUsers({ page_size: 100 });
+      allUsers.push(...response.results);
+
+      const headers = ["id", "email", "full_name", "phone", "role", "counselor", "sobriety_days", "sobriety_start_date", "primary_substance", "is_active", "created_at"];
+      const escapeCsv = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+      const formatDateTime = (value: string | null | undefined) => {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return `'${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}, ${date.toLocaleDateString("en-GB")}`;
+      };
+      const rows = allUsers.map((user) => [
+        user.id,
+        user.email,
+        user.full_name,
+        user.phone,
+        user.role,
+        typeof user.counselor === "string" ? user.counselor : user.counselor?.full_name ?? user.counselor?.name ?? "",
+        user.sobriety_days,
+        user.sobriety_start_date ? `'${new Date(user.sobriety_start_date).toLocaleDateString("en-GB")}` : "",
+        user.primary_substance,
+        user.is_active,
+        formatDateTime(user.created_at),
+      ].map(escapeCsv).join(","));
+      const csv = [headers.join(","), ...rows].join("\r\n");
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "users.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Unable to export users.");
+    }
+  };
 
   return (
     <div className="flex min-w-0 flex-1 overflow-y-auto bg-[var(--app-bg)] text-[var(--app-text)] transition-colors duration-200">
@@ -566,28 +622,19 @@ export function UsersPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-[8px]">
-              <div className="relative w-[220px]">
-                <Search className="pointer-events-none absolute left-[10px] top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={13} />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search users..."
-                  className="h-[31px] w-full rounded-[7px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] pl-[29px] pr-[10px] font-['Figtree'] text-[11px] text-[var(--app-text)] outline-none placeholder:text-[var(--app-muted)] focus:border-[#f37422]"
-                />
+              <div className="relative w-[240px]">
+                <Search className="pointer-events-none absolute left-[11px] top-1/2 -translate-y-1/2 text-[var(--app-muted)]" size={15} />
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search users..." className="h-[36px] w-full rounded-[8px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] pl-[32px] pr-[10px] font-['Figtree'] text-[13px] text-[var(--app-text)] outline-none placeholder:text-[var(--app-muted)] focus:border-[#f37422]" />
               </div>
-              <button className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-[11px] font-['Figtree'] text-[11px] text-[var(--app-muted)] hover:border-[#f37422]">
-                <Filter size={12} />
-                Filter
-              </button>
-              <button className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-[11px] font-['Figtree'] text-[11px] text-[var(--app-muted)] hover:border-[#f37422]">
-                <Download size={12} />
-                Export
+              <button onClick={exportUsersCsv} className="flex h-[36px] items-center gap-[7px] rounded-[8px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-[13px] font-['Figtree'] text-[13px] text-[var(--app-muted)] hover:border-[#f37422]">
+                <Download size={15} />
+                Export CSV
               </button>
               <button
                 onClick={() => setModal("add-user")}
-                className="flex h-[31px] items-center gap-[5px] rounded-[7px] bg-[#f37422] px-[12px] font-['Figtree'] text-[11px] font-bold text-[#15110e] shadow-[0_4px_14px_rgba(243,116,34,0.2)] hover:bg-[#ff8535]"
+                className="flex h-[38px] items-center gap-[8px] rounded-[9px] bg-gradient-to-r from-[#f37422] to-[#c04a12] px-[16px] font-['Figtree'] text-[13px] font-semibold text-white shadow-[0_4px_8px_rgba(243,116,34,0.22)] transition-all hover:brightness-110"
               >
-                <Plus size={12} strokeWidth={2.5} />
+                <Plus size={14} strokeWidth={2.5} />
                 Add User
               </button>
             </div>
@@ -644,36 +691,14 @@ export function UsersPage() {
 
           <div className="overflow-hidden rounded-[10px] border border-[var(--app-border-strong)] bg-[var(--app-surface)]">
             <div className="flex flex-col border-b border-[var(--app-border-strong)] lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-center gap-[2px] overflow-x-auto px-[10px] py-[8px]">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`whitespace-nowrap rounded-[6px] px-[10px] py-[5px] font-['Figtree'] text-[10px] transition-colors ${
-                      activeTab === tab
-                        ? "bg-[rgba(243,116,34,0.12)] font-bold text-[#f37422]"
-                        : "text-[var(--app-muted)] hover:bg-[var(--app-hover)] hover:text-[var(--app-text)]"
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-[7px] px-[10px] pb-[8px] lg:pb-0">
-                <span className="rounded-full border border-[#7b3f00] bg-[rgba(243,116,34,0.05)] px-[8px] py-[4px] font-['JetBrains_Mono'] text-[8px] font-bold text-[#f37422]">
-                  SUPER ADMIN · JUST ONLY
-                </span>
-                <button className="flex items-center gap-[5px] rounded-[6px] border border-[var(--app-border-strong)] px-[8px] py-[4px] font-['Figtree'] text-[9px] text-[var(--app-muted)]">
-                  Sort by: Risk
-                  <ChevronDown size={10} />
-                </button>
+              <div className="flex items-center gap-[7px] px-[10px] py-[8px]">
+                <span className="rounded-full border border-[#7b3f00] bg-[rgba(243,116,34,0.05)] px-[8px] py-[4px] font-['JetBrains_Mono'] text-[8px] font-bold text-[#f37422]">SUPER ADMIN · JUST ONLY</span>
               </div>
             </div>
 
             <div className="overflow-x-auto">
               <div className="min-w-[980px]">
-                <div className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px] items-center border-b border-[var(--app-border-strong)] px-[13px] py-[9px]">
+                <div className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px_38px] items-center border-b border-[var(--app-border-strong)] px-[13px] py-[9px]">
                   {[
                     "USER",
                     "DAYS SOBER",
@@ -683,9 +708,10 @@ export function UsersPage() {
                     "LAST ACTIVE",
                     "STATUS",
                     "COUNSELOR",
+                    "",
                     "ACTION",
                   ].map((heading) => (
-                    <span key={heading} className="font-['JetBrains_Mono'] text-[7px] uppercase text-[#756c61]">
+                      <span key={heading} className="font-['JetBrains_Mono'] text-[9px] uppercase text-[#756c61]">
                       {heading}
                     </span>
                   ))}
@@ -693,17 +719,17 @@ export function UsersPage() {
 
                 {loading && <div className="px-[15px] py-[28px] font-['Figtree'] text-[13px] text-[#756c61]">Loading users...</div>}
                 {!loading && error && <div className="px-[15px] py-[28px] font-['Figtree'] text-[13px] text-red-500">{error}</div>}
-                {!loading && !error && filtered.length === 0 && <div className="px-[15px] py-[28px] font-['Figtree'] text-center font-['Figtree'] text-[13px] text-[#756c61]">No users found.</div>}
+                {!loading && !error && enrichedUsers.length === 0 && <div className="px-[15px] py-[28px] font-['Figtree'] text-center font-['Figtree'] text-[13px] text-[#756c61]">No users found.</div>}
 
-                {!loading && !error && filtered.map(({ user: u, extras }) => (
-                  <div key={u.id} className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px] items-center border-b border-[var(--app-border-soft)] px-[13px] py-[9px] transition-colors hover:bg-[var(--app-hover)]">
+                {!loading && !error && enrichedUsers.map(({ user: u, extras }) => (
+                  <div key={u.id} className="grid grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px_38px] items-center border-b border-[var(--app-border-soft)] px-[13px] py-[9px] transition-colors hover:bg-[var(--app-hover)]">
                     <div className="flex min-w-0 items-center gap-[9px]">
-                      <div className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full bg-[var(--app-hover)] font-['Figtree'] text-[10px] font-bold text-[var(--app-muted)]">
+                      <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[var(--app-hover)] font-['Figtree'] text-[12px] font-bold text-[var(--app-muted)]">
                         {u.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate font-['Figtree'] text-[11px] font-semibold leading-tight text-[var(--app-text)]">{u.name}</p>
-                        <p className="truncate font-['JetBrains_Mono'] text-[8px] leading-tight text-[var(--app-muted)]">{u.email}</p>
+                        <p className="truncate font-['Figtree'] text-[13px] font-semibold leading-tight text-[var(--app-text)]">{u.name}</p>
+                        <p className="truncate font-['JetBrains_Mono'] text-[10px] leading-tight text-[var(--app-muted)]">{u.email}</p>
                       </div>
                     </div>
 
@@ -711,13 +737,23 @@ export function UsersPage() {
                     <div className="font-['JetBrains_Mono'] text-[10px] font-bold text-[var(--app-text)]">{extras.streak}{extras.streak > 10 && <span className="ml-[3px] text-[#f37422]">•</span>}</div>
                     <CheckInBar rate={extras.checkInRate} />
                     <RiskPill risk={extras.risk} />
-                    <span className="font-['Figtree'] text-[9px] text-[#8b8174]">{extras.lastActive}</span>
+                    <span className="font-['Figtree'] text-[11px] text-[#8b8174]">{extras.lastActive}</span>
                     <UserStatus status={u.status} flagged={extras.flagged} />
-                    <span className="truncate pr-[8px] font-['Figtree'] text-[9px] text-[#c4b9aa]">{u.counselor}</span>
+                    <span className="truncate pr-[8px] font-['Figtree'] text-[11px] text-[#c4b9aa]">{u.counselor}</span>
+                    <button
+                      type="button"
+                      title={`Edit ${u.name}`}
+                      aria-label={`Edit ${u.name}`}
+                      onClick={() => openEditUser(u)}
+                      disabled={loadingEditId === u.id}
+                      className="flex h-[25px] w-[25px] items-center justify-center rounded-[5px] text-[var(--app-muted)] transition-colors hover:bg-[rgba(243,116,34,0.12)] hover:text-[#f37422] disabled:cursor-wait disabled:opacity-50"
+                    >
+                      <EditIcon />
+                    </button>
                     <button
                       type="button"
                       onClick={() => navigate(`/recovery/${u.id}`)}
-                      className="flex items-center gap-[4px] font-['Figtree'] text-[9px] font-semibold text-[#f37422] hover:text-[#ff9a57]"
+                      className="flex items-center gap-[4px] font-['Figtree'] text-[11px] font-semibold text-[#f37422] hover:text-[#ff9a57]"
                     >
                       View <span aria-hidden="true">→</span>
                     </button>
@@ -726,33 +762,17 @@ export function UsersPage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-[8px] border-t border-[var(--app-border-strong)] px-[13px] py-[10px] sm:flex-row sm:items-center sm:justify-between">
-              <span className="font-['JetBrains_Mono'] text-[8px] text-[#756c61]">
-                Showing {startItem}–{endItem} of {totalCount.toLocaleString()} users
-              </span>
-              <div className="flex items-center gap-[4px]">
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                  disabled={!hasPrev || loading}
-                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[var(--app-border-strong)] text-[var(--app-muted)] hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <ChevronLeft size={12} />
-                </button>
-                <span className="flex h-[24px] min-w-[24px] items-center justify-center rounded-[5px] bg-[#f37422] px-[7px] font-['JetBrains_Mono'] text-[9px] font-bold text-[#15110e]">{page}</span>
-                {hasNext && <span className="flex h-[24px] min-w-[24px] items-center justify-center rounded-[5px] px-[7px] font-['JetBrains_Mono'] text-[9px] text-[#8b8174]">{page + 1}</span>}
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => p + 1)}
-                  disabled={!hasNext || loading}
-                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[var(--app-border-strong)] text-[var(--app-muted)] hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <ChevronRight size={12} />
-                </button>
-              </div>
+          </div>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-[var(--app-border-strong)] px-[13px] py-[10px]">
+            <span className="font-['JetBrains_Mono'] text-[8px] text-[#756c61]">Page {page} · {totalCount.toLocaleString()} users</span>
+            <div className="flex items-center gap-[4px]">
+              <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={!hasPrev || loading} className="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] border border-[var(--app-border-strong)] text-[var(--app-muted)] disabled:opacity-30"><ChevronLeft size={13} /></button>
+              <span className="flex h-[26px] min-w-[26px] items-center justify-center rounded-[5px] bg-[#f37422] px-[7px] font-['JetBrains_Mono'] text-[9px] font-bold text-[#15110e]">{page}</span>
+              <button type="button" onClick={() => setPage((value) => value + 1)} disabled={!hasNext || loading} className="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] border border-[var(--app-border-strong)] text-[var(--app-muted)] disabled:opacity-30"><ChevronRight size={13} /></button>
             </div>
           </div>
-        </div>
 
         {modal === "add-user" && <AddUserModal onClose={() => setModal(null)} />}
         {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} onSaved={bumpUsersVersion} />}

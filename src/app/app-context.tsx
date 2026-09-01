@@ -67,6 +67,8 @@ interface AppContextValue {
   bumpEventsVersion: () => void;
   treatmentPlansVersion: number;
   bumpTreatmentPlansVersion: () => void;
+  dataRefreshVersion: number;
+  bumpDataRefreshVersion: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -89,6 +91,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [resourcesVersion, setResourcesVersion] = useState(0);
   const [eventsVersion, setEventsVersion] = useState(0);
   const [treatmentPlansVersion, setTreatmentPlansVersion] = useState(0);
+  const [dataRefreshVersion, setDataRefreshVersion] = useState(0);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -173,6 +176,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     bumpEventsVersion: () => setEventsVersion((v) => v + 1),
     treatmentPlansVersion,
     bumpTreatmentPlansVersion: () => setTreatmentPlansVersion((v) => v + 1),
+    dataRefreshVersion,
+    bumpDataRefreshVersion: () => setDataRefreshVersion((v) => v + 1),
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -1,26 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Download,
-  Filter,
   MoreVertical,
   Pencil,
   Plus,
-  Search,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AddResourceModal } from "../components/modals";
+import { SearchBox } from "@/components/common/SearchBox";
 import { ApiError } from "@/lib/api";
 import {
-  listResources,
+  listEvents,
   getResourceStats,
   type ApiResource,
 } from "@/lib/resources";
 import { getResource } from "../lib/resources";
 
-const PAGE_SIZE = 8;
 
 /* -------------------------------------------------------------------------- */
 /* TYPES                                                                      */
@@ -298,11 +294,13 @@ export function EventsPage() {
 
   const [activeCategory, setActiveCategory] =
     useState<string>("all");
-
   const [search, setSearch] = useState("");
-  const [sortAscending, setSortAscending] = useState(true);
-
   const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrev, setHasPrev] = useState(false);
+
+  const [sortAscending, setSortAscending] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -319,11 +317,12 @@ export function EventsPage() {
       setLoading(true);
       setError(null);
 
-      const response = await listResources();
+      const response = await listEvents({ search, page, page_size: 10, ...(activeCategory !== "all" ? { category: activeCategory } : {}) });
 
-      setResources(
-        ((response as any)?.results || []) as AdminResource[]
-      );
+      setResources(response.results as AdminResource[]);
+      setTotalCount(response.count);
+      setHasNext(Boolean(response.next));
+      setHasPrev(Boolean(response.previous));
     } catch (err) {
       console.error(err);
 
@@ -359,50 +358,16 @@ export function EventsPage() {
   useEffect(() => {
     loadResources();
     loadStats();
-  }, []);
+  }, [search, activeCategory, page]);
+
+  useEffect(() => setPage(1), [search, activeCategory]);
 
   /* ---------------------------------------------------------------------- */
   /* CATEGORY FILTER                                                        */
   /* ---------------------------------------------------------------------- */
 
   const filteredResources = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
     let result = [...resources];
-
-    if (activeCategory !== "all") {
-      result = result.filter(
-        (resource) =>
-          resource.category === activeCategory
-      );
-    }
-
-    if (query) {
-      result = result.filter((resource) => {
-        const title =
-          resource.title?.toLowerCase() || "";
-
-        const category =
-          getCategoryLabel(resource).toLowerCase();
-
-        const subCategory =
-          getSubCategoryLabel(resource).toLowerCase();
-
-        const format =
-          getFormatLabel(resource).toLowerCase();
-
-        const status =
-          getStatusLabel(resource).toLowerCase();
-
-        return (
-          title.includes(query) ||
-          category.includes(query) ||
-          subCategory.includes(query) ||
-          format.includes(query) ||
-          status.includes(query)
-        );
-      });
-    }
 
     result.sort((a, b) => {
       const first =
@@ -420,48 +385,11 @@ export function EventsPage() {
   }, [
     resources,
     activeCategory,
-    search,
     sortAscending,
   ]);
 
-  /* ---------------------------------------------------------------------- */
-  /* FRONTEND PAGINATION                                                    */
-  /* ---------------------------------------------------------------------- */
+  const visibleResources = filteredResources;
 
-  const totalFiltered = filteredResources.length;
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(totalFiltered / PAGE_SIZE)
-  );
-
-  const currentPage = Math.min(
-    page,
-    totalPages
-  );
-
-  const startIndex =
-    (currentPage - 1) * PAGE_SIZE;
-
-  const endIndex =
-    startIndex + PAGE_SIZE;
-
-  const visibleResources =
-    filteredResources.slice(
-      startIndex,
-      endIndex
-    );
-
-  const showingStart =
-    totalFiltered === 0
-      ? 0
-      : startIndex + 1;
-
-  const showingEnd =
-    Math.min(
-      endIndex,
-      totalFiltered
-    );
 
   /* ---------------------------------------------------------------------- */
   /* CATEGORY TABS                                                          */
@@ -489,12 +417,6 @@ export function EventsPage() {
 
   const changeCategory = (value: string) => {
     setActiveCategory(value);
-    setPage(1);
-  };
-
-  const changeSearch = (value: string) => {
-    setSearch(value);
-    setPage(1);
   };
 
   /* ---------------------------------------------------------------------- */
@@ -593,14 +515,6 @@ export function EventsPage() {
 
               <button
                 type="button"
-                className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[#2a2724] bg-[#15110e] px-[11px] font-['Figtree'] text-[10px] text-[#c4b9aa] transition hover:border-[#f37422]"
-              >
-                <Filter size={12} />
-                Filter
-              </button>
-
-              <button
-                type="button"
                 onClick={handleExport}
                 className="flex h-[31px] items-center gap-[6px] rounded-[7px] border border-[#2a2724] bg-[#15110e] px-[11px] font-['Figtree'] text-[10px] text-[#c4b9aa] transition hover:border-[#f37422]"
               >
@@ -693,6 +607,7 @@ export function EventsPage() {
 
           <div className="overflow-hidden rounded-[10px] border border-[#2a2724] bg-[#15110e]">
 
+            {false && <>
             {/* ----------------------------------------------------------- */}
             {/* CATEGORY TABS                                                */}
             {/* ----------------------------------------------------------- */}
@@ -760,29 +675,13 @@ export function EventsPage() {
                 </span>
 
                 <span className="ml-[7px] font-['JetBrains_Mono'] text-[8px] text-[#f37422]">
-                  {totalFiltered}
+                  {totalCount}
                 </span>
               </div>
 
               <div className="flex items-center gap-[7px]">
 
-                <div className="relative w-full sm:w-[220px]">
-                  <Search
-                    size={13}
-                    className="pointer-events-none absolute left-[9px] top-1/2 -translate-y-1/2 text-[#756c61]"
-                  />
-
-                  <input
-                    value={search}
-                    onChange={(event) =>
-                      changeSearch(
-                        event.target.value
-                      )
-                    }
-                    placeholder="Search resources..."
-                    className="h-[31px] w-full rounded-[7px] border border-[#2a2724] bg-[#0d0c0b] pl-[28px] pr-[9px] font-['Figtree'] text-[9px] text-[#f4ede3] outline-none placeholder:text-[#756c61] focus:border-[#f37422]"
-                  />
-                </div>
+                <SearchBox placeholder="Search resources..." value={search} onChange={setSearch} />
 
                 <button
                   type="button"
@@ -967,95 +866,25 @@ export function EventsPage() {
             <div className="flex flex-col gap-[8px] border-t border-[#2a2724] px-[13px] py-[10px] sm:flex-row sm:items-center sm:justify-between">
 
               <span className="font-['JetBrains_Mono'] text-[7px] text-[#756c61]">
-                Showing{" "}
-                {showingStart}
+                Page {page} · {totalCount} resources{/*
                 –
-                {showingEnd}{" "}
                 of{" "}
-                {totalFiltered}{" "}
-                resources
+                resources*/}
               </span>
 
               <div className="flex items-center gap-[4px]">
 
-                {/* PREVIOUS */}
-
-                <button
-                  type="button"
-                  disabled={
-                    currentPage === 1 ||
-                    loading
-                  }
-                  onClick={() =>
-                    setPage((value) =>
-                      Math.max(
-                        1,
-                        value - 1
-                      )
-                    )
-                  }
-                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[#2a2724] text-[#756c61] transition hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <ChevronLeft size={12} />
-                </button>
+                <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={!hasPrev || loading} className="px-2 py-1 border rounded disabled:opacity-30">‹</button>
+                <span className="px-2 py-1 rounded bg-[#f37422] text-[#15110e]">{page}</span>
 
                 {/* PAGE NUMBERS */}
 
-                {Array.from(
-                  {
-                    length: totalPages,
-                  },
-                  (_, index) =>
-                    index + 1
-                ).map(
-                  (pageNumber) => (
-                    <button
-                      key={pageNumber}
-                      type="button"
-                      onClick={() =>
-                        setPage(
-                          pageNumber
-                        )
-                      }
-                      className={[
-                        "flex h-[24px] min-w-[24px] items-center justify-center rounded-[5px] px-[6px]",
-                        "font-['JetBrains_Mono'] text-[8px] font-bold",
-                        pageNumber ===
-                        currentPage
-                          ? "bg-[#f37422] text-[#15110e]"
-                          : "text-[#8b8174] hover:bg-[#211d19] hover:text-[#f4ede3]",
-                      ].join(" ")}
-                    >
-                      {pageNumber}
-                    </button>
-                  )
-                )}
-
-                {/* NEXT */}
-
-                <button
-                  type="button"
-                  disabled={
-                    currentPage ===
-                      totalPages ||
-                    loading
-                  }
-                  onClick={() =>
-                    setPage((value) =>
-                      Math.min(
-                        totalPages,
-                        value + 1
-                      )
-                    )
-                  }
-                  className="flex h-[24px] w-[24px] items-center justify-center rounded-[5px] border border-[#2a2724] text-[#756c61] transition hover:border-[#f37422] hover:text-[#f37422] disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <ChevronRight size={12} />
-                </button>
+                <button type="button" onClick={() => setPage((value) => value + 1)} disabled={!hasNext || loading} className="px-2 py-1 border rounded disabled:opacity-30">›</button>
 
               </div>
 
             </div>
+            </>}
 
           </div>
 

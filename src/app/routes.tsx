@@ -6,17 +6,24 @@ export type AppPageKey =
   | "support-groups"
   | "users"
   | "counselors"
+  | "testdata"
   | "intake-scripts"
   | "resources-real"
   | "resources-app"
   | "treatment-plans"
   | "aggregate-data"
+  | "metric-detail"
   | "relapse-signals"
   | "insights"
   | "settings"
   | "privacy"
   | "profile"
-  | "recovery";
+  | "recovery"
+  | "metrics-debug"
+  | "metrics-debug-detail"
+  | "payload-inspector"
+  | "push-notifications"
+  | "create-notification";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { authenticated } = useAppContext();
@@ -59,6 +66,8 @@ export function createAppRouter({ AdminLayout, LoginPage, renderPage }: RouterOp
         { path: "support-groups", element: <PageRoute pageKey="support-groups" renderPage={renderPage} /> },
         { path: "users", element: <PageRoute pageKey="users" renderPage={renderPage} /> },
         { path: "counselors", element: <PageRoute pageKey="counselors" renderPage={renderPage} /> },
+        { path: "test-data", element: <PageRoute pageKey="testdata" renderPage={renderPage} /> },
+        { path: "testdata", element: <PageRoute pageKey="testdata" renderPage={renderPage} /> },
         { path: "intake-scripts", element: <PageRoute pageKey="intake-scripts" renderPage={renderPage} /> },
         { path: "treatment-plans", element: <PageRoute pageKey="treatment-plans" renderPage={renderPage} /> },
         { path: "treatment-plans/:userId", element: <PageRoute pageKey="treatment-plans" renderPage={renderPage} /> },
@@ -67,12 +76,21 @@ export function createAppRouter({ AdminLayout, LoginPage, renderPage }: RouterOp
         { path: "resources/real-world", element: <PageRoute pageKey="resources-real" renderPage={renderPage} /> },
         { path: "resources/in-app", element: <PageRoute pageKey="resources-app" renderPage={renderPage} /> },
         { path: "aggregate-data", element: <PageRoute pageKey="aggregate-data" renderPage={renderPage} /> },
+        { path: "aggregate-data/metric/:metric", element: <PageRoute pageKey="metric-detail" renderPage={renderPage} /> },
         { path: "relapse-signals", element: <PageRoute pageKey="relapse-signals" renderPage={renderPage} /> },
         { path: "insights", element: <PageRoute pageKey="insights" renderPage={renderPage} /> },
         { path: "settings", element: <PageRoute pageKey="settings" renderPage={renderPage} /> },
+        { path: "push-notifications", element: <PageRoute pageKey="push-notifications" renderPage={renderPage} /> },
+        { path: "push-notifications/create", element: <PageRoute pageKey="create-notification" renderPage={renderPage} /> },
         { path: "privacy", element: <PageRoute pageKey="privacy" renderPage={renderPage} /> },
         { path: "profile", element: <PageRoute pageKey="profile" renderPage={renderPage} /> },
-        { path: "recovery/:userId", element: <PageRoute pageKey="recovery" renderPage={renderPage} /> }
+        { path: "recovery/:userId", element: <PageRoute pageKey="recovery" renderPage={renderPage} /> },
+        { path: "metrics-debug", element: <PageRoute pageKey="metrics-debug" renderPage={renderPage} /> },
+        { path: "metrics-debug/:userId", element: <PageRoute pageKey="metrics-debug-detail" renderPage={renderPage} /> },
+        {
+          path: "metrics-debug/:userId/payload-inspector",
+          element: <PageRoute pageKey="payload-inspector" renderPage={renderPage} />,
+        }
       ],
     },
     {

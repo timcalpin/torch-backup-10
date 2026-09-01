@@ -1,7 +1,8 @@
-import { apiFetch } from "./api";
+import { ApiError, apiFetch } from "./api";
 
 export interface PillarGoal {
   objective: string;
+  actions?: string[];
 }
 
 export interface ApiGoalRecord {
@@ -11,6 +12,7 @@ export interface ApiGoalRecord {
   patient_email: string;
   category: "body" | "mind" | "recovery" | "life" | string;
   objective: string;
+  actions?: string[];
   title?: string;
   updated_at?: string;
 }
@@ -22,13 +24,22 @@ export interface ApiGoalsData {
 
   body: PillarGoal;
   mind: PillarGoal;
-  spirit: PillarGoal;
+  recovery?: PillarGoal;
+  spirit?: PillarGoal;
   life: PillarGoal;
 
   updated_at?: string;
 }
 
 export type ApiGoalsResponse = ApiGoalRecord[] | ApiGoalsData;
+
+export interface UpdateGoalsPayload {
+  body: PillarGoal;
+  mind: PillarGoal;
+  /** `spirit` is the existing API contract used by Torch Flutter. */
+  spirit: PillarGoal;
+  life: PillarGoal;
+}
 
 /**
  * Get all goals for a specific patient.
@@ -52,18 +63,15 @@ export function getPatientGoals(
  */
 export function updatePatientGoals(
   patientId: string,
-  payload: {
-    body: PillarGoal;
-    mind: PillarGoal;
-    spirit: PillarGoal;
-    life: PillarGoal;
-  }
+  payload: UpdateGoalsPayload,
 ): Promise<ApiGoalsResponse> {
-  return apiFetch<ApiGoalsResponse>(
-    `/api/v1/admin/goals/${patientId}/`,
-    {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    }
-  );
+  const path = `/api/v1/admin/goals/${patientId}/`;
+  const body = JSON.stringify(payload);
+
+  // Spirit is the shared Flutter/API field. PATCH is only a method fallback;
+  // do not silently rewrite the payload to a different category.
+  return apiFetch<ApiGoalsResponse>(path, { method: "PUT", body }).catch((error) => {
+    if (!(error instanceof ApiError) || error.status !== 405) throw error;
+    return apiFetch<ApiGoalsResponse>(path, { method: "PATCH", body });
+  });
 }

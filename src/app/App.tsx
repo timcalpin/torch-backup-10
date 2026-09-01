@@ -3,14 +3,16 @@ import { AppProvider } from "./app-context";
 import { AppLayout } from "./layout/AppLayout";
 import {
   SupportGroupsPage,
-  EventsPage,
+  RealWorldResourcesPage,
   UsersPage,
   CounselorsPage,
+  TestDataPage,
   TreatmentPlansPage,
   GoalsPage, // 1. Added Import
   ResourcesAppPage,
   IntakeScriptsPage,
   AggregateDataPage,
+  MetricDetailPage,
   InsightsPage,
   RelapseSignalsPage,
   SettingsPage,
@@ -18,6 +20,11 @@ import {
   ProfilePage,
   LoginPage,
   RecoveryPage,
+  MetricsDebugPage,
+  MetricsDebugDetailPage,
+  PayloadInspectorPage,
+  PushNotificationsPage,
+  CreateNotificationPage,
 } from "../pages";
 import { RouterProvider } from "react-router-dom";
 
@@ -29,17 +36,24 @@ function renderPage(pageKey: AppPageKey) {
     case "users":            return <UsersPage />;
     case "recovery":         return <RecoveryPage />;
     case "counselors":       return <CounselorsPage />;
+    case "testdata":         return <TestDataPage />;
     case "treatment-plans":  return <TreatmentPlansPage />;
     case "goals":            return <GoalsPage />; // 2. Added Render Case
     case "resources-app":    return <ResourcesAppPage />;
     case "intake-scripts":   return <IntakeScriptsPage />;
     case "aggregate-data":   return <AggregateDataPage />;
+    case "metric-detail":    return <MetricDetailPage />;
     case "insights":         return <InsightsPage />;
-    case "resources-real":   return <EventsPage />;
+    case "resources-real":   return <RealWorldResourcesPage />;
     case "relapse-signals":  return <RelapseSignalsPage />;
     case "settings":         return <SettingsPage />;
     case "privacy":          return <PlaceholderPage title="Privacy & Compliance" subtitle="COMPLIANCE CENTER" />;
     case "profile":          return <ProfilePage />;
+    case "metrics-debug":         return <MetricsDebugPage />;
+    case "metrics-debug-detail":  return <MetricsDebugDetailPage />;
+    case "payload-inspector":     return <PayloadInspectorPage />;
+    case "push-notifications": return <PushNotificationsPage />;
+    case "create-notification": return <CreateNotificationPage />;
     default:                 return <SupportGroupsPage />;
   }
 }

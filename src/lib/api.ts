@@ -21,6 +21,18 @@ function extractErrorMessage(body: unknown, fallback: string): string {
     const record = body as Record<string, unknown>;
     const candidate = record.detail ?? record.message ?? record.error;
     if (typeof candidate === "string") return candidate;
+    if (Array.isArray(record.errors)) {
+      const messages = record.errors
+        .slice(0, 5)
+        .map((entry) => {
+          if (entry && typeof entry === "object") {
+            const item = entry as Record<string, unknown>;
+            return `Row ${item.row ?? "?"}: ${String(item.message ?? item.error ?? "Invalid row")}`;
+          }
+          return String(entry);
+        });
+      if (messages.length) return messages.join(" · ");
+    }
     const firstValue = Object.values(record)[0];
     if (Array.isArray(firstValue) && typeof firstValue[0] === "string") return firstValue[0];
   }

@@ -1,5 +1,6 @@
 import { apiFetch } from "./api";
 import type { PaginatedResponse } from "./pagination";
+import { withAdminQuery, type AdminQuery } from "./adminQuery";
 
 export type { PaginatedResponse };
 
@@ -23,8 +24,8 @@ export interface ApiLiterature {
   created_at: string;
 }
 
-export function listLiterature(): Promise<PaginatedResponse<ApiLiterature>> {
-  return apiFetch<PaginatedResponse<ApiLiterature>>("/api/v1/admin/literature/");
+export function listLiterature(query: AdminQuery = {}): Promise<PaginatedResponse<ApiLiterature>> {
+  return apiFetch<PaginatedResponse<ApiLiterature>>(withAdminQuery("/api/v1/admin/literature/", query));
 }
 
 export function getLiterature(id: number): Promise<ApiLiterature> {

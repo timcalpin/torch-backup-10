@@ -2,14 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
 import { PageHeader } from "@/components/common/PageHeader";
+import { PrimaryBtn } from "@/components/common/Buttons";
 import { SearchBox } from "@/components/common/SearchBox";
-import { GhostBtn, PrimaryBtn } from "@/components/common/Buttons";
 import { MetricCard } from "@/components/common/MetricCard";
 import { TableCard, TableToolbar, TableHead, TableRow } from "@/components/common/Table";
 import { ActionBtn } from "@/components/common/ActionBtn";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter } from "@/components/common/Modal";
-import { CreateGroupModal } from "@/components/modals/CreateGroupModal";
-import { FilterIcon, HashIcon, EyeIcon, EditIcon } from "@/components/icons";
+import { FormField, SelectInput, TextArea, TextInput } from "@/components/common/FormFields";
+import { CATEGORY_OPTIONS, DAY_OPTIONS, FORMAT_OPTIONS } from "@/components/modals/CreateGroupModal";
+import { HashIcon, EyeIcon, EditIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api";
 import {
   listSupportGroups,
@@ -278,42 +279,105 @@ function GroupDetailModal({ groupId, onClose }: { groupId: string; onClose: () =
   );
 }
 
-function EditGroupModal({ groupId, onClose, onSaved }: { groupId: string; onClose: () => void; onSaved: () => void }) {
+function EditGroupModal({ group, onClose, onSaved }: { group: DisplayGroup; onClose: () => void; onSaved: () => void }) {
   const [detail, setDetail] = useState<ApiSupportGroup | null>(null);
   const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState(CATEGORY_OPTIONS[0]);
+  const [description, setDescription] = useState("");
+  const [meetingDay, setMeetingDay] = useState(DAY_OPTIONS[0]);
+  const [meetingTime, setMeetingTime] = useState("09:00");
+  const [format, setFormat] = useState<(typeof FORMAT_OPTIONS)[number]>("In-Person");
+  const [maxCapacity, setMaxCapacity] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    getSupportGroup(groupId)
+    getSupportGroup(group.id)
       .then((response) => {
-        if (!cancelled) setDetail(response);
-      })
-      .catch((err) => {
         if (cancelled) return;
-        setError(err instanceof ApiError ? err.message : "Unable to load group details.");
+        setDetail(response);
+        setName(response.name);
+        setCategory(CATEGORY_OPTIONS.find((option) => option.toLowerCase() === response.category.toLowerCase()) ?? capitalize(response.category));
+        setDescription(response.description ?? "");
+        setMeetingDay(DAY_OPTIONS.find((option) => option.toLowerCase() === response.meeting_day.toLowerCase()) ?? capitalize(response.meeting_day));
+        setMeetingTime(response.meeting_time ? response.meeting_time.slice(0, 5) : "09:00");
+        setFormat(response.format.toLowerCase() === "online" ? "Online" : "In-Person");
+        setMaxCapacity(String(response.max_capacity));
+        setTagsInput(response.tags.join(", "));
       })
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Unable to load group details."))
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [groupId]);
+  }, [group.id]);
 
-  if (detail) {
-    return <CreateGroupModal group={detail} onClose={onClose} onSaved={onSaved} />;
-  }
+  const handleSubmit = async () => {
+    const parsed = Number(maxCapacity);
+    if (!name.trim()) {
+      setError("Group name is required.");
+      return;
+    }
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      setError("Max capacity must be a positive whole number.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await updateSupportGroup(group.id, {
+        name: name.trim(),
+        description: description.trim(),
+        category: category.toLowerCase(),
+        meeting_day: meetingDay.toLowerCase(),
+        meeting_time: `${meetingTime}:00`,
+        format: format === "Online" ? "online" : "in_person",
+        max_capacity: parsed,
+        tags: tagsInput.split(",").map((tag) => tag.trim()).filter(Boolean),
+      });
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Unable to save changes. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <ModalOverlay onClose={onClose}>
       <ModalCard>
-        <ModalHeader title="Edit Group" onClose={onClose} />
+        <ModalHeader title={`Edit ${group.name}`} onClose={onClose} />
         {loading && <p className="font-['Figtree'] text-[13px] text-[var(--app-muted)]">Loading group details...</p>}
-        {!loading && error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
-        <ModalFooter onCancel={onClose} onConfirm={onClose} confirmLabel="Close" />
+        {!loading && detail && <div className="flex flex-col gap-[16px]">
+          <div className="flex gap-[16px] flex-wrap">
+            <div className="flex-1 min-w-[200px]"><FormField label="Group Name" required><TextInput placeholder="e.g. Wednesday Morning Recovery" value={name} onChange={setName} /></FormField></div>
+            <div className="w-full sm:w-[220px]"><FormField label="Category"><SelectInput options={CATEGORY_OPTIONS.includes(category) ? CATEGORY_OPTIONS : [...CATEGORY_OPTIONS, category]} value={category} onChange={setCategory} /></FormField></div>
+          </div>
+          <FormField label="Description"><TextArea placeholder="Describe the purpose and goals of this group..." value={description} onChange={setDescription} /></FormField>
+          <div className="flex gap-[16px] flex-wrap">
+            <div className="flex-1 min-w-[160px]"><FormField label="Meeting Day"><SelectInput options={DAY_OPTIONS.includes(meetingDay) ? DAY_OPTIONS : [...DAY_OPTIONS, meetingDay]} value={meetingDay} onChange={setMeetingDay} /></FormField></div>
+            <div className="flex-1 min-w-[160px]"><FormField label="Meeting Time"><TextInput type="time" value={meetingTime} onChange={setMeetingTime} /></FormField></div>
+          </div>
+          <div className="flex gap-[16px] flex-wrap">
+            <div className="flex-1 min-w-[160px]"><FormField label="Format"><div className="flex items-center gap-[12px] py-[12px]">{FORMAT_OPTIONS.map((option) => <button type="button" key={option} onClick={() => setFormat(option)} className="flex items-center gap-[8px] cursor-pointer"><div className="w-[16px] h-[16px] rounded-full flex items-center justify-center" style={{ border: `2px solid ${format === option ? "#f37422" : "rgba(244,237,227,0.2)"}`, background: format === option ? "#f37422" : "transparent" }}>{format === option && <div className="w-[6px] h-[6px] rounded-full bg-white" />}</div><span className={`font-['Figtree'] text-[14px] ${format === option ? "text-[var(--app-text)]" : "text-[var(--app-muted)]"}`}>{option}</span></button>)}</div></FormField></div>
+            <div className="flex-1 min-w-[160px]"><FormField label="Max Capacity" required><TextInput type="number" placeholder="15" value={maxCapacity} onChange={setMaxCapacity} /></FormField></div>
+          </div>
+          <FormField label="Tags"><TextInput placeholder="recovery, morning" value={tagsInput} onChange={setTagsInput} /></FormField>
+          {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
+        </div>}
+        {!loading && !detail && error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
+        <ModalFooter
+          onCancel={onClose}
+          onConfirm={handleSubmit}
+          confirmLabel={submitting ? "Saving..." : "Save changes"}
+          confirmDisabled={submitting || loading || !detail}
+        />
       </ModalCard>
     </ModalOverlay>
   );
@@ -323,6 +387,9 @@ export function SupportGroupsPage() {
   const { setModal, groupsVersion, bumpGroupsVersion } = useAppContext();
   const [formatTab, setFormatTab] = useState("All");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrev, setHasPrev] = useState(false);
   const [groups, setGroups] = useState<DisplayGroup[]>([]);
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -338,11 +405,13 @@ export function SupportGroupsPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    listSupportGroups()
+    listSupportGroups({ search, page, page_size: 10, ...(formatTab !== "All" ? { format: formatTab } : {}) })
       .then((response) => {
         if (cancelled) return;
         setGroups(response.results.map(toDisplayGroup));
         setTotalCount(response.count);
+        setHasNext(Boolean(response.next));
+        setHasPrev(Boolean(response.previous));
       })
       .catch((err) => {
         if (cancelled) return;
@@ -354,7 +423,9 @@ export function SupportGroupsPage() {
     return () => {
       cancelled = true;
     };
-  }, [groupsVersion]);
+  }, [groupsVersion, search, page, formatTab]);
+
+  useEffect(() => setPage(1), [search, formatTab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -374,11 +445,7 @@ export function SupportGroupsPage() {
 
   const formatTabs = useMemo(() => ["All", ...Array.from(new Set(groups.map((g) => g.format)))], [groups]);
 
-  const filtered = groups.filter((g) => {
-    if (formatTab !== "All" && g.format !== formatTab) return false;
-    if (search && !g.name.toLowerCase().includes(search.toLowerCase()) && !g.description.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  const filtered = groups;
 
   const handleDelete = async (group: DisplayGroup) => {
     if (!window.confirm(`Delete ${group.name}? This cannot be undone.`)) return;
@@ -399,8 +466,6 @@ export function SupportGroupsPage() {
       <div className="p-[24px] lg:p-[32px] flex flex-col gap-[20px]">
         <PageHeader eyebrow={totalCount !== null ? `${totalCount} TOTAL GROUPS` : "LOADING GROUPS…"} title="Support Groups">
           <SearchBox placeholder="Search groups..." value={search} onChange={setSearch} />
-          <GhostBtn label="Filter" icon={<FilterIcon />} />
-          <GhostBtn label="Export" />
           <PrimaryBtn label="+ Create Group" onClick={() => setModal("create-group")} />
         </PageHeader>
 
@@ -483,13 +548,17 @@ export function SupportGroupsPage() {
               {!loading && !error && filtered.length === 0 && (
                 <div className="py-[48px] text-center">
                   <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">
-                    {groups.length === 0 ? "No support groups yet." : "No groups match your search."}
+                    "No support groups yet."
                   </p>
                 </div>
               )}
             </div>
           </div>
         </TableCard>
+        <div className="flex items-center justify-between border-t border-[var(--app-border)] px-[13px] py-[10px]">
+          <span className="font-['JetBrains_Mono'] text-[8px] text-[var(--app-muted)]">Page {page} · {totalCount ?? 0} groups</span>
+          <div className="flex items-center gap-[4px]"><button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={!hasPrev || loading} className="px-2 py-1 border rounded disabled:opacity-30">‹</button><span className="px-2 py-1 rounded bg-[#f37422] text-[#15110e]">{page}</span><button type="button" onClick={() => setPage((value) => value + 1)} disabled={!hasNext || loading} className="px-2 py-1 border rounded disabled:opacity-30">›</button></div>
+        </div>
         {viewGroupId && <GroupDetailModal groupId={viewGroupId} onClose={() => setViewGroupId(null)} />}
         {editGroupId && (
           <EditGroupModal
