@@ -568,7 +568,7 @@ export function RecoveryPage() {
                   </p>
 
                   <p className="mt-[4px] font-['JetBrains_Mono'] text-[10px] uppercase tracking-wider text-[var(--app-muted)]">
-                    Primary: Alcohol
+                    {`Primary Substance : ${user.primary_substance}`}
                   </p>
 
                 </div>
@@ -611,7 +611,7 @@ export function RecoveryPage() {
 
               <Metric
                 label="Check-in rate"
-                value="—"
+                value={`${user.checkin_rate}%`}
                 orange
               />
 
