@@ -670,7 +670,7 @@ export function RecoveryPage() {
 
         </section>
 
-        {/* DOMAIN HEALTH SCORES */}
+        {/* DOMAIN HEALTH SCORES
 
         <section>
 
@@ -712,7 +712,7 @@ export function RecoveryPage() {
 
           </div>
 
-        </section>
+        </section> */}
 
         {/* RECENT CHECK-INS */}
 
