@@ -5,14 +5,20 @@ import { getUsersdetails } from "@/lib/users";
 import type { Recoveryuser } from "@/types/users";
 
 const moodClasses: Record<string, string> = {
-  ELEVATED:
+  elevated:
     "border-[#f37422] text-[#f37422] bg-[rgba(243,116,34,0.08)]",
-  GOOD:
+
+  good:
     "border-[#4ade80] text-[#4ade80] bg-[rgba(74,222,128,0.08)]",
-  STABLE:
+
+  stable:
     "border-[#facc15] text-[#facc15] bg-[rgba(250,204,21,0.08)]",
-  "LOW URGE":
+
+  "low urge":
     "border-[#4ade80] text-[#4ade80] bg-[rgba(74,222,128,0.08)]",
+
+  low:
+    "border-[#ef4444] text-[#ef4444] bg-[rgba(239,68,68,0.08)]",
 };
 
 function Pill({
@@ -247,42 +253,6 @@ function formatCheckInDate(date: string) {
       day: "numeric",
     },
   );
-}
-
-function normalizeMood(mood: string | null) {
-  if (!mood) return "—";
-
-  const normalizedMood =
-    mood.trim().toLowerCase();
-
-  if (
-    normalizedMood.includes("elevated") ||
-    normalizedMood.includes("depressed") ||
-    normalizedMood.includes("anxious") ||
-    normalizedMood.includes("not feeling good")
-  ) {
-    return "ELEVATED";
-  }
-
-  if (
-    normalizedMood.includes("low urge") ||
-    normalizedMood.includes("low_urge")
-  ) {
-    return "LOW URGE";
-  }
-
-  if (normalizedMood.includes("stable")) {
-    return "STABLE";
-  }
-
-  if (
-    normalizedMood.includes("good") ||
-    normalizedMood.includes("feeling good")
-  ) {
-    return "GOOD";
-  }
-
-  return normalizedMood.toUpperCase();
 }
 
 export function RecoveryPage() {
@@ -636,10 +606,7 @@ export function RecoveryPage() {
                 </div>
               ) : (
                 user.checkins.map((row) => {
-                  const mood =
-                    normalizeMood(
-                      row.mood,
-                    );
+                const mood = row.mood?.label?.toLowerCase() ?? "—";
 
                   return (
                     <div
@@ -659,15 +626,15 @@ export function RecoveryPage() {
                           "border-[var(--app-border)] text-[var(--app-muted)]"
                         }`}
                       >
-                        • {mood}
+                        • {mood === "—" ? "—" : mood.toUpperCase()}
                       </span>
 
                       <span className="font-['JetBrains_Mono'] text-[11px] font-bold">
-                        —
+                        {row.mood?.score ?? "—"}/10
                       </span>
 
                       <span className="truncate font-['Figtree'] text-[13px] text-[var(--app-muted)]">
-                        —
+                        {row.notes_snippet || "—"}
                       </span>
 
                     </div>

@@ -16,8 +16,10 @@ import {
   getSupportGroup,
   getSupportGroupStats,
   deleteSupportGroup,
+  listSupportGroupMembers,
   type ApiSupportGroup,
   type SupportGroupStats,
+  type ApiSupportGroupMember,
 } from "@/lib/supportGroups";
 
 // Keys must match CommunityGroup.Category on the server: recovery/mind/spirit/wellness.
@@ -70,6 +72,12 @@ function GroupDetailModal({ groupId, onClose }: { groupId: string; onClose: () =
   const [detail, setDetail] = useState<ApiSupportGroup | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [members, setMembers] = useState<ApiSupportGroupMember[]>([]);
+  const [memberPage, setMemberPage] = useState(1);
+  const [memberTotal, setMemberTotal] = useState(0);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
+  const MEMBER_PAGE_SIZE = 10;
 
   useEffect(() => {
     let cancelled = false;
@@ -91,11 +99,44 @@ function GroupDetailModal({ groupId, onClose }: { groupId: string; onClose: () =
     };
   }, [groupId]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    setMembersLoading(true);
+    setMembersError(null);
+
+    listSupportGroupMembers(groupId, memberPage, MEMBER_PAGE_SIZE)
+      .then((response) => {
+        if (cancelled) return;
+        setMembers(response.results);
+        setMemberTotal(response.count);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setMembersError(
+          err instanceof ApiError
+            ? err.message
+            : "Unable to load group members.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setMembersLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [groupId, memberPage]);
+
   const group = detail ? toDisplayGroup(detail) : null;
+  const totalMemberPages = Math.max(
+    1,
+    Math.ceil(memberTotal / MEMBER_PAGE_SIZE),
+  );
 
   return (
     <ModalOverlay onClose={onClose}>
-      <ModalCard>
+      <ModalCard wide>
         <ModalHeader title="Group details" onClose={onClose} />
         {loading && <p className="font-['Figtree'] text-[13px] text-[var(--app-muted)]">Loading group details...</p>}
         {!loading && error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
@@ -137,6 +178,98 @@ function GroupDetailModal({ groupId, onClose }: { groupId: string; onClose: () =
                 </div>
               </div>
             )}
+
+            <div className="flex flex-col gap-[10px]">
+              <div className="flex items-center justify-between">
+                <p className="font-['JetBrains_Mono'] font-bold text-[10px] text-[var(--app-muted)]">
+                  MEMBERS
+                </p>
+                <p className="font-['JetBrains_Mono'] text-[10px] text-[var(--app-muted)]">
+                  {memberTotal} TOTAL
+                </p>
+              </div>
+
+              <div className="rounded-[9px] bg-[var(--app-surface)] border border-[var(--app-border)]">
+                <div className="max-h-[280px] overflow-y-auto">
+                  {membersLoading && (
+                    <div className="py-[30px] text-center">
+                      <p className="font-['Figtree'] text-[12px] text-[var(--app-muted)]">
+                        Loading members...
+                      </p>
+                    </div>
+                  )}
+
+                  {!membersLoading && membersError && (
+                    <div className="py-[30px] text-center">
+                      <p className="font-['Figtree'] text-[12px] text-red-500">
+                        {membersError}
+                      </p>
+                    </div>
+                  )}
+
+                  {!membersLoading &&
+                    !membersError &&
+                    members.length === 0 && (
+                      <div className="py-[30px] text-center">
+                        <p className="font-['Figtree'] text-[12px] text-[var(--app-muted)]">
+                          No members in this group.
+                        </p>
+                      </div>
+                    )}
+
+                  {!membersLoading &&
+                    !membersError &&
+                    members.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between gap-[12px] px-[12px] py-[10px] border-b border-[var(--app-border)] last:border-b-0"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-['Figtree'] font-semibold text-[13px] text-[var(--app-text)] truncate">
+                            {member.name}
+                          </p>
+                          <p className="font-['JetBrains_Mono'] text-[10px] text-[var(--app-muted)] truncate">
+                            {member.email}
+                          </p>
+                        </div>
+
+                        <span className="flex-shrink-0 font-['JetBrains_Mono'] text-[9px] text-[var(--app-muted)]">
+                          MEMBER
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {totalMemberPages > 1 && (
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    disabled={memberPage === 1 || membersLoading}
+                    onClick={() => setMemberPage((page) => page - 1)}
+                    className="px-[10px] py-[6px] rounded-[6px] border border-[var(--app-border)] font-['Figtree'] text-[11px] text-[var(--app-text)] disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+
+                  <p className="font-['JetBrains_Mono'] text-[10px] text-[var(--app-muted)]">
+                    Page {memberPage} of {totalMemberPages}
+                  </p>
+
+                  <button
+                    type="button"
+                    disabled={
+                      memberPage === totalMemberPages ||
+                      membersLoading
+                    }
+                    onClick={() => setMemberPage((page) => page + 1)}
+                    className="px-[10px] py-[6px] rounded-[6px] border border-[var(--app-border)] font-['Figtree'] text-[11px] text-[var(--app-text)] disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
         <ModalFooter onCancel={onClose} onConfirm={onClose} confirmLabel="Close" />

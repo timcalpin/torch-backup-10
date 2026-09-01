@@ -35,7 +35,6 @@ export interface CreateUserResponse {
   user: ApiUser;  
   temporary_password: string;
 }
-
 export interface Recoveryuser {
   id: string;
   email: string;
@@ -46,19 +45,26 @@ export interface Recoveryuser {
   is_staff: boolean;
   is_superuser: boolean;
   created_at: string;
+
   days_sober: number;
   sobriety_date: string | null;
   session_mode: string | null;
+
   relapse_spectrum: {
     score: number;
     score_date: string;
   } | null;
+
   checkins: {
     id: string;
     date: string;
     type: string;
-    mood: string | null;
-    score: number;
+
+    mood: {
+      score: number | null;
+      label: string | null;
+    };
+    notes_snippet: string;
     status: string;
   }[];
 }
