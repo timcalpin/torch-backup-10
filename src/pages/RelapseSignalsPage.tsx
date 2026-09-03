@@ -39,7 +39,12 @@ useEffect(() => {
       ]);
 
       setStats(statsData);
-      setLogs(logsData);
+      const logList = Array.isArray(logsData)
+        ? logsData
+        : (logsData && "results" in logsData && Array.isArray(logsData.results))
+          ? logsData.results
+          : [];
+      setLogs(logList);
     } catch (error) {
       console.error(error);
     }
@@ -49,24 +54,23 @@ useEffect(() => {
 }, []);
   const monthLabel = monthOffset === 0 ? "March 2026" : monthOffset < 0 ? "February 2026" : "April 2026";
   const tabs = ["All Signals", "Critical", "Moderate", "Low Risk"];
-  const visible =
-  filter === "All Signals"
-    ? logs
-    : logs.filter((signal) => {
-        if (filter === "Critical") {
-          return signal.severity.toLowerCase() === "critical";
-        }
-
-        if (filter === "Moderate") {
-          return signal.severity.toLowerCase() === "moderate";
-        }
-
-        if (filter === "Low Risk") {
-          return signal.severity.toLowerCase() === "low risk";
-        }
-
-        return true;
-      });
+  const visible = Array.isArray(logs)
+    ? (filter === "All Signals"
+        ? logs
+        : logs.filter((signal) => {
+            const sev = (signal.severity || "").toLowerCase();
+            if (filter === "Critical") {
+              return sev === "critical" || sev === "high";
+            }
+            if (filter === "Moderate") {
+              return sev === "moderate";
+            }
+            if (filter === "Low Risk") {
+              return sev === "low risk" || sev === "low";
+            }
+            return true;
+          }))
+    : [];
   const bars = [
     ["Missed Check-ins", "34%", "#f97342", "w-[84%]"], ["Anxiety Spike", "24%", "#ef4444", "w-[62%]"], ["Mood Decline", "18%", "#facc15", "w-[48%]"], ["Confidence Drop", "12%", "#6b8ab0", "w-[34%]"], ["Social Isolation", "6%", "#71685d", "w-[18%]"], ["Sleep Disruption", "6%", "#71685d", "w-[18%]"],
   ];
@@ -102,10 +106,37 @@ useEffect(() => {
             </div>
             <div className="min-w-[700px] px-[12px]">
               <div className="grid grid-cols-[90px_102px_52px_minmax(150px,1fr)_75px_74px_55px] gap-[8px] py-[10px] font-['JetBrains_Mono'] font-bold text-[var(--app-muted)] text-[10px] border-b border-[var(--app-border-soft)]"><span>PATIENT</span><span>SIGNAL TYPE</span><span>TIME</span><span>DESCRIPTION</span><span>COUNSELOR</span><span>STATUS</span></div>
-              {visible.map((signal) => <div key={signal.patient} className="grid grid-cols-[90px_102px_52px_minmax(150px,1fr)_75px_74px_55px] gap-[8px] items-center py-[7px] border-b border-[var(--app-border-soft)]">
-                <div className="flex gap-[7px] items-center min-w-0"><span className="w-[22px] h-[22px] rounded-full bg-[var(--app-hover)] text-[var(--app-muted)] flex items-center justify-center font-['JetBrains_Mono'] text-[8px] shrink-0">{signal.patient.split(" ").map((name) => name[0]).join("").slice(0, 2).toUpperCase()}</span><div className="min-w-0"><p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[12px] truncate">{signal.patient}</p><p className="font-['Figtree'] text-[var(--app-muted)] text-[11px] truncate">{signal.email}</p></div></div>
-                <RiskPill risk={signal.severity.toString().toUpperCase()} /><span className="font-['Figtree'] text-[var(--app-muted)] text-[11px]">{signal.time}</span><p className="font-['Figtree'] text-[var(--app-text)] text-[12px] truncate">{signal.reason}</p><span className="font-['Figtree'] text-[var(--app-muted)] text-[11px] truncate">{signal.counselor}</span><span className={`w-fit rounded-[4px] px-[6px] py-[3px] font-['Figtree'] text-[8px] ${signal.status === "New" ? "bg-[rgba(243,116,34,0.16)] text-[#f37422]" : signal.status === "Reviewing" ? "bg-[rgba(250,204,21,0.14)] text-[#facc15]" : "bg-[rgba(138,128,115,0.13)] text-[var(--app-muted)]"}`}>{signal.status}</span><div className="flex gap-[9px] text-[var(--app-muted)]"></div>
-              </div>)}
+              {visible.map((signal, idx) => {
+                const patientName = signal.patient || "Unknown";
+                const initials = patientName
+                  .split(" ")
+                  .filter(Boolean)
+                  .map((name) => name[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase() || "U";
+                const timeDisplay = signal.time || (signal.created_at ? new Date(signal.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—");
+
+                return (
+                  <div key={`${patientName}-${signal.created_at || idx}-${idx}`} className="grid grid-cols-[90px_102px_52px_minmax(150px,1fr)_75px_74px_55px] gap-[8px] items-center py-[7px] border-b border-[var(--app-border-soft)]">
+                    <div className="flex gap-[7px] items-center min-w-0">
+                      <span className="w-[22px] h-[22px] rounded-full bg-[var(--app-hover)] text-[var(--app-muted)] flex items-center justify-center font-['JetBrains_Mono'] text-[8px] shrink-0">
+                        {initials}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[12px] truncate">{patientName}</p>
+                        <p className="font-['Figtree'] text-[var(--app-muted)] text-[11px] truncate">{signal.email}</p>
+                      </div>
+                    </div>
+                    <RiskPill risk={(signal.severity || "").toString().toUpperCase()} />
+                    <span className="font-['Figtree'] text-[var(--app-muted)] text-[11px]">{timeDisplay}</span>
+                    <p className="font-['Figtree'] text-[var(--app-text)] text-[12px] truncate">{signal.description || signal.reason}</p>
+                    <span className="font-['Figtree'] text-[var(--app-muted)] text-[11px] truncate">{signal.counselor}</span>
+                    <span className={`w-fit rounded-[4px] px-[6px] py-[3px] font-['Figtree'] text-[8px] ${signal.status === "New" ? "bg-[rgba(243,116,34,0.16)] text-[#f37422]" : signal.status === "Reviewing" ? "bg-[rgba(250,204,21,0.14)] text-[#facc15]" : "bg-[rgba(138,128,115,0.13)] text-[var(--app-muted)]"}`}>{signal.status}</span>
+                    <div className="flex gap-[9px] text-[var(--app-muted)]"></div>
+                  </div>
+                );
+              })}
             </div> 
           </section> 
           <aside className="flex flex-col gap-[12px]">

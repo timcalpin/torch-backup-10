@@ -606,7 +606,7 @@ export function RecoveryPage() {
 
               <Metric
                 label="Current streak"
-                value="—"
+                value={`${user.streak}d`}
               />
 
               <Metric
