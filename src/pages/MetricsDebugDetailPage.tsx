@@ -23,11 +23,12 @@ const STATUS_CONFIG: Record<MetricStatus, { bg: string; color: string; label: st
 const SOURCE_COLORS: Record<string, string> = {
   HealthKit: "#6b8ab0",
   Intake: "#f37422",
+  "Intake / Check-in": "#f37422",
   "App Tracking": "#a78bfa",
   Calculation: "#4ade80",
 };
 
-const SOURCE_FILTERS = ["All Sources", "HealthKit", "Intake", "App Tracking", "Calculation"];
+const SOURCE_FILTERS = ["All Sources", "HealthKit", "Intake", "Intake / Check-in", "App Tracking", "Calculation"];
 
 function StatusPill({ status, reason }: { status: MetricStatus; reason: string | null }) {
   const cfg = STATUS_CONFIG[status];

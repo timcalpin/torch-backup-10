@@ -3,7 +3,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Eye,
   Plus,
+  RotateCw,
   Search,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -36,6 +38,7 @@ import {
   getUserStats,
   createUser,
   updateUser,
+  refreshSobriety,
   type ApiUser,
   type UserStats,
   type ApiRisk,
@@ -1239,6 +1242,107 @@ function UserDetailModal({
 
 
 /* ==========================================================================
+   RELOAD SOBRIETY MODAL
+   ========================================================================== */
+
+function ReloadSobrietyModal({
+  user,
+  onClose,
+  onConfirmed,
+}: {
+  user: DisplayUser;
+  onClose: () => void;
+  onConfirmed: () => void;
+}) {
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+
+  const handleConfirm =
+    async () => {
+      setSubmitting(true);
+      setError(null);
+
+      try {
+        await refreshSobriety(user.id);
+
+        onConfirmed();
+        onClose();
+      } catch (err) {
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : "Unable to refresh sobriety. Please try again."
+        );
+      } finally {
+        setSubmitting(false);
+      }
+    };
+
+
+  return (
+    <ModalOverlay onClose={onClose}>
+
+      <div className="relative w-full max-w-[420px] rounded-[24px] bg-[var(--app-bg)] p-[32px] shadow-[0_32px_64px_rgba(0,0,0,0.5)]">
+
+        <div className="pointer-events-none absolute inset-0 rounded-[24px] border border-[var(--app-border)]" />
+
+        <div className="flex flex-col items-center gap-[10px] text-center">
+
+          <p className="font-['Figtree'] text-[20px] font-bold text-[var(--app-text)]">
+            Reload Sobriety Date?
+          </p>
+
+          <p className="font-['Figtree'] text-[14px] leading-relaxed text-[var(--app-muted)]">
+            Are you sure you want to refresh the sobriety of the user based on the last sobriety date recorded.
+          </p>
+
+        </div>
+
+
+        {error && (
+          <p className="mt-[16px] text-center font-['Figtree'] text-[13px] text-red-500">
+            {error}
+          </p>
+        )}
+
+
+        <div className="mt-[24px] border-t border-[var(--app-border)]" />
+
+
+        <div className="mt-[20px] flex items-center gap-[12px]">
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="flex-1 rounded-[12px] border border-[var(--app-border)] py-[11px] font-['Figtree'] text-[14px] font-semibold text-[var(--app-muted)] transition-colors hover:text-[var(--app-text)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={submitting}
+            className="flex-1 rounded-[12px] bg-[#f37422] py-[11px] font-['Figtree'] text-[14px] font-semibold text-white shadow-[0_4px_8px_rgba(243,116,34,0.25)] transition-colors hover:bg-[#e06820] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? "Refreshing..." : "Confirm"}
+          </button>
+
+        </div>
+
+      </div>
+
+    </ModalOverlay>
+  );
+}
+
+
+/* ==========================================================================
    USERS PAGE
    ========================================================================== */
 
@@ -1264,6 +1368,9 @@ export function UsersPage() {
 
   const [loadingEditId, setLoadingEditId] =
     useState<string | null>(null);
+
+  const [sobrietyUser, setSobrietyUser] =
+    useState<DisplayUser | null>(null);
 
   const [users, setUsers] =
     useState<DisplayUser[]>([]);
@@ -2063,7 +2170,7 @@ export function UsersPage() {
 
                 <div className="
                   grid
-                  grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px_70px]
+                  grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_104px]
                   items-center
                   border-b
                   border-[var(--app-border-strong)]
@@ -2080,7 +2187,6 @@ export function UsersPage() {
                     "LAST ACTIVE",
                     "STATUS",
                     "COUNSELOR",
-                    "",
                     "ACTION",
                   ].map(
                     (heading) => (
@@ -2138,7 +2244,7 @@ export function UsersPage() {
                           key={u.id}
                           className="
                             grid
-                            grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_70px_70px]
+                            grid-cols-[minmax(210px,1.7fr)_72px_100px_125px_110px_95px_90px_100px_104px]
                             items-center
                             border-b
                             border-[var(--app-border-soft)]
@@ -2294,64 +2400,92 @@ export function UsersPage() {
                           </span>
 
 
-                          {/* EDIT */}
+                          {/* ACTION */}
 
-                          <button
-                            type="button"
-                            title={`Edit ${u.name}`}
-                            aria-label={`Edit ${u.name}`}
-                            onClick={() =>
-                              openEditUser(u)
-                            }
-                            disabled={
-                              loadingEditId ===
-                              u.id
-                            }
-                            className="
-                              flex
-                              h-[25px]
-                              w-[25px]
-                              items-center
-                              justify-center
-                              rounded-[5px]
-                              text-[var(--app-muted)]
-                              transition-colors
-                              hover:bg-[rgba(243,116,34,0.12)]
-                              hover:text-[#f37422]
-                              disabled:cursor-wait
-                              disabled:opacity-50
-                            "
-                          >
-                            <EditIcon />
-                          </button>
+                          <div className="
+                            flex
+                            items-center
+                            gap-[4px]
+                          ">
 
+                            <button
+                              type="button"
+                              title={`View ${u.name}`}
+                              aria-label={`View ${u.name}`}
+                              onClick={() =>
+                                navigate(
+                                  `/recovery/${u.id}`
+                                )
+                              }
+                              className="
+                                flex
+                                h-[25px]
+                                w-[25px]
+                                items-center
+                                justify-center
+                                rounded-[5px]
+                                text-[var(--app-muted)]
+                                transition-colors
+                                hover:bg-[rgba(243,116,34,0.12)]
+                                hover:text-[#f37422]
+                              "
+                            >
+                              <Eye size={14} strokeWidth={1.5} />
+                            </button>
 
-                          {/* VIEW */}
+                            <button
+                              type="button"
+                              title={`Edit ${u.name}`}
+                              aria-label={`Edit ${u.name}`}
+                              onClick={() =>
+                                openEditUser(u)
+                              }
+                              disabled={
+                                loadingEditId ===
+                                u.id
+                              }
+                              className="
+                                flex
+                                h-[25px]
+                                w-[25px]
+                                items-center
+                                justify-center
+                                rounded-[5px]
+                                text-[var(--app-muted)]
+                                transition-colors
+                                hover:bg-[rgba(243,116,34,0.12)]
+                                hover:text-[#f37422]
+                                disabled:cursor-wait
+                                disabled:opacity-50
+                              "
+                            >
+                              <EditIcon />
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              navigate(
-                                `/recovery/${u.id}`
-                              )
-                            }
-                            className="
-                              flex
-                              items-center
-                              gap-[4px]
-                              font-['Figtree']
-                              text-[11px]
-                              font-semibold
-                              text-[#f37422]
-                              hover:text-[#ff9a57]
-                            "
-                          >
-                            View
+                            <button
+                              type="button"
+                              title={`Reload sobriety date for ${u.name}`}
+                              aria-label={`Reload sobriety date for ${u.name}`}
+                              onClick={() =>
+                                setSobrietyUser(u)
+                              }
+                              className="
+                                flex
+                                h-[25px]
+                                w-[25px]
+                                items-center
+                                justify-center
+                                rounded-[5px]
+                                text-[var(--app-muted)]
+                                transition-colors
+                                hover:bg-[rgba(243,116,34,0.12)]
+                                hover:text-[#f37422]
+                              "
+                            >
+                              <RotateCw size={13} strokeWidth={1.5} />
+                            </button>
 
-                            <span aria-hidden="true">
-                              →
-                            </span>
-                          </button>
+                          </div>
 
                         </div>
                       );
@@ -2498,6 +2632,19 @@ export function UsersPage() {
                 setEditUser(null)
               }
               onSaved={
+                bumpUsersVersion
+              }
+            />
+          )}
+
+
+          {sobrietyUser && (
+            <ReloadSobrietyModal
+              user={sobrietyUser}
+              onClose={() =>
+                setSobrietyUser(null)
+              }
+              onConfirmed={
                 bumpUsersVersion
               }
             />
