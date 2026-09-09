@@ -317,3 +317,24 @@ export function deleteUser(
   );
 }
 
+export interface RefreshSobrietyResponse {
+  days_sober: number;
+  sobriety_date: string;
+  metric_date: string;
+}
+
+/**
+ * Recomputes days_sober from the sobriety date already on record,
+ * forward to today. Not a relapse reset.
+ */
+export function refreshSobriety(
+  id: string
+): Promise<RefreshSobrietyResponse> {
+  return apiFetch<RefreshSobrietyResponse>(
+    `/api/v1/admin/users/${id}/refresh-sobriety/`,
+    {
+      method: "POST",
+    }
+  );
+}
+
