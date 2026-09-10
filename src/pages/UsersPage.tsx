@@ -35,6 +35,7 @@ import {
 import {
   listUsers,
   getUser,
+  getUsersdetails,
   getUserStats,
   createUser,
   updateUser,
@@ -105,6 +106,67 @@ function normalizeRisk(
 }
 
 
+function normalizeDateInputValue(
+  value: string | null | undefined
+): string {
+  if (!value) {
+    return "";
+  }
+
+  // HTML date inputs only accept YYYY-MM-DD. The API may return an ISO
+  // datetime, so keep its date portion instead of binding the full timestamp.
+  const dateOnly = value.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (dateOnly) {
+    return dateOnly;
+  }
+
+  // Also accept the display formats used by recovery endpoints.
+  const dayFirst = value.match(/^(\d{2})[-/]\s?(\d{2})[-/]\s?(\d{4})$/);
+  if (dayFirst) {
+    return `${dayFirst[3]}-${dayFirst[2]}-${dayFirst[1]}`;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+}
+
+
+function daysSoberFromDate(
+  sobrietyDate: string
+): number | null {
+  if (!sobrietyDate) {
+    return null;
+  }
+
+  const match = sobrietyDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) {
+    return null;
+  }
+
+  const start = Date.UTC(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3])
+  );
+  const now = new Date();
+  const today = Date.UTC(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  if (!Number.isFinite(start) || start > today) {
+    return 0;
+  }
+
+  return Math.floor((today - start) / 86400000);
+}
+
+
 function toDisplayUser(
   user: ApiUser
 ): DisplayUser {
@@ -115,14 +177,19 @@ function toDisplayUser(
    * Backend now provides the canonical sobriety_days
    * from RecoveryMetrics.days_sober.
    */
+  const sobrietyDate =
+    normalizeDateInputValue(
+      user.sobriety_start_date ||
+        user.sobriety_date
+    );
+
+  // The date is the source of truth for this UI. The backend rollup can be
+  // one request behind immediately after an edit, so derive the displayed
+  // value from the saved date whenever it is available.
   const soberDays =
+    daysSoberFromDate(sobrietyDate) ??
     user.sobriety_days ??
     user.days_sober;
-
-  const sobrietyDate =
-    user.sobriety_start_date ||
-    user.sobriety_date ||
-    "";
 
   if (user.counselor) {
     if (typeof user.counselor === "object") {
@@ -802,8 +869,13 @@ function EditUserModal({
 
             sobriety_start_date:
               sobrietyDate || null,
+
           }
         );
+
+        // Rebuild the recovery metric after changing the source date so the
+        // recovery profile and all sobriety summaries show the new value.
+        await refreshSobriety(user.id);
 
         onSaved();
         onClose();
@@ -1353,6 +1425,7 @@ export function UsersPage() {
     usersVersion,
     dataRefreshVersion,
     bumpUsersVersion,
+    bumpDataRefreshVersion,
   } = useAppContext();
 
   const navigate =
@@ -1576,15 +1649,35 @@ export function UsersPage() {
             user.id
           );
 
-        setEditUser(
-          toDisplayUser(detail)
-        );
+        const displayUser = toDisplayUser(detail);
+
+        // Some deployments expose the sobriety date only on the recovery
+        // detail endpoint, so use it as a fallback for the edit form.
+        if (!displayUser.sobrietyDate) {
+          try {
+            const recovery = await getUsersdetails(user.id);
+            displayUser.sobrietyDate = normalizeDateInputValue(
+              recovery.sobriety_date
+            );
+          } catch {
+            // Keep the user detail response as the source of truth if the
+            // recovery endpoint is unavailable.
+          }
+        }
+
+        setEditUser(displayUser);
       } catch {
         setEditUser(user);
       } finally {
         setLoadingEditId(null);
       }
     };
+
+
+  const handleUserSaved = () => {
+    bumpUsersVersion();
+    bumpDataRefreshVersion();
+  };
 
 
   const exportUsersCsv =
@@ -2632,7 +2725,7 @@ export function UsersPage() {
                 setEditUser(null)
               }
               onSaved={
-                bumpUsersVersion
+                handleUserSaved
               }
             />
           )}
