@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Trash2, Upload } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchBox } from "@/components/common/SearchBox";
-import { PrimaryBtn } from "@/components/common/Buttons";
+import { GhostBtn, PrimaryBtn } from "@/components/common/Buttons";
 import { MetricCard } from "@/components/common/MetricCard";
 import { TableCard, TableHead, TableRow } from "@/components/common/Table";
 import { StatusPill } from "@/components/common/StatusPill";
@@ -23,6 +23,7 @@ import {
   CONTENT_CATEGORY_LABELS,
   CONTENT_DIFFICULTIES,
   CONTENT_DIFFICULTY_LABELS,
+  CONTENT_STATUSES,
   CONTENT_TYPES,
   CONTENT_TYPE_LABELS,
   type ApiContentItem,
@@ -32,7 +33,9 @@ import {
   type ContentType,
   type ContentStatus,
   type ContentQuery,
+  createContentItem,
 } from "@/lib/content";
+import { parseCsv } from "@/lib/csv";
 import {
   listLiterature,
   updateLiterature,
@@ -56,11 +59,31 @@ const CONTENT_TABS = ["All", "Audio", "Video", "Podcast", "Meditation", "Text", 
 function toTitleCase(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
-
 function toDisplayStatus(status: ApiContentItem["status"]): "ACTIVE" | "PENDING" | "ARCHIVED" {
   if (status === "published") return "ACTIVE";
   if (status === "archived") return "ARCHIVED";
   return "PENDING";
+}
+
+function csvValue(values: Record<string, string>, ...keys: string[]): string {
+  return keys.map((key) => values[key]).find((value) => value?.trim())?.trim() ?? "";
+}
+
+function normalizeCsvValue(value: string, fallback: string): string {
+  return value.trim().toLowerCase().replace(/[ -]+/g, "_") || fallback;
+}
+
+function csvBoolean(value: string): boolean {
+  return ["true", "1", "yes", "y", "on", "featured"].includes(value.trim().toLowerCase());
+}
+
+function csvDuration(value: string): number {
+  if (value.includes(":")) {
+    const [minutes, seconds] = value.split(":").map(Number);
+    return (Number.isFinite(minutes) ? minutes : 0) * 60 + (Number.isFinite(seconds) ? seconds : 0);
+  }
+  const seconds = Number(value);
+  return Number.isFinite(seconds) ? seconds : 0;
 }
 
 function EditContentModal({ item, onClose, onSaved }: { item: ApiContentItem; onClose: () => void; onSaved: () => void }) {
@@ -284,7 +307,7 @@ function EditLiteratureModal({ item, onClose, onSaved }: { item: ApiLiterature; 
             </div>
           </div>
           <FormField label="Description (Optional)"><TextArea rows={3} value={description} onChange={setDescription} /></FormField>
-          <FormField label="PDF File"><FileDropzone label={item.pdf_file ? "Replace PDF File" : "Upload PDF File"} hint="PDF only · Max 50MB" file={pdfFile} onChange={setPdfFile} accept="application/pdf" /></FormField>
+          <FormField label="PDF File"><FileDropzone label={item.pdf_file ? "Replace PDF File" : "Upload PDF File"} hint="PDF only Â· Max 50MB" file={pdfFile} onChange={setPdfFile} accept="application/pdf" /></FormField>
           <FormField label="Thumbnail"><FileDropzone label={item.thumbnail ? "Replace Thumbnail" : "Upload Thumbnail"} file={thumbnail} onChange={setThumbnail} accept="image/*" compact /></FormField>
           {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
         </div>
@@ -331,6 +354,9 @@ export function ResourcesAppPage() {
   const [literatureError, setLiteratureError] = useState<string | null>(null);
 
   const [actionError, setActionError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (activeCategory === "Literature") return;
@@ -444,6 +470,60 @@ export function ResourcesAppPage() {
     }
   };
 
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    setImportMessage(null);
+    setActionError(null);
+    try {
+      if (!file.name.toLowerCase().endsWith(".csv")) throw new Error("Please select a CSV file.");
+      const rows = parseCsv(await file.text());
+      if (!rows.length) throw new Error("The CSV file does not contain any data rows.");
+      let created = 0;
+      const errors: string[] = [];
+      for (const row of rows) {
+        const title = csvValue(row.values, "title", "name");
+        const mediaUrl = csvValue(row.values, "media_url", "url", "link");
+        if (!title || !mediaUrl) {
+          errors.push(`Row ${row.row}: title and media_url are required.`);
+          continue;
+        }
+        try {
+          const contentType = normalizeCsvValue(csvValue(row.values, "content_type", "type"), "text");
+          const category = normalizeCsvValue(csvValue(row.values, "category"), "self_care");
+          const difficulty = normalizeCsvValue(csvValue(row.values, "difficulty_level", "difficulty"), "");
+          const status = normalizeCsvValue(csvValue(row.values, "status"), "draft");
+          await createContentItem({
+            title,
+            creator: csvValue(row.values, "creator", "author", "provider"),
+            description: csvValue(row.values, "description", "details"),
+            content_type: (CONTENT_TYPES.includes(contentType as typeof CONTENT_TYPES[number]) ? contentType : "text") as ContentType,
+            category: (CONTENT_CATEGORIES.includes(category as typeof CONTENT_CATEGORIES[number]) ? category : "self_care") as ContentCategory,
+            topic: csvValue(row.values, "topic"),
+            emotion: csvValue(row.values, "emotion"),
+            difficulty_level: CONTENT_DIFFICULTIES.includes(difficulty as typeof CONTENT_DIFFICULTIES[number]) ? difficulty as ContentDifficulty : "",
+            media_url: mediaUrl,
+            duration_seconds: csvDuration(csvValue(row.values, "duration_seconds", "duration")),
+            is_featured: csvBoolean(csvValue(row.values, "is_featured", "featured")),
+            status: (CONTENT_STATUSES.includes(status as typeof CONTENT_STATUSES[number]) ? status : "draft") as ContentStatus,
+          });
+          created += 1;
+        } catch (error) {
+          errors.push(`Row ${row.row}: ${error instanceof ApiError ? error.message : "could not be created."}`);
+        }
+      }
+      setImportMessage(`Imported ${created} of ${rows.length} rows${errors.length ? `; ${errors.length} failed.` : "."}`);
+      if (errors.length) setActionError(errors.slice(0, 3).join(" Â· "));
+      if (created) bumpContentVersion();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to import content.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleToggleLiteratureFeatured = async (item: ApiLiterature) => {
     setActionError(null);
     try {
@@ -473,12 +553,15 @@ export function ResourcesAppPage() {
           title="In-App Resources"
         >
           <SearchBox placeholder="Search resources..." value={search} onChange={setSearch} />
+          <GhostBtn label={importing ? "Importing..." : "Import"} icon={<Upload size={14} />} onClick={() => !importing && importInputRef.current?.click()} />
+          <input ref={importInputRef} type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" aria-label="Import content CSV" />
           <PrimaryBtn label="+ Add Content" onClick={() => setModal("add-content")} />
         </PageHeader>
 
         {contentError && <p className="font-['Figtree'] text-[13px] text-red-500">{contentError}</p>}
         {literatureError && <p className="font-['Figtree'] text-[13px] text-red-500">{literatureError}</p>}
         {actionError && <p className="font-['Figtree'] text-[13px] text-red-500">{actionError}</p>}
+        {importMessage && <p className="font-['Figtree'] text-[13px] text-[#35d47b]">{importMessage}</p>}
 
         <div className="flex gap-[10px] flex-wrap">
           <MetricCard label="TOTAL CONTENT" value={stats ? String(stats.total_content) : "-"} delta="Live from server" deltaColor="#8a8073" accentColor="#f37422" />
@@ -527,7 +610,7 @@ export function ResourcesAppPage() {
             ))}
             <div className="ml-auto flex-shrink-0">
               <button className="rounded-[6px] border border-[var(--app-border)] bg-[rgba(255,255,255,0.02)] px-[8px] py-[5px] font-['Figtree'] text-[9px] text-[var(--app-muted)] cursor-pointer">
-                Sort by: Plays ↓
+                Sort by: Plays â†“
               </button>
             </div>
           </div>
@@ -653,12 +736,12 @@ export function ResourcesAppPage() {
         </TableCard>
         <div className="flex items-center justify-between border-t border-[var(--app-border)] px-[13px] py-[10px]">
           <span className="font-['JetBrains_Mono'] text-[8px] text-[var(--app-muted)]">
-            Page {isLiterature ? literaturePage : contentPage} · {isLiterature ? literatureTotal : contentTotal} total
+            Page {isLiterature ? literaturePage : contentPage} Â· {isLiterature ? literatureTotal : contentTotal} total
           </span>
           <div className="flex items-center gap-[4px]">
-            <button type="button" onClick={() => isLiterature ? setLiteraturePage((value) => Math.max(1, value - 1)) : setContentPage((value) => Math.max(1, value - 1))} disabled={isLiterature ? !literatureHasPrev || literatureLoading : !contentHasPrev || contentLoading} className="px-2 py-1 border rounded disabled:opacity-30">‹</button>
-            <span className="px-2 py-1 rounded bg-[#f37422] text-[#15110e]">{isLiterature ? literaturePage : contentPage}</span>
-            <button type="button" onClick={() => isLiterature ? setLiteraturePage((value) => value + 1) : setContentPage((value) => value + 1)} disabled={isLiterature ? !literatureHasNext || literatureLoading : !contentHasNext || contentLoading} className="px-2 py-1 border rounded disabled:opacity-30">›</button>
+            <button type="button" aria-label="Previous page" onClick={() => isLiterature ? setLiteraturePage((value) => Math.max(1, value - 1)) : setContentPage((value) => Math.max(1, value - 1))} disabled={isLiterature ? !literatureHasPrev || literatureLoading : !contentHasPrev || contentLoading} className="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] border border-[var(--app-border)] text-[var(--app-muted)] disabled:opacity-30"><ChevronLeft size={13} /></button>
+            <span className="flex h-[26px] min-w-[26px] items-center justify-center rounded-[5px] bg-[#f37422] px-[7px] font-['JetBrains_Mono'] text-[9px] font-bold text-[#15110e]">{isLiterature ? literaturePage : contentPage}</span>
+            <button type="button" aria-label="Next page" onClick={() => isLiterature ? setLiteraturePage((value) => value + 1) : setContentPage((value) => value + 1)} disabled={isLiterature ? !literatureHasNext || literatureLoading : !contentHasNext || contentLoading} className="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] border border-[var(--app-border)] text-[var(--app-muted)] disabled:opacity-30"><ChevronRight size={13} /></button>
           </div>
         </div>
         {editContentItem && (
@@ -679,3 +762,4 @@ export function ResourcesAppPage() {
     </div>
   );
 }
+
