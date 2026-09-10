@@ -33,9 +33,6 @@ export function MetricCard({
           </p>
           <div className="flex items-center gap-[8px]">
             <SparkLine color={accentColor} />
-            <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full border border-[var(--app-border-strong)] text-[var(--app-muted)]" aria-label="Open metric detail">
-              <ChevronRight size={12} />
-            </span>
           </div>
         </div>
         <div>
@@ -56,4 +53,3 @@ export function MetricCard({
     </div>
   );
 }
-import { ChevronRight } from "lucide-react";

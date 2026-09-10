@@ -75,7 +75,15 @@ export interface ContentStats {
   published_count: number;
 }
 
-export function listContent(query: AdminQuery = {}): Promise<PaginatedResponse<ApiContentItem>> {
+export interface ContentQuery extends AdminQuery {
+  content_type?: ContentType | string;
+  category?: ContentCategory | string;
+  difficulty_level?: ContentDifficulty | string;
+  status?: ContentStatus | string;
+  is_featured?: boolean;
+}
+
+export function listContent(query: ContentQuery = {}): Promise<PaginatedResponse<ApiContentItem>> {
   return apiFetch<PaginatedResponse<ApiContentItem>>(withAdminQuery("/api/v1/admin/content/", query));
 }
 
@@ -83,8 +91,8 @@ export function getContentItem(id: number): Promise<ApiContentItem> {
   return apiFetch<ApiContentItem>(`/api/v1/admin/content/${id}/`);
 }
 
-export function getContentStats(): Promise<ContentStats> {
-  return apiFetch<ContentStats>("/api/v1/admin/content/stats/");
+export function getContentStats(query: ContentQuery = {}): Promise<ContentStats> {
+  return apiFetch<ContentStats>(withAdminQuery("/api/v1/admin/content/stats/", query));
 }
 
 export interface ContentPayload {

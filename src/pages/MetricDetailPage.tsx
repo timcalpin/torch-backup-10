@@ -12,6 +12,30 @@ type Filters = { risk: string; sobriety: string; adherence: string; mat: string 
 const initialFilters: Filters = { risk: "All", sobriety: "All", adherence: "All", mat: "All" };
 const cohortOptions = ["On MAT", "Not on MAT", "Sobriety 365+", "Adherence >75%"];
 
+function formatDate(value: Date) { return value.toLocaleDateString("default", { month: "short", day: "numeric", year: "numeric" }); }
+function localDate(value: Date) { return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`; }
+
+function DateRange({ start, end, onChange }: { start: Date; end: Date; onChange: (start: Date, end: Date) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <GhostBtn label={`${formatDate(start)} – ${formatDate(end)}`} icon={<CalendarDays size={14} />} onClick={() => setOpen((value) => !value)} />
+      {open && (
+        <div className="absolute right-0 top-[44px] z-30 flex w-[260px] flex-col gap-[10px] rounded-[10px] border border-[var(--app-border-strong)] bg-[var(--app-surface)] p-[12px] shadow-xl">
+          <label className="text-[9px] text-[var(--app-muted)]">
+            FROM
+            <input className="mt-[4px] w-full rounded border border-[var(--app-border)] bg-transparent p-[7px] text-[12px] text-[var(--app-text)] cursor-pointer" type="date" value={localDate(start)} onChange={(event) => onChange(new Date(`${event.target.value}T00:00:00`), end)} />
+          </label>
+          <label className="text-[9px] text-[var(--app-muted)]">
+            TO
+            <input className="mt-[4px] w-full rounded border border-[var(--app-border)] bg-transparent p-[7px] text-[12px] text-[var(--app-text)] cursor-pointer" type="date" value={localDate(end)} onChange={(event) => onChange(start, new Date(`${event.target.value}T00:00:00`))} />
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SelectFilter({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
   return <label className="flex h-[34px] items-center gap-[4px] rounded-[8px] border border-[var(--app-border-strong)] bg-[var(--app-bg)] px-[10px] text-[11px] text-[var(--app-text)]">{label}: <select value={value} onChange={(event) => onChange(event.target.value)} className="bg-transparent outline-none"><option>All</option>{options.map((option) => <option key={option}>{option}</option>)}</select></label>;
 }
@@ -36,16 +60,30 @@ export function MetricDetailPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [data, setData] = useState<MetricDetailResponse>();
   const [error, setError] = useState<string | null>(null);
+
+  const startDateParam = params.get("start");
+  const endDateParam = params.get("end");
+  const [start, setStart] = useState(() => startDateParam ? new Date(`${startDateParam}T00:00:00`) : (() => { const d = new Date(); d.setMonth(d.getMonth() - 2); return d; })());
+  const [end, setEnd] = useState(() => endDateParam ? new Date(`${endDateParam}T00:00:00`) : new Date());
+
   const title = metric.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
   useEffect(() => {
     let cancelled = false;
     setError(null);
     setData(undefined);
-    const request: MetricFilters = { metric, ...filters, compare, cohortA, cohortB };
+    const request: MetricFilters = {
+      metric,
+      startDate: localDate(start),
+      endDate: localDate(end),
+      ...filters,
+      compare,
+      cohortA,
+      cohortB,
+    };
     getMetricDetail(request).then((result) => { if (!cancelled) setData(result); }).catch((reason: Error) => { if (!cancelled) setError(reason.message || "Metric detail could not be loaded."); });
     return () => { cancelled = true; };
-  }, [metric, filters, compare, cohortA, cohortB, dataRefreshVersion]);
+  }, [metric, start, end, filters, compare, cohortA, cohortB, dataRefreshVersion]);
 
   const toggleCompare = () => {
     const next = !compare;
@@ -64,7 +102,7 @@ export function MetricDetailPage() {
   const distribution = data.distribution.map((point) => ({ ...point, cohortA: point.cohorts[0]?.value ?? 0, cohortB: point.cohorts[1]?.value ?? 0 }));
 
   return <div className="flex-1 min-w-0 overflow-y-auto"><div className="flex flex-col gap-[20px] p-[24px] lg:p-[32px]">
-    <div className="flex flex-wrap items-end justify-between gap-[12px]"><div><button onClick={() => navigate("/aggregate-data")} className="mb-[8px] flex items-center gap-[6px] text-[10px] uppercase tracking-wider text-[#f37422]"><ArrowLeft size={12} /> Aggregate Data</button><p className="text-[10px] uppercase tracking-widest text-[#f37422]">AGGREGATE DATA › METRIC DETAIL</p><h1 className="text-[28px] font-bold text-[var(--app-text)]">{title}</h1><p className="text-[12px] text-[var(--app-muted)]">{compare ? "Population comparison mode · Active cohorts overview" : `Population metric · ${data.population.toLocaleString()} active users`}</p></div><div className="flex flex-wrap items-center gap-[8px]"><button onClick={toggleCompare} className={`inline-flex h-[38px] items-center gap-[8px] rounded-[9px] px-[16px] text-[13px] font-semibold ${compare ? "bg-[#4ade80] text-[#07130b]" : "bg-[#f37422] text-white"}`}><GitCompareArrows size={15} />{compare ? "Compare Mode Active" : "Compare"}</button>{!compare && <GhostBtn label="Jun 15 – Aug 9, 2026" icon={<CalendarDays size={14} />} />}<GhostBtn label="Export Report" icon={<Download size={14} />} disabled /></div></div>
+    <div className="flex flex-wrap items-end justify-between gap-[12px]"><div><button onClick={() => navigate("/aggregate-data")} className="mb-[8px] flex items-center gap-[6px] text-[10px] uppercase tracking-wider text-[#f37422] cursor-pointer"><ArrowLeft size={12} /> Aggregate Data</button><p className="text-[10px] uppercase tracking-widest text-[#f37422]">AGGREGATE DATA › METRIC DETAIL</p><h1 className="text-[28px] font-bold text-[var(--app-text)]">{title}</h1><p className="text-[12px] text-[var(--app-muted)]">{compare ? "Population comparison mode · Active cohorts overview" : `Population metric · ${data.population.toLocaleString()} active users`}</p></div><div className="flex flex-wrap items-center gap-[8px]"><button onClick={toggleCompare} className={`inline-flex h-[38px] items-center gap-[8px] rounded-[9px] px-[16px] text-[13px] font-semibold cursor-pointer ${compare ? "bg-[#4ade80] text-[#07130b]" : "bg-[#f37422] text-white"}`}><GitCompareArrows size={15} />{compare ? "Compare Mode Active" : "Compare"}</button>{!compare && <DateRange start={start} end={end} onChange={(nextStart, nextEnd) => { setStart(nextStart); setEnd(nextEnd); }} />}<GhostBtn label="Export Report" icon={<Download size={14} />} disabled /></div></div>
     {compare && <div className="flex flex-wrap gap-[8px]"><CohortSelect label="Cohort A" value={cohortA} color={colors[0]} options={cohortOptions} onChange={setCohortA} /><CohortSelect label="Cohort B" value={cohortB} color={colors[1]} options={cohortOptions} onChange={setCohortB} /></div>}
     <FilterBar filters={filters} setFilters={setFilters} />
     <div className="grid grid-cols-1 gap-[12px] xl:grid-cols-[1.45fr_0.85fr]"><div className={`${panel} p-[20px]`}><p className="text-[16px] font-bold text-[var(--app-text)]">Trend Over Time</p><p className="text-[11px] text-[var(--app-muted)]">8-week view {compare ? `comparing ${cohortA} vs ${cohortB}` : `showing ${title}`}</p><div className="my-[14px] flex gap-[16px] text-[9px]">{activeCohorts.map((cohort, index) => <span key={cohort} style={{ color: colors[index] }}>● {cohort}</span>)}</div><div className="h-[230px]"><ResponsiveContainer width="100%" height="100%"><LineChart data={trend} margin={{ left: -24, right: 8 }}><CartesianGrid stroke="rgba(244,237,227,0.06)" /><XAxis dataKey="date" tick={{ fill: "#8a8073", fontSize: 9 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill: "#8a8073", fontSize: 9 }} axisLine={false} tickLine={false} /><Tooltip /><Line dataKey="cohortA" stroke={colors[0]} strokeWidth={2} dot={{ r: 2 }} name={cohortA} />{compare && <Line dataKey="cohortB" stroke={colors[1]} strokeWidth={2} dot={{ r: 2 }} name={cohortB} />}</LineChart></ResponsiveContainer></div></div><div className={`${panel} p-[20px]`}><p className="text-[16px] font-bold text-[var(--app-text)]">{compare ? "Distribution Comparison" : "Distribution"}</p><p className="text-[11px] text-[var(--app-muted)]">{compare ? "Side-by-side milestone brackets across both cohorts" : "Sober milestone brackets across population"}</p><div className="mt-[22px] h-[225px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={distribution} margin={{ top: 18, right: 0, left: -24, bottom: 4 }}><CartesianGrid vertical={false} stroke="rgba(244,237,227,0.06)" /><XAxis dataKey="label" tick={{ fill: "#8a8073", fontSize: 9 }} axisLine={false} tickLine={false} /><YAxis hide /><Tooltip />{compare ? <><Bar dataKey="cohortA" fill={colors[0]} name={cohortA} /><Bar dataKey="cohortB" fill={colors[1]} name={cohortB} /></> : <Bar dataKey="cohortA" fill="#4ade80" radius={[4, 4, 0, 0]} />}</BarChart></ResponsiveContainer></div></div></div>

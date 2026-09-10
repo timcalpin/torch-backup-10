@@ -31,6 +31,7 @@ import {
   type ContentDifficulty,
   type ContentType,
   type ContentStatus,
+  type ContentQuery,
 } from "@/lib/content";
 import {
   listLiterature,
@@ -332,17 +333,31 @@ export function ResourcesAppPage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (activeCategory === "Literature") return;
+
     let cancelled = false;
     setContentLoading(true);
     setContentError(null);
-    listContent({
+
+    const query: ContentQuery = {
       search,
       page: contentPage,
       page_size: 10,
-      ...(activeCategory !== "All" && activeCategory !== "Literature" ? { content_type: activeCategory.toLowerCase() } : {}),
-      ...(activeStatus !== "All" && activeStatus !== "Featured" && activeStatus !== "New" ? { status: activeStatus.toLowerCase() } : {}),
-      ...(activeStatus === "Featured" ? { is_featured: true } : {}),
-    })
+    };
+
+    if (activeCategory !== "All") {
+      query.content_type = activeCategory.toLowerCase();
+    }
+
+    if (activeStatus === "Featured") {
+      query.is_featured = true;
+    } else if (activeStatus === "New") {
+      query.ordering = "-created_at";
+    } else if (activeStatus !== "All") {
+      query.status = activeStatus.toLowerCase();
+    }
+
+    listContent(query)
       .then((response) => {
         if (!cancelled) {
           setContent(response.results);
@@ -357,21 +372,31 @@ export function ResourcesAppPage() {
       .finally(() => {
         if (!cancelled) setContentLoading(false);
       });
-    getContentStats()
+
+    getContentStats(query.content_type ? { content_type: query.content_type } : {})
       .then((response) => {
         if (!cancelled) setStats(response);
       })
       .catch(() => {});
+
     return () => {
       cancelled = true;
     };
   }, [contentVersion, search, contentPage, activeCategory, activeStatus]);
 
   useEffect(() => {
+    if (activeCategory !== "All" && activeCategory !== "Literature") return;
+
     let cancelled = false;
     setLiteratureLoading(true);
     setLiteratureError(null);
-    listLiterature({ search, page: literaturePage, page_size: 10, ...(activeStatus === "Featured" ? { is_featured: true } : {}) })
+    listLiterature({
+      search,
+      page: literaturePage,
+      page_size: 10,
+      ...(activeStatus === "Featured" ? { is_featured: true } : {}),
+      ...(activeStatus === "New" ? { ordering: "-created_at" } : {}),
+    })
       .then((response) => {
         if (!cancelled) {
           setLiterature(response.results);
@@ -444,7 +469,7 @@ export function ResourcesAppPage() {
     <div className="flex-1 min-w-0 overflow-y-auto">
       <div className="p-[24px] lg:p-[32px] flex flex-col gap-[20px]">
         <PageHeader
-          eyebrow={stats ? `CONTENT · ${stats.total_content} ITEMS · ${stats.total_plays.toLocaleString()} TOTAL PLAYS` : "LOADING CONTENT…"}
+          eyebrow={stats ? `CONTENT · ${stats.total_content} ITEMS · ${stats.total_plays.toLocaleString()} TOTAL PLAYS` : "LOADING CONTENT..."}
           title="In-App Resources"
         >
           <SearchBox placeholder="Search resources..." value={search} onChange={setSearch} />
@@ -456,10 +481,10 @@ export function ResourcesAppPage() {
         {actionError && <p className="font-['Figtree'] text-[13px] text-red-500">{actionError}</p>}
 
         <div className="flex gap-[10px] flex-wrap">
-          <MetricCard label="TOTAL CONTENT" value={stats ? String(stats.total_content) : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#f37422" />
-          <MetricCard label="TOTAL PLAYS" value={stats ? stats.total_plays.toLocaleString() : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#4ade80" />
-          <MetricCard label="AVG COMPLETION" value={stats ? `${stats.avg_completion}%` : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#6b8ab0" />
-          <MetricCard label="PUBLISHED" value={stats ? String(stats.published_count) : "—"} delta="Live from server" deltaColor="#8a8073" accentColor="#facc15" />
+          <MetricCard label="TOTAL CONTENT" value={stats ? String(stats.total_content) : "-"} delta="Live from server" deltaColor="#8a8073" accentColor="#f37422" />
+          <MetricCard label="TOTAL PLAYS" value={stats ? stats.total_plays.toLocaleString() : "-"} delta="Live from server" deltaColor="#8a8073" accentColor="#4ade80" />
+          <MetricCard label="AVG COMPLETION" value={stats ? `${stats.avg_completion}%` : "-"} delta="Live from server" deltaColor="#8a8073" accentColor="#6b8ab0" />
+          <MetricCard label="PUBLISHED" value={stats ? String(stats.published_count) : "-"} delta="Live from server" deltaColor="#8a8073" accentColor="#facc15" />
         </div>
 
         <div className="rounded-[10px] border border-[var(--app-border)] bg-[var(--app-surface)] p-[6px]">
@@ -491,7 +516,7 @@ export function ResourcesAppPage() {
             >
               All Content
             </button>
-            {["All", "Featured", "New", "Draft", "Review", "Archived"].map((status) => (
+            {["Featured", "New", "Published", "Draft", "Review", "Archived"].map((status) => (
               <button
                 key={status}
                 onClick={() => setActiveStatus(status)}
@@ -543,7 +568,7 @@ export function ResourcesAppPage() {
                         </div>
                         <div>
                           <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[13px] leading-tight">{item.title}</p>
-                          <p className="font-['JetBrains_Mono'] font-normal text-[var(--app-muted)] text-[9px] leading-tight">{item.creator || "—"}</p>
+                          <p className="font-['JetBrains_Mono'] font-normal text-[var(--app-muted)] text-[9px] leading-tight">{item.creator || "-"}</p>
                         </div>
                       </div>
                       <div className="w-[110px]">
@@ -552,7 +577,7 @@ export function ResourcesAppPage() {
                         </span>
                       </div>
                       <div className="w-[110px] font-['JetBrains_Mono'] font-normal text-[var(--app-muted)] text-[11px]">{toTitleCase(item.category)}</div>
-                      <div className="w-[110px] font-['Figtree'] font-normal text-[var(--app-text)] text-[12px]">{item.difficulty_level ? toTitleCase(item.difficulty_level) : "—"}</div>
+                      <div className="w-[110px] font-['Figtree'] font-normal text-[var(--app-text)] text-[12px]">{item.difficulty_level ? toTitleCase(item.difficulty_level) : "-"}</div>
                       <div className="w-[90px] font-['JetBrains_Mono'] font-normal text-[var(--app-muted)] text-[11px]">{item.duration_minutes}</div>
                       <div className="w-[100px]"><StatusPill status={toDisplayStatus(item.status)} /></div>
                       <div className="w-[90px]">
@@ -560,7 +585,7 @@ export function ResourcesAppPage() {
                           <Toggle on={item.is_featured} />
                         </button>
                       </div>
-                      <div className="w-[70px] font-['JetBrains_Mono'] font-bold text-[var(--app-text)] text-[12px]">—</div>
+                      <div className="w-[70px] font-['JetBrains_Mono'] font-bold text-[var(--app-text)] text-[12px]">-</div>
                       <div className="w-[70px] flex items-center justify-end gap-[10px]">
                         <ActionBtn onClick={() => setEditContentItem(item)} title="Edit" icon={<EditIcon />} />
                         <ActionBtn onClick={() => handleDeleteContent(item)} title="Delete" icon={<Trash2 size={15} strokeWidth={1.8} />} />
