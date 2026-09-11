@@ -44,6 +44,10 @@ import {
   type UserStats,
   type ApiRisk,
 } from "@/lib/users";
+import {
+  daysSoberFromDate,
+  normalizeSobrietyDate,
+} from "@/lib/sobriety";
 
 
 const ROLE_OPTIONS = [
@@ -106,67 +110,6 @@ function normalizeRisk(
 }
 
 
-function normalizeDateInputValue(
-  value: string | null | undefined
-): string {
-  if (!value) {
-    return "";
-  }
-
-  // HTML date inputs only accept YYYY-MM-DD. The API may return an ISO
-  // datetime, so keep its date portion instead of binding the full timestamp.
-  const dateOnly = value.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
-  if (dateOnly) {
-    return dateOnly;
-  }
-
-  // Also accept the display formats used by recovery endpoints.
-  const dayFirst = value.match(/^(\d{2})[-/]\s?(\d{2})[-/]\s?(\d{4})$/);
-  if (dayFirst) {
-    return `${dayFirst[3]}-${dayFirst[2]}-${dayFirst[1]}`;
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "";
-  }
-
-  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
-}
-
-
-function daysSoberFromDate(
-  sobrietyDate: string
-): number | null {
-  if (!sobrietyDate) {
-    return null;
-  }
-
-  const match = sobrietyDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!match) {
-    return null;
-  }
-
-  const start = Date.UTC(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3])
-  );
-  const now = new Date();
-  const today = Date.UTC(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate()
-  );
-
-  if (!Number.isFinite(start) || start > today) {
-    return 0;
-  }
-
-  return Math.floor((today - start) / 86400000);
-}
-
-
 function toDisplayUser(
   user: ApiUser
 ): DisplayUser {
@@ -178,7 +121,7 @@ function toDisplayUser(
    * from RecoveryMetrics.days_sober.
    */
   const sobrietyDate =
-    normalizeDateInputValue(
+    normalizeSobrietyDate(
       user.sobriety_start_date ||
         user.sobriety_date
     );
@@ -1656,7 +1599,7 @@ export function UsersPage() {
         if (!displayUser.sobrietyDate) {
           try {
             const recovery = await getUsersdetails(user.id);
-            displayUser.sobrietyDate = normalizeDateInputValue(
+            displayUser.sobrietyDate = normalizeSobrietyDate(
               recovery.sobriety_date
             );
           } catch {

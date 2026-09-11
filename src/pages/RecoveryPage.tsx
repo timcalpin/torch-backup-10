@@ -5,6 +5,10 @@ import { getUser, getUsersdetails, updateUser, type Recoveryuser } from "@/lib/u
 import { counselorDisplayName, listCounselors, type ApiCounselor } from "@/lib/counselors";
 import { ApiError } from "@/lib/api";
 import { useAppContext } from "@/app/app-context";
+import {
+  daysSoberFromDate,
+  normalizeSobrietyDate,
+} from "@/lib/sobriety";
 
 const moodClasses: Record<string, string> = {
   elevated:
@@ -41,17 +45,6 @@ function Pill({
       {children}
     </span>
   );
-}
-
-function daysSoberFromDate(value: string | null): number | null {
-  if (!value) return null;
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!match) return null;
-
-  const start = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  const now = new Date();
-  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  return start > today ? 0 : Math.floor((today - start) / 86400000);
 }
 
 function Metric({
@@ -433,8 +426,11 @@ export function RecoveryPage() {
     useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
 
+  const canonicalSobrietyDate = user
+    ? normalizeSobrietyDate(user.sobriety_date)
+    : "";
   const displayedDaysSober = user
-    ? daysSoberFromDate(user.sobriety_date) ?? user.days_sober
+    ? daysSoberFromDate(canonicalSobrietyDate) ?? user.days_sober
     : 0;
 
   useEffect(() => {
@@ -463,6 +459,12 @@ export function RecoveryPage() {
             profile.sobriety_start_date ||
             profile.sobriety_date ||
             response.sobriety_date;
+          // Keep the recovery view aligned with the same user endpoint used
+          // by the users list when a date is unavailable.
+          response.days_sober =
+            profile.sobriety_days ??
+            profile.days_sober ??
+            response.days_sober;
 
           if (!cancelled) {
             setUser(response);
@@ -651,7 +653,7 @@ export function RecoveryPage() {
                 </span>
 
                 <b className="font-['Figtree'] font-medium text-[var(--app-text)]">
-                  {user.sobriety_date || "—"}
+                  {canonicalSobrietyDate || "—"}
                 </b>
 
               </div>
