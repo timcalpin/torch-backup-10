@@ -2,6 +2,8 @@ import { apiFetch } from "./api";
 
 export interface MetricFilters {
   metric: string;
+  startDate?: string;
+  endDate?: string;
   risk?: string;
   sobriety?: string;
   adherence?: string;
@@ -55,8 +57,8 @@ function cohortLabel(value: string, filters: MetricFilters) {
 
 export function getMetricDetail(filters: MetricFilters) {
   const params = new URLSearchParams({ metric: filters.metric });
-  params.set("start_date", "2026-06-15");
-  params.set("end_date", "2026-08-09");
+  if (filters.startDate) params.set("start_date", filters.startDate);
+  if (filters.endDate) params.set("end_date", filters.endDate);
   if (filters.compare) {
     params.set("compare", "true");
     if (filters.cohortA) params.set("cohort_a", filters.cohortA);
