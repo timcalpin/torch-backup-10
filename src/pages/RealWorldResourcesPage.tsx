@@ -109,17 +109,7 @@ export function RealWorldResourcesPage() {
     setImportMessage(null);
     setActionError(null);
     try {
-      const rows = await readExcelRows(file);
-      if (!rows.length) {
-        setActionError("The Excel file does not contain any data rows.");
-        return false;
-      }
-      const csvFile = excelRowsToCsvFile(
-        RESOURCE_IMPORT_HEADERS,
-        rows,
-        file.name.replace(/\.xlsx$/i, ".csv")
-      );
-      const result = await importResources(csvFile);
+      const result = await importResources(file);
       setImportMessage(`Imported ${result.created} resources${result.failed ? `; ${result.failed} rows failed.` : "."}`);
       if (result.errors?.length) setActionError(result.errors.slice(0, 3).map((item) => `Row ${item.row ?? "?"}: ${item.message}`).join(" · "));
       bumpResourcesVersion();

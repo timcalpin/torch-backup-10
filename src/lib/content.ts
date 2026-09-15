@@ -185,3 +185,19 @@ export function deleteContentItem(id: number): Promise<void> {
     method: "DELETE",
   });
 }
+
+export interface ContentImportResult {
+  created: number;
+  updated: number;
+  failed: number;
+  errors: Array<{ row?: number; field?: string; message: string }>;
+}
+
+export function importContentItems(file: File): Promise<ContentImportResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<ContentImportResult>("/api/v1/admin/content/import/", {
+    method: "POST",
+    body: formData,
+  });
+}

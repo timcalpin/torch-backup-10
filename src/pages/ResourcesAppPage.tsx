@@ -21,6 +21,7 @@ import {
   createContentItem,
   updateContentItem,
   deleteContentItem,
+  importContentItems,
   CONTENT_CATEGORIES,
   CONTENT_CATEGORY_LABELS,
   CONTENT_DIFFICULTIES,
@@ -359,47 +360,13 @@ export function ResourcesAppPage() {
     setImportMessage(null);
     setActionError(null);
     try {
-      const rows = await readExcelRows(file);
-      if (!rows.length) throw new Error("The Excel file does not contain any data rows.");
-      let created = 0;
-      const errors: string[] = [];
-      for (const row of rows) {
-        const title = csvValue(row.values, "title", "name");
-        const mediaUrl = csvValue(row.values, "media_url", "url", "link");
-        if (!title) {
-          errors.push(`Row ${row.row}: title is required.`);
-          continue;
-        }
-        try {
-          const contentType = normalizeCsvValue(csvValue(row.values, "content_type", "type"), "text");
-          const category = normalizeCsvValue(csvValue(row.values, "category"), "self_care");
-          const difficulty = normalizeCsvValue(csvValue(row.values, "difficulty_level", "difficulty"), "");
-          const status = normalizeCsvValue(csvValue(row.values, "status"), "draft");
-          await createContentItem({
-            title,
-            creator: csvValue(row.values, "creator", "author", "provider"),
-            description: csvValue(row.values, "description", "details"),
-            content_type: (CONTENT_TYPES.includes(contentType as typeof CONTENT_TYPES[number]) ? contentType : "text") as ContentType,
-            category: (CONTENT_CATEGORIES.includes(category as typeof CONTENT_CATEGORIES[number]) ? category : "self_care") as ContentCategory,
-            topic: csvValue(row.values, "topic"),
-            emotion: csvValue(row.values, "emotion"),
-            difficulty_level: CONTENT_DIFFICULTIES.includes(difficulty as typeof CONTENT_DIFFICULTIES[number]) ? difficulty as ContentDifficulty : "",
-            media_url: mediaUrl,
-            duration_seconds: csvDuration(csvValue(row.values, "duration_seconds", "duration")),
-            is_featured: csvBoolean(csvValue(row.values, "is_featured", "featured")),
-            status: (CONTENT_STATUSES.includes(status as typeof CONTENT_STATUSES[number]) ? status : "draft") as ContentStatus,
-          });
-          created += 1;
-        } catch (error) {
-          errors.push(`Row ${row.row}: ${error instanceof ApiError ? error.message : "could not be created."}`);
-        }
-      }
-      setImportMessage(`Imported ${created} of ${rows.length} rows${errors.length ? `; ${errors.length} failed.` : "."}`);
-      if (errors.length) setActionError(errors.slice(0, 3).join(" · "));
-      if (created) bumpContentVersion();
+      const result = await importContentItems(file);
+      setImportMessage(`Imported ${result.created} content items${result.failed ? `; ${result.failed} rows failed.` : "."}`);
+      if (result.errors?.length) setActionError(result.errors.slice(0, 3).map((item) => `Row ${item.row ?? "?"}: ${item.message}`).join(" · "));
+      bumpContentVersion();
       setImportModalOpen(false);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Unable to import content.");
+      setActionError(error instanceof ApiError ? error.message : "Unable to import content.");
       return false;
     } finally {
       setImporting(false);
