@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import { useParams } from "react-router-dom";
-import { getUsersdetails, updateUser } from "@/lib/users";
+import { getUser, getUsersdetails, updateUser, type Recoveryuser } from "@/lib/users";
 import { counselorDisplayName, listCounselors, type ApiCounselor } from "@/lib/counselors";
 import { ApiError } from "@/lib/api";
-import type { Recoveryuser } from "@/types/users";
 import { useAppContext } from "@/app/app-context";
+import {
+  daysSoberFromDate,
+  normalizeSobrietyDate,
+} from "@/lib/sobriety";
 
 const moodClasses: Record<string, string> = {
   elevated:
@@ -423,6 +426,13 @@ export function RecoveryPage() {
     useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
 
+  const canonicalSobrietyDate = user
+    ? normalizeSobrietyDate(user.sobriety_date)
+    : "";
+  const displayedDaysSober = user
+    ? daysSoberFromDate(canonicalSobrietyDate) ?? user.days_sober
+    : 0;
+
   useEffect(() => {
     if (!userId) {
       setError("User ID is missing.");
@@ -438,8 +448,23 @@ export function RecoveryPage() {
           setLoading(true);
           setError(null);
 
-          const response =
-            await getUsersdetails(userId);
+          const [response, profile] = await Promise.all([
+            getUsersdetails(userId),
+            getUser(userId),
+          ]);
+
+          // The list/profile endpoint is canonical for the edited date. The
+          // recovery endpoint may still expose its legacy sobriety_date alias.
+          response.sobriety_date =
+            profile.sobriety_start_date ||
+            profile.sobriety_date ||
+            response.sobriety_date;
+          // Keep the recovery view aligned with the same user endpoint used
+          // by the users list when a date is unavailable.
+          response.days_sober =
+            profile.sobriety_days ??
+            profile.days_sober ??
+            response.days_sober;
 
           if (!cancelled) {
             setUser(response);
@@ -600,7 +625,7 @@ export function RecoveryPage() {
 
               <Metric
                 label="Days sober"
-                value={`${user.days_sober}d`}
+                value={`${displayedDaysSober}d`}
                 orange
               />
 
@@ -628,7 +653,7 @@ export function RecoveryPage() {
                 </span>
 
                 <b className="font-['Figtree'] font-medium text-[var(--app-text)]">
-                  {user.sobriety_date || "—"}
+                  {canonicalSobrietyDate || "—"}
                 </b>
 
               </div>

@@ -1,6 +1,10 @@
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./tokens";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+const RAW_API_BASE_URL =
+  import.meta.env.DEV && import.meta.env.VITE_API_PROXY_TARGET
+    ? ""
+    : import.meta.env.VITE_API_BASE_URL ?? "";
+const API_BASE_URL = RAW_API_BASE_URL.trim().replace(/\/+$/, "");
 
 export const UNAUTHORIZED_EVENT = "api:unauthorized";
 
@@ -33,8 +37,14 @@ function extractErrorMessage(body: unknown, fallback: string): string {
         });
       if (messages.length) return messages.join(" · ");
     }
-    const firstValue = Object.values(record)[0];
-    if (Array.isArray(firstValue) && typeof firstValue[0] === "string") return firstValue[0];
+    const entries = Object.entries(record);
+    if (entries.length > 0) {
+      const [key, value] = entries[0];
+      if (Array.isArray(value) && typeof value[0] === "string") {
+        const fieldName = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        return `${fieldName}: ${value[0]}`;
+      }
+    }
   }
   return fallback;
 }
