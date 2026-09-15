@@ -59,6 +59,11 @@ const CONTENT_TYPE_COLORS: Record<string, { bg: string; color: string }> = {
 
 const CONTENT_TABS = ["All", "Audio", "Video", "Podcast", "Meditation", "Text"];
 
+const CONTENT_IMPORT_HEADERS = [
+  "title", "creator", "description", "content_type", "category", "topic", "emotion",
+  "difficulty_level", "media_url", "thumbnail", "duration_seconds", "is_featured", "status",
+] as const;
+
 function toTitleCase(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -88,6 +93,16 @@ function csvDuration(value: string): number {
   }
   const seconds = Number(value);
   return Number.isFinite(seconds) ? seconds : 0;
+}
+
+async function downloadThumbnail(url: string, title: string): Promise<File> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`thumbnail could not be downloaded (${response.status})`);
+  const blob = await response.blob();
+  if (!blob.type.startsWith("image/")) throw new Error("thumbnail must be an image URL");
+  const extension = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+  const filename = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "thumbnail"}.${extension}`;
+  return new File([blob], filename, { type: blob.type });
 }
 
 function EditContentModal({ item, onClose, onSaved }: { item: ApiContentItem; onClose: () => void; onSaved: () => void }) {
@@ -363,11 +378,13 @@ export function ResourcesAppPage() {
       if (!rows.length) throw new Error("The Excel file does not contain any data rows.");
       let created = 0;
       const errors: string[] = [];
-      for (const row of rows) {
-        const title = csvValue(row.values, "title", "name");
-        const mediaUrl = csvValue(row.values, "media_url", "url", "link");
+      for (const [index, row] of rows.entries()) {
+        const rowNumber = index + 2;
+        const title = csvValue(row, "title", "name");
+        const mediaUrl = csvValue(row, "media_url", "url", "link");
+        const thumbnailUrl = csvValue(row, "thumbnail", "thumbnail_url");
         if (!title) {
-          errors.push(`Row ${row.row}: title is required.`);
+          errors.push(`Row ${rowNumber}: title is required.`);
           continue;
         }
         try {
@@ -385,6 +402,7 @@ export function ResourcesAppPage() {
             emotion: csvValue(row, "emotion"),
             difficulty_level: CONTENT_DIFFICULTIES.includes(difficulty as typeof CONTENT_DIFFICULTIES[number]) ? difficulty as ContentDifficulty : "",
             media_url: mediaUrl,
+            ...(thumbnailUrl ? { thumbnail: await downloadThumbnail(thumbnailUrl, title) } : {}),
             duration_seconds: csvDuration(csvValue(row, "duration_seconds", "duration")),
             is_featured: csvBoolean(csvValue(row, "is_featured", "featured")),
             status: (CONTENT_STATUSES.includes(status as typeof CONTENT_STATUSES[number]) ? status : "draft") as ContentStatus,
@@ -574,6 +592,18 @@ export function ResourcesAppPage() {
           />
         )}
       </div>
+      {importModalOpen && (
+        <ExcelImportModal
+          title="Load In-App Resources"
+          subtitle="Super Admin · UAT Only"
+          actionLabel="Load Resources"
+          helperText="Thumbnail must be a publicly accessible image URL"
+          templateHeaders={CONTENT_IMPORT_HEADERS}
+          templateFilename="torch-in-app-resources-template.xlsx"
+          onClose={() => setImportModalOpen(false)}
+          onUpload={handleImport}
+        />
+      )}
     </div>
   );
 }
