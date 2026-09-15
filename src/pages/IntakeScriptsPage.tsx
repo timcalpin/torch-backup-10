@@ -1,158 +1,165 @@
-import { useState } from "react";
-import { Download } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, Pencil } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GhostBtn, PrimaryBtn } from "@/components/common/Buttons";
 import { MetricCard } from "@/components/common/MetricCard";
 import { TableCard, TableHead, TableRow } from "@/components/common/Table";
 import { ActionBtn } from "@/components/common/ActionBtn";
+import { ApiError } from "@/lib/api";
 import {
-  UploadScriptModal,
-  DownloadSampleModal,
-  DownloadVersionModal,
-} from "../components/modals/IntakeScriptsModals"; // Adjusted relative path
-export interface ScriptVersion {
-  id: string;
-  version: string;
-  uploadedBy: string;
-  uploadedByInitials: string;
-  date: string;
-  status: "LATEST" | "LIVE" | null;
-  fileSize: string;
+  listIntakeScripts,
+  publishIntakeScript,
+  downloadIntakeScript,
+  uploadIntakeScript,
+  type IntakeScriptSummary,
+} from "@/lib/intakeScripts";
+import { UploadScriptModal, DownloadVersionModal } from "../components/modals/IntakeScriptsModals";
+
+type FilterTab = "All Versions" | "Draft" | "Live";
+
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-const INITIAL_SCRIPTS: ScriptVersion[] = [
-  {
-    id: "1",
-    version: "v2.1",
-    uploadedBy: "Sarah A.",
-    uploadedByInitials: "SA",
-    date: "Aug 4, 2026",
-    status: "LATEST",
-    fileSize: "22 KB",
-  },
-  {
-    id: "2",
-    version: "v2.0",
-    uploadedBy: "Sarah A.",
-    uploadedByInitials: "SA",
-    date: "Jul 20, 2026",
-    status: "LIVE",
-    fileSize: "20 KB",
-  },
-  {
-    id: "3",
-    version: "v1.2",
-    uploadedBy: "Dr. Chen",
-    uploadedByInitials: "DC",
-    date: "Jun 15, 2026",
-    status: null,
-    fileSize: "18 KB",
-  },
-  {
-    id: "4",
-    version: "v1.1",
-    uploadedBy: "Dr. Chen",
-    uploadedByInitials: "DC",
-    date: "May 3, 2026",
-    status: null,
-    fileSize: "18 KB",
-  },
-  {
-    id: "5",
-    version: "v1.0",
-    uploadedBy: "Sarah A.",
-    uploadedByInitials: "SA",
-    date: "Apr 1, 2026",
-    status: null,
-    fileSize: "16 KB",
-  },
-];
+function initials(name: string): string {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
-type FilterTab = "All Versions" | "Latest" | "Live";
+function formatFileSize(bytes: number | null): string {
+  if (bytes == null) return "—";
+  return `${Math.round(bytes / 1024)} KB`;
+}
 
 export function IntakeScriptsPage() {
-  const [scripts, setScripts] = useState<ScriptVersion[]>(INITIAL_SCRIPTS);
+  const navigate = useNavigate();
+
+  const [scripts, setScripts] = useState<IntakeScriptSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filterTab, setFilterTab] = useState<FilterTab>("All Versions");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Modals state
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [showSampleModal, setShowSampleModal] = useState(false);
-  const [selectedDownloadVersion, setSelectedDownloadVersion] = useState<ScriptVersion | null>(null);
+  const [selectedDownload, setSelectedDownload] = useState<IntakeScriptSummary | null>(null);
 
-  const activeVersion = scripts.find((s) => s.status === "LIVE")?.version || "v2.0";
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    listIntakeScripts()
+      .then((response) => {
+        if (!cancelled) setScripts(response.results);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof ApiError ? err.message : "Unable to load intake scripts.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  const liveScript = scripts.find((s) => s.status === "live") ?? null;
 
   const filteredScripts = scripts.filter((s) => {
-    if (filterTab === "Latest") return s.status === "LATEST";
-    if (filterTab === "Live") return s.status === "LIVE";
+    if (filterTab === "Draft") return s.status === "draft";
+    if (filterTab === "Live") return s.status === "live";
     return true;
   });
 
-  const handleMakeLive = (id: string) => {
-    setScripts((prev) =>
-      prev.map((s) => ({
-        ...s,
-        status: s.id === id ? "LIVE" : s.status === "LIVE" ? null : s.status,
-      }))
-    );
+  const handleUpload = async (versionLabel: string, file: File) => {
+    setActionError(null);
+    try {
+      const draft = await uploadIntakeScript(file, versionLabel);
+      setShowUploadModal(false);
+      // Straight to the editor: the admin reviews/fixes whatever the
+      // parser flagged before this version can ever be made live.
+      navigate(`/intake-scripts/${draft.id}`);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Unable to upload this script.");
+    }
   };
 
-  const handleUploadNewScript = (version: string, file: File) => {
-    const formattedVersion = version.startsWith("v") ? version : `v${version}`;
-    const newScript: ScriptVersion = {
-      id: Date.now().toString(),
-      version: formattedVersion,
-      uploadedBy: "Sarah A.",
-      uploadedByInitials: "SA",
-      date: "Aug 7, 2026",
-      status: "LATEST",
-      fileSize: `${(file.size / 1024).toFixed(0)} KB`,
-    };
+  const handleMakeLive = async (id: string) => {
+    setBusyId(id);
+    setActionError(null);
+    try {
+      await publishIntakeScript(id);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Unable to publish this version.");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
-    setScripts((prev) => [
-      newScript,
-      ...prev.map((s) => (s.status === "LATEST" ? { ...s, status: null } : s)),
-    ]);
+  const handleDownload = async (item: IntakeScriptSummary) => {
+    setActionError(null);
+    try {
+      await downloadIntakeScript(item.id, item.source_filename || `${item.version_label}.docx`);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Unable to download this version.");
+    } finally {
+      setSelectedDownload(null);
+    }
   };
 
   return (
     <div className="flex-1 min-w-0 overflow-y-auto">
       <div className="p-[24px] lg:p-[32px] flex flex-col gap-[20px]">
-        {/* Page Header */}
         <PageHeader
-          eyebrow={`CONTENT • ${scripts.length} ITEMS • ACTIVE VERSION ${activeVersion}`}
+          eyebrow={`CONTENT • ${scripts.length} ITEMS • ACTIVE VERSION ${liveScript?.version_label ?? "NONE"}`}
           title="Intake Scripts"
         >
-          <GhostBtn label="Download Sample Template" onClick={() => setShowSampleModal(true)} />
+          {liveScript && (
+            <GhostBtn
+              label="Download Live Version"
+              onClick={() => handleDownload(liveScript)}
+            />
+          )}
           <PrimaryBtn label="+ Upload Script" onClick={() => setShowUploadModal(true)} />
         </PageHeader>
 
-        {/* Metrics Row */}
+        {error && <p className="font-['Figtree'] text-[13px] text-red-500">{error}</p>}
+        {actionError && <p className="font-['Figtree'] text-[13px] text-red-500">{actionError}</p>}
+
         <div className="flex gap-[10px] flex-wrap">
           <MetricCard
             label="TOTAL VERSIONS"
             value={String(scripts.length)}
-            delta="12% vs last quarter"
-            deltaColor="#4ade80"
+            delta={`${scripts.filter((s) => s.status === "draft").length} draft`}
+            deltaColor="#8a8073"
             accentColor="#f37422"
           />
           <MetricCard
             label="ACTIVE SCRIPT"
-            value={activeVersion}
-            delta="Live Jul 20, 2026"
+            value={liveScript?.version_label ?? "—"}
+            delta={liveScript ? `Live since ${formatDate(liveScript.published_at ?? liveScript.updated_at)}` : "Nothing published yet"}
             deltaColor="#4ade80"
             accentColor="#4ade80"
           />
         </div>
 
-        {/* Script History Card */}
         <TableCard>
-          {/* Card Header & Tabs */}
           <div className="flex items-center justify-between px-[18px] py-[14px] border-b border-[var(--app-border)] flex-wrap gap-3">
             <div className="flex items-center gap-[16px]">
               <span className="font-['Figtree'] font-bold text-[14px] text-[var(--app-text)]">Script History</span>
-              
+
               <div className="inline-flex items-center gap-[4px] rounded-[8px] border border-[var(--app-border)] bg-[var(--app-surface)] p-[3px]">
-                {(["All Versions", "Latest", "Live"] as const).map((tab) => {
+                {(["All Versions", "Draft", "Live"] as const).map((tab) => {
                   const active = filterTab === tab;
                   return (
                     <button
@@ -177,77 +184,86 @@ export function IntakeScriptsPage() {
             </div>
           </div>
 
-          {/* Table Content */}
           <div className="overflow-x-auto">
-            <div className="min-w-[720px]">
+            <div className="min-w-[760px]">
               <TableHead
                 cols={[
                   { label: "VERSION", w: "w-[120px]" },
                   { label: "UPLOADED BY", w: "flex-1 min-w-[200px]" },
                   { label: "DATE", w: "w-[140px]" },
-                  { label: "STATUS", w: "w-[120px]" },
-                  { label: "ACTIONS", w: "w-[140px] text-right" },
+                  { label: "STATUS", w: "w-[100px]" },
+                  { label: "ACTIONS", w: "w-[180px] text-right" },
                 ]}
               />
 
-              {filteredScripts.map((item) => (
-                <TableRow key={item.id}>
-                  {/* Version */}
-                  <div className="w-[120px] font-['JetBrains_Mono'] font-bold text-[#f37422] text-[13px]">
-                    {item.version}
-                  </div>
+              {loading && (
+                <div className="py-[48px] text-center">
+                  <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">Loading intake scripts…</p>
+                </div>
+              )}
 
-                  {/* Uploaded By */}
-                  <div className="flex items-center gap-[10px] flex-1 min-w-[200px]">
-                    <div className="w-[28px] h-[28px] rounded-full bg-[rgba(243,116,34,0.18)] text-[#f37422] font-['Figtree'] font-bold text-[10px] flex items-center justify-center flex-shrink-0">
-                      {item.uploadedByInitials}
+              {!loading &&
+                filteredScripts.map((item) => (
+                  <TableRow key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/intake-scripts/${item.id}`)}
+                      className="w-[120px] text-left font-['JetBrains_Mono'] font-bold text-[#f37422] text-[13px] hover:underline"
+                    >
+                      {item.version_label}
+                    </button>
+
+                    <div className="flex items-center gap-[10px] flex-1 min-w-[200px]">
+                      <div className="w-[28px] h-[28px] rounded-full bg-[rgba(243,116,34,0.18)] text-[#f37422] font-['Figtree'] font-bold text-[10px] flex items-center justify-center flex-shrink-0">
+                        {item.uploaded_by_name ? initials(item.uploaded_by_name) : "—"}
+                      </div>
+                      <span className="font-['Figtree'] font-semibold text-[13px] text-[var(--app-text)]">
+                        {item.uploaded_by_name ?? "Unknown"}
+                      </span>
                     </div>
-                    <span className="font-['Figtree'] font-semibold text-[13px] text-[var(--app-text)]">
-                      {item.uploadedBy}
-                    </span>
-                  </div>
 
-                  {/* Date */}
-                  <div className="w-[140px] font-['JetBrains_Mono'] font-normal text-[var(--app-muted)] text-[11px]">
-                    {item.date}
-                  </div>
+                    <div className="w-[140px] font-['JetBrains_Mono'] font-normal text-[var(--app-muted)] text-[11px]">
+                      {formatDate(item.created_at)}
+                    </div>
 
-                  {/* Status Pills */}
-                  <div className="w-[120px]">
-                    {item.status === "LATEST" && (
-                      <span className="inline-flex items-center px-[8px] py-[2px] rounded-full font-['JetBrains_Mono'] text-[9px] font-bold bg-[rgba(6,182,212,0.12)] text-[#06b6d4] border border-[rgba(6,182,212,0.3)]">
-                        ● LATEST
-                      </span>
-                    )}
-                    {item.status === "LIVE" && (
-                      <span className="inline-flex items-center px-[8px] py-[2px] rounded-full font-['JetBrains_Mono'] text-[9px] font-bold bg-[rgba(74,222,128,0.12)] text-[#4ade80] border border-[rgba(74,222,128,0.3)]">
-                        ● LIVE
-                      </span>
-                    )}
-                    {!item.status && <span className="font-['JetBrains_Mono'] text-[11px] text-[var(--app-muted)]">—</span>}
-                  </div>
+                    <div className="w-[100px]">
+                      {item.status === "live" ? (
+                        <span className="inline-flex items-center px-[8px] py-[2px] rounded-full font-['JetBrains_Mono'] text-[9px] font-bold bg-[rgba(74,222,128,0.12)] text-[#4ade80] border border-[rgba(74,222,128,0.3)]">
+                          ● LIVE
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-[8px] py-[2px] rounded-full font-['JetBrains_Mono'] text-[9px] font-bold bg-[rgba(6,182,212,0.12)] text-[#06b6d4] border border-[rgba(6,182,212,0.3)]">
+                          ● DRAFT
+                        </span>
+                      )}
+                    </div>
 
-                  {/* Action Buttons */}
-                  <div className="w-[140px] flex items-center justify-end gap-[8px]">
-                    {item.status !== "LIVE" && (
-                      <button
-                        type="button"
-                        onClick={() => handleMakeLive(item.id)}
-                        className="h-[28px] px-[10px] rounded-[6px] border border-[rgba(243,116,34,0.4)] text-[#f37422] hover:bg-[rgba(243,116,34,0.1)] font-['Figtree'] font-semibold text-[11px] transition-colors cursor-pointer"
-                      >
-                        Make Live
-                      </button>
-                    )}
-                    <ActionBtn
-                      onClick={() => setSelectedDownloadVersion(item)}
-                      title="Download Version"
-                      icon={<Download size={14} strokeWidth={1.8} />}
-                    />
-                  </div>
-                </TableRow>
-              ))}
+                    <div className="w-[180px] flex items-center justify-end gap-[8px]">
+                      {item.status !== "live" && (
+                        <button
+                          type="button"
+                          onClick={() => handleMakeLive(item.id)}
+                          disabled={busyId === item.id}
+                          className="h-[28px] px-[10px] rounded-[6px] border border-[rgba(243,116,34,0.4)] text-[#f37422] hover:bg-[rgba(243,116,34,0.1)] font-['Figtree'] font-semibold text-[11px] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                        >
+                          {busyId === item.id ? "Publishing…" : "Make Live"}
+                        </button>
+                      )}
+                      <ActionBtn
+                        onClick={() => navigate(`/intake-scripts/${item.id}`)}
+                        title="Review Steps"
+                        icon={<Pencil size={14} strokeWidth={1.8} />}
+                      />
+                      <ActionBtn
+                        onClick={() => setSelectedDownload(item)}
+                        title="Download Version"
+                        icon={<Download size={14} strokeWidth={1.8} />}
+                      />
+                    </div>
+                  </TableRow>
+                ))}
 
-              {filteredScripts.length === 0 && (
+              {!loading && filteredScripts.length === 0 && (
                 <div className="py-[48px] text-center">
                   <p className="font-['Figtree'] text-[var(--app-muted)] text-[14px]">No intake scripts found.</p>
                 </div>
@@ -255,42 +271,23 @@ export function IntakeScriptsPage() {
             </div>
           </div>
 
-          {/* Footer Pagination Bar */}
           <div className="px-[18px] py-[12px] border-t border-[var(--app-border)] flex items-center justify-between font-['JetBrains_Mono'] text-[11px] text-[var(--app-muted)]">
-            <span>Showing 1-{filteredScripts.length} of {scripts.length} versions</span>
-            <div className="flex items-center gap-[4px]">
-              <button disabled className="w-[28px] h-[28px] rounded-[6px] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-muted)] opacity-40 cursor-not-allowed">
-                &lt;
-              </button>
-              <span className="w-[28px] h-[28px] rounded-[6px] bg-[#f37422] text-white font-bold flex items-center justify-center">
-                1
-              </span>
-              <button disabled className="w-[28px] h-[28px] rounded-[6px] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-muted)] opacity-40 cursor-not-allowed">
-                &gt;
-              </button>
-            </div>
+            <span>Showing {filteredScripts.length} of {scripts.length} versions</span>
           </div>
         </TableCard>
 
-        {/* External Modals */}
         {showUploadModal && (
-          <UploadScriptModal
-            onClose={() => setShowUploadModal(false)}
-            onUpload={handleUploadNewScript}
-          />
+          <UploadScriptModal onClose={() => setShowUploadModal(false)} onUpload={handleUpload} />
         )}
 
-        {showSampleModal && (
-          <DownloadSampleModal onClose={() => setShowSampleModal(false)} />
-        )}
-
-        {selectedDownloadVersion && (
+        {selectedDownload && (
           <DownloadVersionModal
-            version={selectedDownloadVersion.version}
-            uploadedBy={selectedDownloadVersion.uploadedBy}
-            date={selectedDownloadVersion.date}
-            fileSize={selectedDownloadVersion.fileSize}
-            onClose={() => setSelectedDownloadVersion(null)}
+            version={selectedDownload.version_label}
+            uploadedBy={selectedDownload.uploaded_by_name ?? "Unknown"}
+            date={formatDate(selectedDownload.created_at)}
+            fileSize={formatFileSize(selectedDownload.file_size)}
+            onClose={() => setSelectedDownload(null)}
+            onConfirm={() => handleDownload(selectedDownload)}
           />
         )}
       </div>
