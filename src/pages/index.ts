@@ -5,6 +5,7 @@ export { UsersPage } from "./UsersPage";
 export { CounselorsPage } from "./CounselorsPage";
 export { TestDataPage } from "./TestDataPage";
 export { IntakeScriptsPage } from "./IntakeScriptsPage";
+export { IntakeScriptEditorPage } from "./IntakeScriptEditorPage";
 export { TreatmentPlansPage } from "./TreatmentPlansPage";
 export { ResourcesAppPage } from "./ResourcesAppPage";
 export { AggregateDataPage } from "./AggregateDataPage";

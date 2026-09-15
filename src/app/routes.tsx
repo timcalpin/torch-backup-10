@@ -8,6 +8,7 @@ export type AppPageKey =
   | "counselors"
   | "testdata"
   | "intake-scripts"
+  | "intake-script-editor"
   | "resources-real"
   | "resources-app"
   | "treatment-plans"
@@ -69,6 +70,7 @@ export function createAppRouter({ AdminLayout, LoginPage, renderPage }: RouterOp
         { path: "test-data", element: <PageRoute pageKey="testdata" renderPage={renderPage} /> },
         { path: "testdata", element: <PageRoute pageKey="testdata" renderPage={renderPage} /> },
         { path: "intake-scripts", element: <PageRoute pageKey="intake-scripts" renderPage={renderPage} /> },
+        { path: "intake-scripts/:id", element: <PageRoute pageKey="intake-script-editor" renderPage={renderPage} /> },
         { path: "treatment-plans", element: <PageRoute pageKey="treatment-plans" renderPage={renderPage} /> },
         { path: "treatment-plans/:userId", element: <PageRoute pageKey="treatment-plans" renderPage={renderPage} /> },
         { path: "goals", element: <PageRoute pageKey="goals" renderPage={renderPage} /> },

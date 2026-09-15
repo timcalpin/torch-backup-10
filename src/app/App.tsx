@@ -11,6 +11,7 @@ import {
   GoalsPage, // 1. Added Import
   ResourcesAppPage,
   IntakeScriptsPage,
+  IntakeScriptEditorPage,
   AggregateDataPage,
   MetricDetailPage,
   InsightsPage,
@@ -41,6 +42,7 @@ function renderPage(pageKey: AppPageKey) {
     case "goals":            return <GoalsPage />; // 2. Added Render Case
     case "resources-app":    return <ResourcesAppPage />;
     case "intake-scripts":   return <IntakeScriptsPage />;
+    case "intake-script-editor": return <IntakeScriptEditorPage />;
     case "aggregate-data":   return <AggregateDataPage />;
     case "metric-detail":    return <MetricDetailPage />;
     case "insights":         return <InsightsPage />;

@@ -12,11 +12,12 @@ export function GhostBtn({ label, icon, onClick, disabled = false }: { label: st
   );
 }
 
-export function PrimaryBtn({ label, onClick }: { label: string; onClick?: () => void }) {
+export function PrimaryBtn({ label, onClick, disabled = false }: { label: string; onClick?: () => void; disabled?: boolean }) {
   return (
     <button
       onClick={onClick}
-      className="h-[38px] inline-flex items-center px-[16px] rounded-[9px] bg-gradient-to-r from-[#f37422] to-[#c04a12] font-['Figtree'] font-semibold text-white text-[13px] shadow-[0_4px_8px_rgba(243,116,34,0.22)] hover:brightness-110 transition-all cursor-pointer"
+      disabled={disabled}
+      className="h-[38px] inline-flex items-center px-[16px] rounded-[9px] bg-gradient-to-r from-[#f37422] to-[#c04a12] font-['Figtree'] font-semibold text-white text-[13px] shadow-[0_4px_8px_rgba(243,116,34,0.22)] hover:brightness-110 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100"
     >
       {label}
     </button>
