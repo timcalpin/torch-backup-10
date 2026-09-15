@@ -17,9 +17,9 @@ export function formatRelativeTime(iso: string | null | undefined): string {
 }
 
 export function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleString(undefined, {
     month: "short",
     day: "numeric",

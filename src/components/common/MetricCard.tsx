@@ -31,7 +31,9 @@ export function MetricCard({
           <p className="font-['JetBrains_Mono'] font-bold text-[var(--app-muted)] text-[10px] uppercase tracking-wide leading-tight">
             {label}
           </p>
-          <SparkLine color={accentColor} />
+          <div className="flex items-center gap-[8px]">
+            <SparkLine color={accentColor} />
+          </div>
         </div>
         <div>
           <p
