@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Trash2, Upload } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchBox } from "@/components/common/SearchBox";
-import { GhostBtn, PrimaryBtn } from "@/components/common/Buttons";
+import { PrimaryBtn } from "@/components/common/Buttons";
 import { MetricCard } from "@/components/common/MetricCard";
 import { TableCard, TableHead, TableRow } from "@/components/common/Table";
 import { StatusPill } from "@/components/common/StatusPill";
@@ -12,6 +12,7 @@ import { ActionBtn } from "@/components/common/ActionBtn";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter, SectionLabel } from "@/components/common/Modal";
 import { FormField, TextInput, TextArea, SelectInput } from "@/components/common/FormFields";
 import { FileDropzone } from "@/components/common/FileDropzone";
+import { ExcelImportModal } from "@/components/common/ExcelImportModal";
 import { EditIcon, MicIcon, VideoIcon, BookIcon, SparklesIcon, FileIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api";
 import {
@@ -35,7 +36,16 @@ import {
   type ContentStatus,
   type ContentQuery,
 } from "@/lib/content";
-import { parseCsv } from "@/lib/csv";
+import { readExcelRows } from "@/lib/excel";
+import {
+  listLiterature,
+  updateLiterature,
+  deleteLiterature,
+  LITERATURE_CATEGORIES,
+  LITERATURE_CATEGORY_LABELS,
+  type ApiLiterature,
+  type LiteratureCategory,
+} from "@/lib/literature";
 
 const CONTENT_TYPE_COLORS: Record<string, { bg: string; color: string }> = {
   Meditation: { bg: "rgba(243,116,34,0.15)", color: "#f37422" },
@@ -267,7 +277,7 @@ export function ResourcesAppPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
-  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -344,17 +354,13 @@ export function ResourcesAppPage() {
     }
   };
 
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
+  const handleImport = async (file: File) => {
     setImporting(true);
     setImportMessage(null);
     setActionError(null);
     try {
-      if (!file.name.toLowerCase().endsWith(".csv")) throw new Error("Please select a CSV file.");
-      const rows = parseCsv(await file.text());
-      if (!rows.length) throw new Error("The CSV file does not contain any data rows.");
+      const rows = await readExcelRows(file);
+      if (!rows.length) throw new Error("The Excel file does not contain any data rows.");
       let created = 0;
       const errors: string[] = [];
       for (const row of rows) {
@@ -365,34 +371,36 @@ export function ResourcesAppPage() {
           continue;
         }
         try {
-          const contentType = normalizeCsvValue(csvValue(row.values, "content_type", "type"), "text");
-          const category = normalizeCsvValue(csvValue(row.values, "category"), "self_care");
-          const difficulty = normalizeCsvValue(csvValue(row.values, "difficulty_level", "difficulty"), "");
-          const status = normalizeCsvValue(csvValue(row.values, "status"), "draft");
+          const contentType = normalizeCsvValue(csvValue(row, "content_type", "type"), "text");
+          const category = normalizeCsvValue(csvValue(row, "category"), "self_care");
+          const difficulty = normalizeCsvValue(csvValue(row, "difficulty_level", "difficulty"), "");
+          const status = normalizeCsvValue(csvValue(row, "status"), "draft");
           await createContentItem({
             title,
-            creator: csvValue(row.values, "creator", "author", "provider"),
-            description: csvValue(row.values, "description", "details"),
+            creator: csvValue(row, "creator", "author", "provider"),
+            description: csvValue(row, "description", "details"),
             content_type: (CONTENT_TYPES.includes(contentType as typeof CONTENT_TYPES[number]) ? contentType : "text") as ContentType,
             category: (CONTENT_CATEGORIES.includes(category as typeof CONTENT_CATEGORIES[number]) ? category : "self_care") as ContentCategory,
-            topic: csvValue(row.values, "topic"),
-            emotion: csvValue(row.values, "emotion"),
+            topic: csvValue(row, "topic"),
+            emotion: csvValue(row, "emotion"),
             difficulty_level: CONTENT_DIFFICULTIES.includes(difficulty as typeof CONTENT_DIFFICULTIES[number]) ? difficulty as ContentDifficulty : "",
             media_url: mediaUrl,
-            duration_seconds: csvDuration(csvValue(row.values, "duration_seconds", "duration")),
-            is_featured: csvBoolean(csvValue(row.values, "is_featured", "featured")),
+            duration_seconds: csvDuration(csvValue(row, "duration_seconds", "duration")),
+            is_featured: csvBoolean(csvValue(row, "is_featured", "featured")),
             status: (CONTENT_STATUSES.includes(status as typeof CONTENT_STATUSES[number]) ? status : "draft") as ContentStatus,
           });
           created += 1;
         } catch (error) {
-          errors.push(`Row ${row.row}: ${error instanceof ApiError ? error.message : "could not be created."}`);
+          errors.push(`Row ${rowNumber}: ${error instanceof ApiError ? error.message : "could not be created."}`);
         }
       }
       setImportMessage(`Imported ${created} of ${rows.length} rows${errors.length ? `; ${errors.length} failed.` : "."}`);
       if (errors.length) setActionError(errors.slice(0, 3).join(" · "));
       if (created) bumpContentVersion();
+      setImportModalOpen(false);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to import content.");
+      return false;
     } finally {
       setImporting(false);
     }
@@ -406,8 +414,7 @@ export function ResourcesAppPage() {
           title="In-App Resources"
         >
           <SearchBox placeholder="Search resources..." value={search} onChange={setSearch} />
-          <GhostBtn label={importing ? "Importing..." : "Import"} icon={<Upload size={14} />} onClick={() => !importing && importInputRef.current?.click()} />
-          <input ref={importInputRef} type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" aria-label="Import content CSV" />
+          <PrimaryBtn label={importing ? "Uploading..." : "Upload Excel"} onClick={() => !importing && setImportModalOpen(true)} />
           <PrimaryBtn label="+ Add Content" onClick={() => setModal("add-content")} />
         </PageHeader>
 

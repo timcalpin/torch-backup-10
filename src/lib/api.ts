@@ -1,6 +1,10 @@
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./tokens";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+const RAW_API_BASE_URL =
+  import.meta.env.DEV && import.meta.env.VITE_API_PROXY_TARGET
+    ? ""
+    : import.meta.env.VITE_API_BASE_URL ?? "";
+const API_BASE_URL = RAW_API_BASE_URL.trim().replace(/\/+$/, "");
 
 export const UNAUTHORIZED_EVENT = "api:unauthorized";
 

@@ -35,6 +35,7 @@ import {
 import {
   listUsers,
   getUser,
+  getUsersdetails,
   getUserStats,
   createUser,
   updateUser,
@@ -43,6 +44,10 @@ import {
   type UserStats,
   type ApiRisk,
 } from "@/lib/users";
+import {
+  daysSoberFromDate,
+  normalizeSobrietyDate,
+} from "@/lib/sobriety";
 
 
 const ROLE_OPTIONS = [
@@ -115,14 +120,19 @@ function toDisplayUser(
    * Backend now provides the canonical sobriety_days
    * from RecoveryMetrics.days_sober.
    */
+  const sobrietyDate =
+    normalizeSobrietyDate(
+      user.sobriety_start_date ||
+        user.sobriety_date
+    );
+
+  // The date is the source of truth for this UI. The backend rollup can be
+  // one request behind immediately after an edit, so derive the displayed
+  // value from the saved date whenever it is available.
   const soberDays =
+    daysSoberFromDate(sobrietyDate) ??
     user.sobriety_days ??
     user.days_sober;
-
-  const sobrietyDate =
-    user.sobriety_start_date ||
-    user.sobriety_date ||
-    "";
 
   if (user.counselor) {
     if (typeof user.counselor === "object") {
@@ -802,8 +812,13 @@ function EditUserModal({
 
             sobriety_start_date:
               sobrietyDate || null,
+
           }
         );
+
+        // Rebuild the recovery metric after changing the source date so the
+        // recovery profile and all sobriety summaries show the new value.
+        await refreshSobriety(user.id);
 
         onSaved();
         onClose();
@@ -1353,6 +1368,7 @@ export function UsersPage() {
     usersVersion,
     dataRefreshVersion,
     bumpUsersVersion,
+    bumpDataRefreshVersion,
   } = useAppContext();
 
   const navigate =
@@ -1576,15 +1592,35 @@ export function UsersPage() {
             user.id
           );
 
-        setEditUser(
-          toDisplayUser(detail)
-        );
+        const displayUser = toDisplayUser(detail);
+
+        // Some deployments expose the sobriety date only on the recovery
+        // detail endpoint, so use it as a fallback for the edit form.
+        if (!displayUser.sobrietyDate) {
+          try {
+            const recovery = await getUsersdetails(user.id);
+            displayUser.sobrietyDate = normalizeSobrietyDate(
+              recovery.sobriety_date
+            );
+          } catch {
+            // Keep the user detail response as the source of truth if the
+            // recovery endpoint is unavailable.
+          }
+        }
+
+        setEditUser(displayUser);
       } catch {
         setEditUser(user);
       } finally {
         setLoadingEditId(null);
       }
     };
+
+
+  const handleUserSaved = () => {
+    bumpUsersVersion();
+    bumpDataRefreshVersion();
+  };
 
 
   const exportUsersCsv =
@@ -2632,7 +2668,7 @@ export function UsersPage() {
                 setEditUser(null)
               }
               onSaved={
-                bumpUsersVersion
+                handleUserSaved
               }
             />
           )}

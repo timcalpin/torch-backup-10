@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Pencil, Trash2, Upload } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
 import { AddResourceModal } from "@/components/modals";
 import { PageHeader } from "@/components/common/PageHeader";
-import { GhostBtn, PrimaryBtn } from "@/components/common/Buttons";
+import { PrimaryBtn } from "@/components/common/Buttons";
 import { SearchBox } from "@/components/common/SearchBox";
 import { MetricCard } from "@/components/common/MetricCard";
 import { TableCard, TableHead, TableRow } from "@/components/common/Table";
@@ -12,6 +12,8 @@ import { ActionBtn } from "@/components/common/ActionBtn";
 import { FileIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api";
 import { getResourceStats, importResources, listResources, updateResource, deleteResource, type ApiResource, type ResourceStats } from "@/lib/resources";
+import { ExcelImportModal } from "@/components/common/ExcelImportModal";
+import { excelRowsToCsvFile, readExcelRows } from "@/lib/excel";
 
 function toTitleCase(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -20,6 +22,16 @@ function toTitleCase(value: string): string {
 function formatLabel(value?: string | null): string {
   return value ? toTitleCase(value) : "—";
 }
+
+const RESOURCE_IMPORT_HEADERS = [
+  "category", "sub_category", "title", "subtitle", "description", "organization",
+  "url", "phone", "email", "thumbnail", "thumbnail_url", "tags", "venue",
+  "street_address", "address_line_2", "city", "county", "state", "zip_code", "country",
+  "latitude", "longitude", "day", "start_time", "end_time", "delivery_format",
+  "meeting_type", "audience", "language", "meeting_id", "meeting_password", "is_open",
+  "is_accessible", "status", "is_featured", "is_active", "order", "published_at",
+  "created_at", "updated_at",
+] as const;
 
 export function RealWorldResourcesPage() {
   const { resourcesVersion, bumpResourcesVersion } = useAppContext();
@@ -37,7 +49,7 @@ export function RealWorldResourcesPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
-  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,24 +104,29 @@ export function RealWorldResourcesPage() {
     }
   };
 
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
+  const handleImport = async (file: File) => {
     setImporting(true);
     setImportMessage(null);
     setActionError(null);
     try {
-      if (!file.name.toLowerCase().endsWith(".csv")) {
-        setActionError("Please select a CSV file.");
-        return;
+      const rows = await readExcelRows(file);
+      if (!rows.length) {
+        setActionError("The Excel file does not contain any data rows.");
+        return false;
       }
-      const result = await importResources(file);
+      const csvFile = excelRowsToCsvFile(
+        RESOURCE_IMPORT_HEADERS,
+        rows,
+        file.name.replace(/\.xlsx$/i, ".csv")
+      );
+      const result = await importResources(csvFile);
       setImportMessage(`Imported ${result.created} resources${result.failed ? `; ${result.failed} rows failed.` : "."}`);
       if (result.errors?.length) setActionError(result.errors.slice(0, 3).map((item) => `Row ${item.row ?? "?"}: ${item.message}`).join(" · "));
       bumpResourcesVersion();
+      setImportModalOpen(false);
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Unable to import resources.");
+      return false;
     } finally {
       setImporting(false);
     }
@@ -120,8 +137,7 @@ export function RealWorldResourcesPage() {
       <div className="p-[24px] lg:p-[32px] flex flex-col gap-[20px]">
         <PageHeader eyebrow={stats ? `RESOURCES · ${stats.count} TOTAL · ${stats.category_count} CATEGORIES · ${stats.active_count} ACTIVE` : "RESOURCES"} title="Real World Resources">
           <SearchBox placeholder="Search resources..." value={search} onChange={setSearch} />
-          <GhostBtn label={importing ? "Importing..." : "Import"} icon={<Upload size={14} />} onClick={() => !importing && importInputRef.current?.click()} />
-          <input ref={importInputRef} id="resource-import-input" type="file" accept=".csv,text/csv" onChange={handleImport} className="hidden" aria-label="Import resources" />
+          <PrimaryBtn label={importing ? "Uploading..." : "Upload Excel"} onClick={() => !importing && setImportModalOpen(true)} />
           <PrimaryBtn
             label="+ Add Resource"
             onClick={() => {
@@ -235,6 +251,7 @@ export function RealWorldResourcesPage() {
         }}
         onCreated={() => bumpResourcesVersion()}
       />
+      {importModalOpen && <ExcelImportModal title="Load Real-World Resources" subtitle="Super Admin · UAT Only" actionLabel="Load Resources" helperText="All resource fields included" templateHeaders={RESOURCE_IMPORT_HEADERS} templateFilename="torch-real-world-resources-template.xlsx" onClose={() => setImportModalOpen(false)} onUpload={handleImport} />}
     </div>
   );
 }
