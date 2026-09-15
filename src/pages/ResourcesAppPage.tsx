@@ -371,27 +371,27 @@ export function ResourcesAppPage() {
           continue;
         }
         try {
-          const contentType = normalizeCsvValue(csvValue(row, "content_type", "type"), "text");
-          const category = normalizeCsvValue(csvValue(row, "category"), "self_care");
-          const difficulty = normalizeCsvValue(csvValue(row, "difficulty_level", "difficulty"), "");
-          const status = normalizeCsvValue(csvValue(row, "status"), "draft");
+          const contentType = normalizeCsvValue(csvValue(row.values, "content_type", "type"), "text");
+          const category = normalizeCsvValue(csvValue(row.values, "category"), "self_care");
+          const difficulty = normalizeCsvValue(csvValue(row.values, "difficulty_level", "difficulty"), "");
+          const status = normalizeCsvValue(csvValue(row.values, "status"), "draft");
           await createContentItem({
             title,
-            creator: csvValue(row, "creator", "author", "provider"),
-            description: csvValue(row, "description", "details"),
+            creator: csvValue(row.values, "creator", "author", "provider"),
+            description: csvValue(row.values, "description", "details"),
             content_type: (CONTENT_TYPES.includes(contentType as typeof CONTENT_TYPES[number]) ? contentType : "text") as ContentType,
             category: (CONTENT_CATEGORIES.includes(category as typeof CONTENT_CATEGORIES[number]) ? category : "self_care") as ContentCategory,
-            topic: csvValue(row, "topic"),
-            emotion: csvValue(row, "emotion"),
+            topic: csvValue(row.values, "topic"),
+            emotion: csvValue(row.values, "emotion"),
             difficulty_level: CONTENT_DIFFICULTIES.includes(difficulty as typeof CONTENT_DIFFICULTIES[number]) ? difficulty as ContentDifficulty : "",
             media_url: mediaUrl,
-            duration_seconds: csvDuration(csvValue(row, "duration_seconds", "duration")),
-            is_featured: csvBoolean(csvValue(row, "is_featured", "featured")),
+            duration_seconds: csvDuration(csvValue(row.values, "duration_seconds", "duration")),
+            is_featured: csvBoolean(csvValue(row.values, "is_featured", "featured")),
             status: (CONTENT_STATUSES.includes(status as typeof CONTENT_STATUSES[number]) ? status : "draft") as ContentStatus,
           });
           created += 1;
         } catch (error) {
-          errors.push(`Row ${rowNumber}: ${error instanceof ApiError ? error.message : "could not be created."}`);
+          errors.push(`Row ${row.row}: ${error instanceof ApiError ? error.message : "could not be created."}`);
         }
       }
       setImportMessage(`Imported ${created} of ${rows.length} rows${errors.length ? `; ${errors.length} failed.` : "."}`);
