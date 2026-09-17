@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Trash2 } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchBox } from "@/components/common/SearchBox";
@@ -116,6 +116,7 @@ function EditContentModal({ item, onClose, onSaved }: { item: ApiContentItem; on
   const [mediaUrl, setMediaUrl] = useState(item.media_url || "");
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [contentFile, setContentFile] = useState<File | null>(null);
+  const [bookUrl, setBookUrl] = useState(item.book_url || "");
   const [minutes, setMinutes] = useState(String(Math.floor((item.duration_seconds || 0) / 60)));
   const [seconds, setSeconds] = useState(String((item.duration_seconds || 0) % 60));
   const [description, setDescription] = useState(item.description || "");
@@ -127,6 +128,11 @@ function EditContentModal({ item, onClose, onSaved }: { item: ApiContentItem; on
   const handleSubmit = async () => {
     if (!title.trim()) {
       setError("Title is required.");
+      return;
+    }
+    const isBook = category === "literature" || category === "books";
+    if (isBook && bookUrl.trim() && !/^https?:\/\//i.test(bookUrl.trim())) {
+      setError("Book Website URL must start with http:// or https://.");
       return;
     }
     setSubmitting(true);
@@ -148,6 +154,7 @@ function EditContentModal({ item, onClose, onSaved }: { item: ApiContentItem; on
         status,
         ...(thumbnail ? { thumbnail } : {}),
         ...(contentFile ? { content_file: contentFile } : {}),
+        ...(isBook && bookUrl.trim() ? { book_url: bookUrl.trim() } : {}),
       });
       onSaved();
       onClose();
@@ -206,6 +213,14 @@ function EditContentModal({ item, onClose, onSaved }: { item: ApiContentItem; on
           <div className="flex flex-col gap-[16px]">
             <SectionLabel label="Media & Files" />
             <FormField label="Media URL (Optional)"><TextInput value={mediaUrl} onChange={setMediaUrl} /></FormField>
+            {(category === "literature" || category === "books") && (
+              <>
+                <FormField label="Book Website URL">
+                  <TextInput type="url" name="book_url" placeholder="https://example.com/book" value={bookUrl} onChange={setBookUrl} />
+                </FormField>
+                <p className="font-['Figtree'] text-[12px] text-[var(--app-muted)] -mt-[8px]">If a PDF is not available, add the book’s website link instead.</p>
+              </>
+            )}
             <div className="flex gap-[16px] flex-wrap">
               <div className="flex-1 min-w-[200px]">
                 <FormField label="Thumbnail / Cover">
@@ -534,6 +549,14 @@ export function ResourcesAppPage() {
                             <a href={item.content_file} target="_blank" rel="noopener noreferrer" className="font-['JetBrains_Mono'] text-[9px] text-[#f37422] hover:underline flex items-center gap-[2px]">
                               📄 PDF
                             </a>
+                          )}
+                          {item.book_url && (item.category === "literature" || item.category === "books") && (
+                            <>
+                              <span className="max-w-[120px] truncate font-['JetBrains_Mono'] text-[9px] text-[var(--app-muted)]" title={item.book_url}>{item.book_url}</span>
+                              <a href={item.book_url} target="_blank" rel="noopener noreferrer" className="font-['JetBrains_Mono'] text-[9px] text-[#f37422] hover:underline flex items-center gap-[2px]">
+                                <ExternalLink size={10} /> Open Book
+                              </a>
+                            </>
                           )}
                         </div>
                       </div>

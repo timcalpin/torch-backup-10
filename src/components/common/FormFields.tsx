@@ -14,6 +14,7 @@ export function FormField({ label, required, children }: { label: string; requir
 
 export function TextInput({
   placeholder,
+  name,
   defaultValue,
   value,
   onChange,
@@ -21,10 +22,11 @@ export function TextInput({
   required,
 }: {
   placeholder?: string;
+  name?: string;
   defaultValue?: string;
   value?: string;
   onChange?: (value: string) => void;
-  type?: "text" | "email" | "date" | "number" | "time";
+  type?: "text" | "email" | "url" | "date" | "number" | "time";
   required?: boolean;
 }) {
   return (
@@ -32,6 +34,7 @@ export function TextInput({
       <div className="absolute inset-0 rounded-[10px] border border-[var(--app-border)] pointer-events-none" />
       <input
         type={type}
+        name={name}
         placeholder={placeholder}
         defaultValue={onChange ? undefined : defaultValue}
         value={onChange ? value : undefined}
