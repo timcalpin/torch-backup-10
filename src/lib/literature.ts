@@ -28,6 +28,7 @@ export interface ApiLiterature {
   description: string;
   category: LiteratureCategory;
   pdf_file: string;
+  book_url: string;
   thumbnail: string | null;
   is_featured: boolean;
   created_at: string;
@@ -42,6 +43,7 @@ export function listLiterature(query: AdminQuery = {}): Promise<PaginatedRespons
       description: item.description,
       category: (item.category as LiteratureCategory) || "literature",
       pdf_file: item.content_file || "",
+      book_url: item.book_url || "",
       thumbnail: item.thumbnail,
       is_featured: item.is_featured,
       created_at: item.created_at,
@@ -56,6 +58,7 @@ export function getLiterature(id: number): Promise<ApiLiterature> {
     description: item.description,
     category: (item.category as LiteratureCategory) || "literature",
     pdf_file: item.content_file || "",
+    book_url: item.book_url || "",
     thumbnail: item.thumbnail,
     is_featured: item.is_featured,
     created_at: item.created_at,
@@ -68,6 +71,7 @@ export interface LiteraturePayload {
   category: LiteratureCategory;
   is_featured: boolean;
   pdf_file?: File | null;
+  book_url?: string;
   thumbnail?: File | null;
 }
 
@@ -78,6 +82,7 @@ export function createLiterature(payload: LiteraturePayload): Promise<ApiLiterat
     category: (payload.category as any) || "literature",
     content_type: "text",
     content_file: payload.pdf_file,
+    book_url: payload.book_url,
     thumbnail: payload.thumbnail,
     is_featured: payload.is_featured,
     status: "published",
@@ -87,6 +92,7 @@ export function createLiterature(payload: LiteraturePayload): Promise<ApiLiterat
     description: item.description,
     category: (item.category as LiteratureCategory) || "literature",
     pdf_file: item.content_file || "",
+    book_url: item.book_url || "",
     thumbnail: item.thumbnail,
     is_featured: item.is_featured,
     created_at: item.created_at,
@@ -100,6 +106,7 @@ export function updateLiterature(id: number, payload: Partial<LiteraturePayload>
     ...(payload.category !== undefined ? { category: payload.category as any } : {}),
     ...(payload.is_featured !== undefined ? { is_featured: payload.is_featured } : {}),
     ...(payload.pdf_file !== undefined ? { content_file: payload.pdf_file } : {}),
+    ...(payload.book_url !== undefined ? { book_url: payload.book_url } : {}),
     ...(payload.thumbnail !== undefined ? { thumbnail: payload.thumbnail } : {}),
   }).then((item) => ({
     id: item.id,
@@ -107,6 +114,7 @@ export function updateLiterature(id: number, payload: Partial<LiteraturePayload>
     description: item.description,
     category: (item.category as LiteratureCategory) || "literature",
     pdf_file: item.content_file || "",
+    book_url: item.book_url || "",
     thumbnail: item.thumbnail,
     is_featured: item.is_featured,
     created_at: item.created_at,
