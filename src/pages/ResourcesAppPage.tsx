@@ -57,12 +57,106 @@ const CONTENT_TYPE_COLORS: Record<string, { bg: string; color: string }> = {
   Books: { bg: "rgba(183,163,110,0.15)", color: "#b7a36e" },
 };
 
-const CONTENT_TABS = ["All", "Audio", "Video", "Podcast", "Meditation", "Text"];
+const LIBRARY_CATEGORY_TABS = [
+  "All",
+  "Meditation",
+  "Mental Health",
+  "Emotional Regulation",
+  "Sleep",
+  "Spirituality",
+  "Unassigned",
+  "Yoga",
+  "Trauma",
+  "Family & Relationships",
+  "Books",
+  "In-App Literature",
+];
 
 const CONTENT_IMPORT_HEADERS = [
-  "title", "creator", "description", "content_type", "category", "topic", "emotion",
-  "difficulty_level", "media_url", "thumbnail", "duration_seconds", "is_featured", "status",
+  "#", "Resource", "Source", "URL", "Original Section", "Primary Category", "Also Appears In",
+  "Tag 1", "Tag 2", "Tag 3", "Tag 4", "Tag 5", "All Tags", "status",
 ] as const;
+
+const LIBRARY_CATEGORY_MAP: Record<string, ContentCategory> = {
+  meditation: "meditation",
+  cravings: "stress_relief",
+  "mental health": "mental_health",
+  "emotional regulation": "stress_relief",
+  sleep: "self_care",
+  spirituality: "spirituality",
+  unassigned: "self_care",
+  yoga: "yoga",
+  trauma: "trauma",
+  "family & relationships": "self_care",
+};
+
+function mapLibraryCategory(value: string): ContentCategory {
+  const normalized = value.trim().toLowerCase();
+  return LIBRARY_CATEGORY_MAP[normalized] ?? "self_care";
+}
+
+function mapImportedCategory(primaryCategory: string, section: string): ContentCategory {
+  if (primaryCategory.trim().toLowerCase() === "cravings") return "meditation";
+  const normalizedSection = section.trim().toLowerCase();
+  if (normalizedSection.startsWith("meditation")) return "meditation";
+  if (normalizedSection === "books") return "books";
+  if (normalizedSection === "in-app literature") return "literature";
+  return mapLibraryCategory(primaryCategory);
+}
+
+function inferLibraryContentType(url: string, section: string, title: string): ContentType {
+  const value = `${url} ${section} ${title}`.toLowerCase();
+  if (value.includes("podcast")) return "podcast";
+  if (value.includes("youtube") || value.includes("video")) return "video";
+  if (value.includes("meditation") || value.includes("guided practice")) return "meditation";
+  return "text";
+}
+
+function normalizeImportStatus(value: string): ContentStatus {
+  const normalized = normalizeCsvValue(value, "draft");
+  if (normalized === "pending") return "review";
+  if (normalized === "active") return "published";
+  return CONTENT_STATUSES.includes(normalized as ContentStatus)
+    ? normalized as ContentStatus
+    : "draft";
+}
+
+function libraryDescription(row: Record<string, string>): string {
+  const details = [
+    row["Primary Category"] && `Primary Category: ${row["Primary Category"]}`,
+    row["Also Appears In"] && `Also Appears In: ${row["Also Appears In"]}`,
+    row["Original Section"] && `Section: ${row["Original Section"]}`,
+    row["Source"] && `Source: ${row["Source"]}`,
+    row["All Tags"] && `Tags: ${row["All Tags"]}`,
+  ].filter(Boolean);
+  return details.join(" · ");
+}
+
+function matchesLibraryCategory(item: ApiContentItem, category: string): boolean {
+  const searchText = `${item.description} ${item.topic} ${item.emotion}`.toLowerCase();
+  const normalized = category.toLowerCase();
+  const primary = searchText.match(/primary category:\s*([^·]+)/i)?.[1] ?? "";
+  const alsoAppearsIn = searchText.match(/also appears in:\s*([^·]+)/i)?.[1] ?? "";
+  const section = searchText.match(/section:\s*([^·]+)/i)?.[1] ?? "";
+  if (normalized === "meditation" && primary.trim() === "cravings") return true;
+  if (normalized === "meditation" && section.toLowerCase().startsWith("meditation")) return true;
+  if (normalized === "books" && section.trim() === "books") return true;
+  if (normalized === "in-app literature" && section.trim() === "in-app literature") return true;
+  const categories = `${primary},${alsoAppearsIn},${section}`
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return categories.includes(normalized) || item.category === LIBRARY_CATEGORY_MAP[normalized];
+}
+
+function getLibraryPrimaryCategory(item: ApiContentItem): string {
+  const match = item.description.match(/Primary Category:\s*([^·]+)/i);
+  const primary = match?.[1]?.trim() || "";
+  const section = item.description.match(/Section:\s*([^·]+)/i)?.[1]?.trim() || "";
+  if (primary.toLowerCase() === "cravings" || section.toLowerCase().startsWith("meditation")) return "Meditation";
+  if (section === "Books" || section === "In-App Literature") return section;
+  return primary || CONTENT_CATEGORY_LABELS[item.category] || toTitleCase(item.category);
+}
 
 function toTitleCase(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -316,13 +410,8 @@ export function ResourcesAppPage() {
 
     const query: ContentQuery = {
       search,
-      page: contentPage,
-      page_size: 10,
+      page_size: 100,
     };
-
-    if (activeCategory !== "All") {
-      query.content_type = activeCategory.toLowerCase();
-    }
 
     if (activeStatus === "Featured") {
       query.is_featured = true;
@@ -332,15 +421,29 @@ export function ResourcesAppPage() {
       query.status = activeStatus.toLowerCase();
     }
 
-    listContent(query)
-      .then((response) => {
-        if (!cancelled) {
-          setContent(response.results);
-          setContentTotal(response.count);
-          setContentHasNext(Boolean(response.next));
-          setContentHasPrev(Boolean(response.previous));
-        }
-      })
+    const loadAllContent = async () => {
+      const results: ApiContentItem[] = [];
+      let page = 1;
+      let hasNext = true;
+
+      while (hasNext && !cancelled) {
+        const response = await listContent({ ...query, page });
+        results.push(...response.results);
+        hasNext = Boolean(response.next);
+        page += 1;
+      }
+
+      if (cancelled) return;
+      const filtered = activeCategory === "All"
+        ? results
+        : results.filter((item) => matchesLibraryCategory(item, activeCategory));
+      setContent(filtered);
+      setContentTotal(filtered.length);
+      setContentHasNext(false);
+      setContentHasPrev(false);
+    };
+
+    loadAllContent()
       .catch((err) => {
         if (!cancelled) setContentError(err instanceof ApiError ? err.message : "Unable to load content.");
       })
@@ -348,7 +451,7 @@ export function ResourcesAppPage() {
         if (!cancelled) setContentLoading(false);
       });
 
-    getContentStats(query.content_type ? { content_type: query.content_type } : query.category ? { category: query.category } : {})
+    getContentStats({})
       .then((response) => {
         if (!cancelled) setStats(response);
       })
@@ -395,32 +498,36 @@ export function ResourcesAppPage() {
       const errors: string[] = [];
       for (const [index, row] of rows.entries()) {
         const rowNumber = index + 2;
-        const title = csvValue(row, "title", "name");
-        const mediaUrl = csvValue(row, "media_url", "url", "link");
+        const title = csvValue(row, "Resource", "resource", "title", "name");
+        const mediaUrl = csvValue(row, "URL", "url", "media_url", "link");
         const thumbnailUrl = csvValue(row, "thumbnail", "thumbnail_url");
+        const source = csvValue(row, "Source", "source", "creator", "author", "provider");
+        const section = csvValue(row, "Original Section", "original_section", "topic");
+        const primaryCategory = csvValue(row, "Primary Category", "primary_category", "category");
         if (!title) {
           errors.push(`Row ${rowNumber}: title is required.`);
           continue;
         }
         try {
-          const contentType = normalizeCsvValue(csvValue(row, "content_type", "type"), "text");
-          const category = normalizeCsvValue(csvValue(row, "category"), "self_care");
+          const suppliedType = normalizeCsvValue(csvValue(row, "content_type", "type"), "");
+          const contentType = suppliedType || inferLibraryContentType(mediaUrl, section, title);
+          const category = mapImportedCategory(primaryCategory, section);
           const difficulty = normalizeCsvValue(csvValue(row, "difficulty_level", "difficulty"), "");
-          const status = normalizeCsvValue(csvValue(row, "status"), "draft");
+          const status = normalizeImportStatus(csvValue(row, "status", "Status"));
           await createContentItem({
             title,
-            creator: csvValue(row, "creator", "author", "provider"),
-            description: csvValue(row, "description", "details"),
+            creator: source,
+            description: csvValue(row, "description", "details") || libraryDescription(row),
             content_type: (CONTENT_TYPES.includes(contentType as typeof CONTENT_TYPES[number]) ? contentType : "text") as ContentType,
             category: (CONTENT_CATEGORIES.includes(category as typeof CONTENT_CATEGORIES[number]) ? category : "self_care") as ContentCategory,
-            topic: csvValue(row, "topic"),
+            topic: section,
             emotion: csvValue(row, "emotion"),
             difficulty_level: CONTENT_DIFFICULTIES.includes(difficulty as typeof CONTENT_DIFFICULTIES[number]) ? difficulty as ContentDifficulty : "",
             media_url: mediaUrl,
             ...(thumbnailUrl ? { thumbnail: await downloadThumbnail(thumbnailUrl, title) } : {}),
             duration_seconds: csvDuration(csvValue(row, "duration_seconds", "duration")),
             is_featured: csvBoolean(csvValue(row, "is_featured", "featured")),
-            status: (CONTENT_STATUSES.includes(status as typeof CONTENT_STATUSES[number]) ? status : "draft") as ContentStatus,
+            status,
           });
           created += 1;
         } catch (error) {
@@ -464,7 +571,7 @@ export function ResourcesAppPage() {
 
         <div className="rounded-[10px] border border-[var(--app-border)] bg-[var(--app-surface)] p-[6px]">
           <div className="grid grid-cols-2 gap-[4px] sm:grid-cols-3 lg:grid-cols-6">
-            {CONTENT_TABS.map((tab) => {
+            {LIBRARY_CATEGORY_TABS.map((tab) => {
               const active = activeCategory === tab;
               return (
                 <button
@@ -566,7 +673,7 @@ export function ResourcesAppPage() {
                         {typeLabel.toUpperCase()}
                       </span>
                     </div>
-                    <div className="w-[110px] font-['JetBrains_Mono'] font-normal text-[var(--app-muted)] text-[11px]">{toTitleCase(item.category)}</div>
+                    <div className="w-[110px] font-['JetBrains_Mono'] font-normal text-[var(--app-muted)] text-[11px]">{getLibraryPrimaryCategory(item)}</div>
                     <div className="w-[110px] font-['Figtree'] font-normal text-[var(--app-text)] text-[12px]">{item.difficulty_level ? toTitleCase(item.difficulty_level) : "-"}</div>
                     <div className="w-[110px] font-['JetBrains_Mono'] font-normal text-[var(--app-muted)] text-[11px] truncate" title={item.content_file ? decodeURIComponent(item.content_file.split("/").pop() || "") : undefined}>
                       {item.content_file
@@ -620,9 +727,10 @@ export function ResourcesAppPage() {
           title="Load In-App Resources"
           subtitle="Super Admin · UAT Only"
           actionLabel="Load Resources"
-          helperText="Thumbnail must be a publicly accessible image URL"
+          helperText="Use the library columns plus status: draft, review/pending, published, or archived"
           templateHeaders={CONTENT_IMPORT_HEADERS}
           templateFilename="torch-in-app-resources-template.xlsx"
+          templateUrl="/torch-in-app-resources-template.xlsx"
           onClose={() => setImportModalOpen(false)}
           onUpload={handleImport}
         />
