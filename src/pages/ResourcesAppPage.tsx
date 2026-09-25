@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Trash2 } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchBox } from "@/components/common/SearchBox";
@@ -61,6 +61,11 @@ const CONTENT_TYPE_COLORS: Record<string, { bg: string; color: string }> = {
 
 const CONTENT_TABS = ["All", "Audio", "Video", "Podcast", "Meditation", "Text"];
 
+const CONTENT_IMPORT_HEADERS = [
+  "title", "creator", "description", "content_type", "category", "topic", "emotion",
+  "difficulty_level", "media_url", "thumbnail", "duration_seconds", "is_featured", "status",
+] as const;
+
 function toTitleCase(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -92,6 +97,16 @@ function csvDuration(value: string): number {
   return Number.isFinite(seconds) ? seconds : 0;
 }
 
+async function downloadThumbnail(url: string, title: string): Promise<File> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`thumbnail could not be downloaded (${response.status})`);
+  const blob = await response.blob();
+  if (!blob.type.startsWith("image/")) throw new Error("thumbnail must be an image URL");
+  const extension = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+  const filename = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "thumbnail"}.${extension}`;
+  return new File([blob], filename, { type: blob.type });
+}
+
 function EditContentModal({ item, onClose, onSaved }: { item: ApiContentItem; onClose: () => void; onSaved: () => void }) {
   const [title, setTitle] = useState(item.title);
   const [creator, setCreator] = useState(item.creator || "");
@@ -103,6 +118,7 @@ function EditContentModal({ item, onClose, onSaved }: { item: ApiContentItem; on
   const [mediaUrl, setMediaUrl] = useState(item.media_url || "");
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [contentFile, setContentFile] = useState<File | null>(null);
+  const [bookUrl, setBookUrl] = useState(item.book_url || "");
   const [minutes, setMinutes] = useState(String(Math.floor((item.duration_seconds || 0) / 60)));
   const [seconds, setSeconds] = useState(String((item.duration_seconds || 0) % 60));
   const [description, setDescription] = useState(item.description || "");
@@ -114,6 +130,11 @@ function EditContentModal({ item, onClose, onSaved }: { item: ApiContentItem; on
   const handleSubmit = async () => {
     if (!title.trim()) {
       setError("Title is required.");
+      return;
+    }
+    const isBook = category === "literature" || category === "books";
+    if (isBook && bookUrl.trim() && !/^https?:\/\//i.test(bookUrl.trim())) {
+      setError("Book Website URL must start with http:// or https://.");
       return;
     }
     setSubmitting(true);
@@ -135,6 +156,7 @@ function EditContentModal({ item, onClose, onSaved }: { item: ApiContentItem; on
         status,
         ...(thumbnail ? { thumbnail } : {}),
         ...(contentFile ? { content_file: contentFile } : {}),
+        ...(isBook && bookUrl.trim() ? { book_url: bookUrl.trim() } : {}),
       });
       onSaved();
       onClose();
@@ -193,6 +215,14 @@ function EditContentModal({ item, onClose, onSaved }: { item: ApiContentItem; on
           <div className="flex flex-col gap-[16px]">
             <SectionLabel label="Media & Files" />
             <FormField label="Media URL (Optional)"><TextInput value={mediaUrl} onChange={setMediaUrl} /></FormField>
+            {(category === "literature" || category === "books") && (
+              <>
+                <FormField label="Book Website URL">
+                  <TextInput type="url" name="book_url" placeholder="https://example.com/book" value={bookUrl} onChange={setBookUrl} />
+                </FormField>
+                <p className="font-['Figtree'] text-[12px] text-[var(--app-muted)] -mt-[8px]">If a PDF is not available, add the book’s website link instead.</p>
+              </>
+            )}
             <div className="flex gap-[16px] flex-wrap">
               <div className="flex-1 min-w-[200px]">
                 <FormField label="Thumbnail / Cover">
@@ -361,6 +391,47 @@ export function ResourcesAppPage() {
     setImportMessage(null);
     setActionError(null);
     try {
+      const rows = await readExcelRows(file);
+      if (!rows.length) throw new Error("The Excel file does not contain any data rows.");
+      let created = 0;
+      const errors: string[] = [];
+      for (const [index, row] of rows.entries()) {
+        const rowNumber = index + 2;
+        const title = csvValue(row, "title", "name");
+        const mediaUrl = csvValue(row, "media_url", "url", "link");
+        const thumbnailUrl = csvValue(row, "thumbnail", "thumbnail_url");
+        if (!title) {
+          errors.push(`Row ${rowNumber}: title is required.`);
+          continue;
+        }
+        try {
+          const contentType = normalizeCsvValue(csvValue(row, "content_type", "type"), "text");
+          const category = normalizeCsvValue(csvValue(row, "category"), "self_care");
+          const difficulty = normalizeCsvValue(csvValue(row, "difficulty_level", "difficulty"), "");
+          const status = normalizeCsvValue(csvValue(row, "status"), "draft");
+          await createContentItem({
+            title,
+            creator: csvValue(row, "creator", "author", "provider"),
+            description: csvValue(row, "description", "details"),
+            content_type: (CONTENT_TYPES.includes(contentType as typeof CONTENT_TYPES[number]) ? contentType : "text") as ContentType,
+            category: (CONTENT_CATEGORIES.includes(category as typeof CONTENT_CATEGORIES[number]) ? category : "self_care") as ContentCategory,
+            topic: csvValue(row, "topic"),
+            emotion: csvValue(row, "emotion"),
+            difficulty_level: CONTENT_DIFFICULTIES.includes(difficulty as typeof CONTENT_DIFFICULTIES[number]) ? difficulty as ContentDifficulty : "",
+            media_url: mediaUrl,
+            ...(thumbnailUrl ? { thumbnail: await downloadThumbnail(thumbnailUrl, title) } : {}),
+            duration_seconds: csvDuration(csvValue(row, "duration_seconds", "duration")),
+            is_featured: csvBoolean(csvValue(row, "is_featured", "featured")),
+            status: (CONTENT_STATUSES.includes(status as typeof CONTENT_STATUSES[number]) ? status : "draft") as ContentStatus,
+          });
+          created += 1;
+        } catch (error) {
+          errors.push(`Row ${rowNumber}: ${error instanceof ApiError ? error.message : "could not be created."}`);
+        }
+      }
+      setImportMessage(`Imported ${created} of ${rows.length} rows${errors.length ? `; ${errors.length} failed.` : "."}`);
+      if (errors.length) setActionError(errors.slice(0, 3).join(" · "));
+      if (created) bumpContentVersion();
       const result = await importContentItems(file);
       setImportMessage(`Imported ${result.created} content items${result.failed ? `; ${result.failed} rows failed.` : "."}`);
       if (result.errors?.length) setActionError(result.errors.slice(0, 3).map((item) => `Row ${item.row ?? "?"}: ${item.message}`).join(" · "));
@@ -485,6 +556,14 @@ export function ResourcesAppPage() {
                               📄 PDF
                             </a>
                           )}
+                          {item.book_url && (item.category === "literature" || item.category === "books") && (
+                            <>
+                              <span className="max-w-[120px] truncate font-['JetBrains_Mono'] text-[9px] text-[var(--app-muted)]" title={item.book_url}>{item.book_url}</span>
+                              <a href={item.book_url} target="_blank" rel="noopener noreferrer" className="font-['JetBrains_Mono'] text-[9px] text-[#f37422] hover:underline flex items-center gap-[2px]">
+                                <ExternalLink size={10} /> Open Book
+                              </a>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -542,6 +621,18 @@ export function ResourcesAppPage() {
           />
         )}
       </div>
+      {importModalOpen && (
+        <ExcelImportModal
+          title="Load In-App Resources"
+          subtitle="Super Admin · UAT Only"
+          actionLabel="Load Resources"
+          helperText="Thumbnail must be a publicly accessible image URL"
+          templateHeaders={CONTENT_IMPORT_HEADERS}
+          templateFilename="torch-in-app-resources-template.xlsx"
+          onClose={() => setImportModalOpen(false)}
+          onUpload={handleImport}
+        />
+      )}
     </div>
   );
 }

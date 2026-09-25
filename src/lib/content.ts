@@ -63,6 +63,7 @@ export interface ApiContentItem {
   difficulty_level: ContentDifficulty | "";
   media_url: string;
   content_file: string | null;
+  book_url: string;
   thumbnail: string | null;
   duration_seconds: number;
   duration_minutes: string;
@@ -111,6 +112,7 @@ export interface ContentPayload {
   difficulty_level?: ContentDifficulty | "";
   media_url?: string;
   content_file?: File | null;
+  book_url?: string;
   thumbnail?: File | null;
   thumbnail_upload?: File | null;
   duration_seconds?: number;
@@ -143,6 +145,9 @@ function toContentFormData(payload: ContentPayload): FormData {
   }
   if (payload.media_url && payload.media_url.trim() !== "") {
     form.append("media_url", payload.media_url.trim());
+  }
+  if (payload.book_url && payload.book_url.trim() !== "") {
+    form.append("book_url", payload.book_url.trim());
   }
   if (payload.duration_seconds && payload.duration_seconds > 0) {
     form.append("duration_seconds", String(payload.duration_seconds));

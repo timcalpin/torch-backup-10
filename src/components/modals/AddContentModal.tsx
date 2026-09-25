@@ -50,6 +50,7 @@ export function AddContentModal({ onClose }: { onClose: () => void }) {
   const [litDifficulty, setLitDifficulty] = useState<ContentDifficulty>("beginner");
   const [litDescription, setLitDescription] = useState("");
   const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [bookUrl, setBookUrl] = useState("");
   const [litThumbnail, setLitThumbnail] = useState<File | null>(null);
   const [litStatus, setLitStatus] = useState<"draft" | "published" | "archived">("published");
   const [litFeatured, setLitFeatured] = useState(false);
@@ -92,6 +93,14 @@ export function AddContentModal({ onClose }: { onClose: () => void }) {
       setError("Title is required.");
       return;
     }
+    if (!documentFile && !bookUrl.trim()) {
+      setError("Add a PDF file or a book website URL.");
+      return;
+    }
+    if (bookUrl.trim() && !/^https?:\/\//i.test(bookUrl.trim())) {
+      setError("Book Website URL must start with http:// or https://.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -103,7 +112,8 @@ export function AddContentModal({ onClose }: { onClose: () => void }) {
         content_type: "text",
         difficulty_level: litDifficulty,
         content_file: documentFile,
-        thumbnail_upload: litThumbnail,
+        book_url: bookUrl.trim(),
+        thumbnail: litThumbnail,
         is_featured: litFeatured,
         status: litStatus,
       });
@@ -297,6 +307,7 @@ export function AddContentModal({ onClose }: { onClose: () => void }) {
             </div>
             <div className="flex flex-col gap-[16px]">
               <SectionLabel label="Document & Cover Files" />
+              <p className="font-['Figtree'] text-[12px] text-[var(--app-muted)]">If a PDF is not available, add the book’s website link instead.</p>
               <div className="flex gap-[16px] flex-wrap">
                 <div className="flex-1 min-w-[200px]">
                   <FormField label="PDF / DOCX File">
@@ -308,6 +319,11 @@ export function AddContentModal({ onClose }: { onClose: () => void }) {
                       accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                       compact
                     />
+                  </FormField>
+                </div>
+                <div className="flex-1 min-w-[200px]">
+                  <FormField label="Book Website URL">
+                    <TextInput type="url" name="book_url" placeholder="https://example.com/book" value={bookUrl} onChange={setBookUrl} />
                   </FormField>
                 </div>
                 <div className="flex-1 min-w-[200px]">
