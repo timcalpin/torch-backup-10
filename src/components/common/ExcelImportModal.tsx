@@ -6,12 +6,13 @@ import { downloadExcelTemplate } from "@/lib/excel";
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export function ExcelImportModal({
-  title, subtitle, templateHeaders, templateFilename, actionLabel, helperText, onClose, onUpload,
+  title, subtitle, templateHeaders, templateFilename, templateUrl, actionLabel, helperText, onClose, onUpload,
 }: {
   title: string;
   subtitle: string;
   templateHeaders: readonly string[];
   templateFilename: string;
+  templateUrl?: string;
   actionLabel: string;
   helperText: string;
   onClose: () => void;
@@ -51,7 +52,7 @@ export function ExcelImportModal({
 
         <div className="rounded-[7px] border border-[#b72e32] bg-[rgba(183,46,50,0.12)] px-[12px] py-[10px] text-[11px]"><AlertTriangle size={15} className="mr-[7px] inline text-[#ef464b]" />Demo and UAT purposes only. Never use this on production.</div>
 
-        <button type="button" onClick={() => downloadExcelTemplate(templateHeaders, templateFilename)} className="mt-[18px] flex min-h-[44px] w-full items-center justify-center gap-[7px] rounded-[8px] border border-[#f37422] bg-[rgba(243,116,34,0.1)] text-[11px] font-semibold text-[#f37422] hover:bg-[rgba(243,116,34,0.18)]"><CloudDownload size={15} />Download template</button>
+        <button type="button" onClick={() => templateUrl ? window.open(templateUrl, "_blank", "noopener,noreferrer") : downloadExcelTemplate(templateHeaders, templateFilename)} className="mt-[18px] flex min-h-[44px] w-full items-center justify-center gap-[7px] rounded-[8px] border border-[#f37422] bg-[rgba(243,116,34,0.1)] text-[11px] font-semibold text-[#f37422] hover:bg-[rgba(243,116,34,0.18)]"><CloudDownload size={15} />Download template</button>
         <p className="mt-[6px] text-center text-[9px] text-[var(--app-muted)]">{helperText}</p>
         <input ref={inputRef} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={(event) => chooseFile(event.target.files?.[0])} />
         <button type="button" disabled={uploading} onClick={() => inputRef.current?.click()} className="mt-[18px] flex min-h-[100px] w-full flex-col items-center justify-center rounded-[8px] border border-dashed border-[var(--app-border)] text-[11px] hover:border-[#f37422]"><CloudUpload size={20} className="mb-[6px] text-[#f37422]" /><span>{file?.name ?? "Choose an .xlsx file"}</span><span className="mt-[3px] text-[9px] text-[var(--app-muted)]">XLSX only · Max 10 MB</span></button>
