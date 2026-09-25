@@ -17,7 +17,7 @@ function figmaAssetResolver() {
 }
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
+  const env = loadEnv(mode, __dirname, '')
   // The API sets session cookies with SameSite=Lax over plain HTTP, which the
   // browser drops on cross-site requests. Proxying keeps the browser talking
   // to a single origin in dev so the session cookie round-trips correctly.
