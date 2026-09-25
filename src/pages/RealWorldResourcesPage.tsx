@@ -9,7 +9,7 @@ import { MetricCard } from "@/components/common/MetricCard";
 import { TableCard, TableHead, TableRow } from "@/components/common/Table";
 import { Toggle } from "@/components/common/Toggle";
 import { ActionBtn } from "@/components/common/ActionBtn";
-import { FileIcon } from "@/components/icons";
+import { Thumbnail } from "@/components/common/Thumbnail";
 import { ApiError } from "@/lib/api";
 import { getResourceStats, importResources, listResources, updateResource, deleteResource, type ApiResource, type ResourceStats } from "@/lib/resources";
 import { ExcelImportModal } from "@/components/common/ExcelImportModal";
@@ -167,9 +167,7 @@ export function RealWorldResourcesPage() {
               {!loading && resources.map((item) => (
                 <TableRow key={item.id}>
                   <div className="flex items-center gap-[10px] flex-1 min-w-[220px]">
-                    <div className="w-[32px] h-[32px] rounded-full bg-[rgba(107,138,176,0.2)] flex items-center justify-center flex-shrink-0">
-                      <FileIcon color="#6b8ab0" />
-                    </div>
+                    <Thumbnail url={item.thumbnail} alt={`${item.title} thumbnail`} />
                     <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[13px]">{item.title}</p>
                   </div>
                   <div className="w-[140px] font-['Figtree'] font-normal text-[var(--app-text)] text-[12px]">

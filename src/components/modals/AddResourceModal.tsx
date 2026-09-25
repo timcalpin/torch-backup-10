@@ -15,6 +15,7 @@ import {
 } from "@/components/common/FormFields";
 
 import { ApiError } from "@/lib/api";
+import { FileDropzone } from "@/components/common/FileDropzone";
 import {
   createResource,
   updateResource,
@@ -283,6 +284,7 @@ export function AddResourceModal({
     useState<DeliveryFormat>("in_person");
   const [status, setStatus] =
     useState<ResourceStatus>("published");
+  const [thumbnail, setThumbnail] = useState<File | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -341,6 +343,7 @@ export function AddResourceModal({
       setCity(resource.city ?? "");
       setDeliveryFormat(validFormat);
       setStatus(validStatus);
+      setThumbnail(null);
       setError(null);
       return;
     }
@@ -357,6 +360,7 @@ export function AddResourceModal({
     setCity("");
     setDeliveryFormat("in_person");
     setStatus("published");
+    setThumbnail(null);
     setError(null);
   }, [open, resource]);
 
@@ -447,6 +451,7 @@ export function AddResourceModal({
           status,
           is_featured: resource.is_featured ?? false,
           tags: resource.tags ?? [],
+          ...(thumbnail ? { thumbnail } : {}),
         });
       } else {
         // Create new resource.
@@ -465,6 +470,7 @@ export function AddResourceModal({
           status,
           is_featured: false,
           tags: [],
+          thumbnail,
         };
 
         await createResource(payload);
@@ -569,6 +575,23 @@ export function AddResourceModal({
               rows={4}
               value={description}
               onChange={setDescription}
+            />
+          </FormField>
+
+          <FormField label="Thumbnail / Cover Image">
+            {resource?.thumbnail && !thumbnail && (
+              <img
+                src={resource.thumbnail}
+                alt="Current resource thumbnail"
+                className="mb-[8px] h-[64px] w-[64px] rounded-[8px] object-cover"
+              />
+            )}
+            <FileDropzone
+              label={resource?.thumbnail ? "Replace Thumbnail" : "Upload Thumbnail"}
+              file={thumbnail}
+              onChange={setThumbnail}
+              accept="image/*"
+              compact
             />
           </FormField>
 

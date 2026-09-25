@@ -68,7 +68,7 @@ export interface LiteraturePayload {
   category: LiteratureCategory;
   is_featured: boolean;
   pdf_file?: File | null;
-  thumbnail?: File | null;
+  thumbnail_upload?: File | null;
 }
 
 export function createLiterature(payload: LiteraturePayload): Promise<ApiLiterature> {
@@ -78,7 +78,7 @@ export function createLiterature(payload: LiteraturePayload): Promise<ApiLiterat
     category: (payload.category as any) || "literature",
     content_type: "text",
     content_file: payload.pdf_file,
-    thumbnail: payload.thumbnail,
+    thumbnail_upload: payload.thumbnail_upload,
     is_featured: payload.is_featured,
     status: "published",
   }).then((item) => ({
@@ -100,7 +100,7 @@ export function updateLiterature(id: number, payload: Partial<LiteraturePayload>
     ...(payload.category !== undefined ? { category: payload.category as any } : {}),
     ...(payload.is_featured !== undefined ? { is_featured: payload.is_featured } : {}),
     ...(payload.pdf_file !== undefined ? { content_file: payload.pdf_file } : {}),
-    ...(payload.thumbnail !== undefined ? { thumbnail: payload.thumbnail } : {}),
+    ...(payload.thumbnail_upload !== undefined ? { thumbnail_upload: payload.thumbnail_upload } : {}),
   }).then((item) => ({
     id: item.id,
     title: item.title,

@@ -12,6 +12,7 @@ import { ActionBtn } from "@/components/common/ActionBtn";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter, SectionLabel } from "@/components/common/Modal";
 import { FormField, TextInput, TextArea, SelectInput } from "@/components/common/FormFields";
 import { FileDropzone } from "@/components/common/FileDropzone";
+import { Thumbnail } from "@/components/common/Thumbnail";
 import { ExcelImportModal } from "@/components/common/ExcelImportModal";
 import { EditIcon, MicIcon, VideoIcon, BookIcon, SparklesIcon, FileIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api";
@@ -468,13 +469,13 @@ export function ResourcesAppPage() {
                 return (
                   <TableRow key={item.id}>
                     <div className="flex items-center gap-[10px] flex-1 min-w-[220px]">
-                      <div className="w-[32px] h-[32px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: tc.bg }}>
+                      {item.thumbnail ? <Thumbnail url={item.thumbnail} alt={`${item.title} thumbnail`} /> : <div className="w-[32px] h-[32px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: tc.bg }}>
                         {typeLabel === "Audio" && <MicIcon color={tc.color} />}
                         {typeLabel === "Video" && <VideoIcon color={tc.color} />}
                         {typeLabel === "Meditation" && <SparklesIcon color={tc.color} />}
                         {isDoc && <BookIcon color={tc.color} />}
                         {!["Audio", "Video", "Meditation"].includes(typeLabel) && !isDoc && <FileIcon color={tc.color} />}
-                      </div>
+                      </div>}
                       <div>
                         <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[13px] leading-tight">{item.title}</p>
                         <div className="flex items-center gap-[6px] mt-[2px]">

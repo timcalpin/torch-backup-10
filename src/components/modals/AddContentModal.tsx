@@ -103,7 +103,7 @@ export function AddContentModal({ onClose }: { onClose: () => void }) {
         content_type: "text",
         difficulty_level: litDifficulty,
         content_file: documentFile,
-        thumbnail: litThumbnail,
+        thumbnail_upload: litThumbnail,
         is_featured: litFeatured,
         status: litStatus,
       });
