@@ -392,9 +392,10 @@ export function updateResource(
   payload: UpdateResourcePayload
 ): Promise<ApiResource> {
   const path = `/api/v1/admin/resources/${id}/`;
-  const body = hasThumbnailUpload(payload)
-    ? toResourceFormData(payload)
-    : JSON.stringify(payload);
+  // Resource UAT deployments accept multipart requests for this endpoint.
+  // Use it for every update so feature toggles and ordinary edits do not
+  // fail with "Unsupported media type application/json".
+  const body = toResourceFormData(payload);
 
   return apiFetch<ApiResource>(path, {
     method: "PATCH",
@@ -405,9 +406,7 @@ export function updateResource(
     if (status === 400 && isFormatValidationError(error)) {
       return apiFetch<ApiResource>(path, {
         method: "PATCH",
-        body: hasThumbnailUpload(payload)
-          ? toResourceFormData({ ...payload, delivery_format: undefined, format: payload.delivery_format })
-          : JSON.stringify(withLegacyFormat(payload)),
+        body: toResourceFormData({ ...payload, delivery_format: undefined, format: payload.delivery_format }),
       });
     }
     if (status === 405) {
