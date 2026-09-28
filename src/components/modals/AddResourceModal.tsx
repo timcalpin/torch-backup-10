@@ -13,6 +13,7 @@ import {
   TextArea,
   SelectInput,
 } from "@/components/common/FormFields";
+import { FileDropzone } from "@/components/common/FileDropzone";
 
 import { ApiError } from "@/lib/api";
 import {
@@ -283,6 +284,7 @@ export function AddResourceModal({
     useState<DeliveryFormat>("in_person");
   const [status, setStatus] =
     useState<ResourceStatus>("published");
+  const [thumbnail, setThumbnail] = useState<File | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -341,6 +343,7 @@ export function AddResourceModal({
       setCity(resource.city ?? "");
       setDeliveryFormat(validFormat);
       setStatus(validStatus);
+      setThumbnail(null);
       setError(null);
       return;
     }
@@ -357,6 +360,7 @@ export function AddResourceModal({
     setCity("");
     setDeliveryFormat("in_person");
     setStatus("published");
+    setThumbnail(null);
     setError(null);
   }, [open, resource]);
 
@@ -447,6 +451,7 @@ export function AddResourceModal({
           status,
           is_featured: resource.is_featured ?? false,
           tags: resource.tags ?? [],
+          ...(thumbnail ? { thumbnail } : {}),
         });
       } else {
         // Create new resource.
@@ -465,6 +470,7 @@ export function AddResourceModal({
           status,
           is_featured: false,
           tags: [],
+          thumbnail,
         };
 
         await createResource(payload);
@@ -580,6 +586,17 @@ export function AddResourceModal({
               placeholder="https://..."
               value={url}
               onChange={setUrl}
+            />
+          </FormField>
+
+          <FormField label="Thumbnail / Cover">
+            <FileDropzone
+              label={resource?.thumbnail || resource?.thumbnail_url ? "Replace Thumbnail" : "Upload Thumbnail"}
+              file={thumbnail}
+              onChange={setThumbnail}
+              accept="image/*"
+              compact
+              previewUrl={resource?.thumbnail || resource?.thumbnail_url}
             />
           </FormField>
 

@@ -177,8 +177,16 @@ export function RealWorldResourcesPage() {
               {!loading && resources.map((item) => (
                 <TableRow key={item.id}>
                   <div className="flex items-center gap-[10px] flex-1 min-w-[220px]">
-                    <div className="w-[32px] h-[32px] rounded-full bg-[rgba(107,138,176,0.2)] flex items-center justify-center flex-shrink-0">
-                      <FileIcon color="#6b8ab0" />
+                    <div className="w-[32px] h-[32px] rounded-full bg-[rgba(107,138,176,0.2)] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {(item.thumbnail || item.thumbnail_url) ? (
+                        <img
+                          src={item.thumbnail || item.thumbnail_url}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <FileIcon color="#6b8ab0" />
+                      )}
                     </div>
                     <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[13px]">{item.title}</p>
                   </div>
