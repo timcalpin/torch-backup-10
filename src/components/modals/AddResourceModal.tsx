@@ -21,6 +21,7 @@ import {
   updateResource,
   type CreateResourcePayload,
   type DeliveryFormat,
+  type ResourceDay,
   type ResourceCategory,
   type ResourceStatus,
 } from "@/lib/resources";
@@ -64,6 +65,14 @@ const CATEGORY_OPTIONS: {
         value: "celebrate_recovery",
         label: "Celebrate Recovery",
       },
+      {
+        value: "refuge_recovery",
+        label: "Refuge Recovery",
+      },
+      {
+        value: "al_anon",
+        label: "Al-Anon / Alateen",
+      },
     ],
   },
 
@@ -99,6 +108,18 @@ const CATEGORY_OPTIONS: {
         value: "depression",
         label: "Depression",
       },
+      {
+        value: "addiction",
+        label: "Addiction / Substance Use",
+      },
+      {
+        value: "grief",
+        label: "Grief & Bereavement",
+      },
+      {
+        value: "dual_diagnosis",
+        label: "Dual Diagnosis / Co-Occurring",
+      },
     ],
   },
 
@@ -121,6 +142,10 @@ const CATEGORY_OPTIONS: {
       {
         value: "mat",
         label: "M.A.T. (Medically Assisted Treatment)",
+      },
+      {
+        value: "massage_bodywork",
+        label: "Massage & Bodywork",
       },
     ],
   },
@@ -184,6 +209,10 @@ const CATEGORY_OPTIONS: {
         value: "animal_assisted",
         label: "Animal-Assisted",
       },
+      {
+        value: "volunteering",
+        label: "Volunteering",
+      },
     ],
   },
 ];
@@ -216,6 +245,16 @@ const FORMAT_OPTIONS: {
     value: "not_applicable",
     label: "Not Applicable",
   },
+];
+
+const DAY_OPTIONS: { value: ResourceDay; label: string }[] = [
+  { value: "monday", label: "Monday" },
+  { value: "tuesday", label: "Tuesday" },
+  { value: "wednesday", label: "Wednesday" },
+  { value: "thursday", label: "Thursday" },
+  { value: "friday", label: "Friday" },
+  { value: "saturday", label: "Saturday" },
+  { value: "sunday", label: "Sunday" },
 ];
 
 /* ============================================================================
@@ -280,8 +319,11 @@ export function AddResourceModal({
   const [venue, setVenue] = useState("");
   const [streetAddress, setStreetAddress] = useState("");
   const [city, setCity] = useState("");
+  const [county, setCounty] = useState("");
+  const [state, setState] = useState("");
   const [deliveryFormat, setDeliveryFormat] =
     useState<DeliveryFormat>("in_person");
+  const [day, setDay] = useState<ResourceDay | "">("");
   const [status, setStatus] =
     useState<ResourceStatus>("published");
   const [thumbnail, setThumbnail] = useState<File | null>(null);
@@ -341,7 +383,14 @@ export function AddResourceModal({
       setVenue(resource.venue ?? "");
       setStreetAddress(resource.street_address ?? "");
       setCity(resource.city ?? "");
+      setCounty(resource.county ?? "");
+      setState(resource.state ?? "");
       setDeliveryFormat(validFormat);
+      setDay(
+        DAY_OPTIONS.some((item) => item.value === resource.day)
+          ? (resource.day as ResourceDay)
+          : ""
+      );
       setStatus(validStatus);
       setThumbnail(null);
       setError(null);
@@ -358,7 +407,10 @@ export function AddResourceModal({
     setVenue("");
     setStreetAddress("");
     setCity("");
+    setCounty("");
+    setState("");
     setDeliveryFormat("in_person");
+    setDay("");
     setStatus("published");
     setThumbnail(null);
     setError(null);
@@ -437,7 +489,10 @@ export function AddResourceModal({
           venue: venue.trim(),
           street_address: streetAddress.trim(),
           city: city.trim(),
+          county: county.trim(),
+          state: state.trim(),
           delivery_format: deliveryFormat,
+          day: day || undefined,
           status,
           is_featured: resource.is_featured ?? false,
           tags: resource.tags ?? [],
@@ -456,7 +511,10 @@ export function AddResourceModal({
           venue: venue.trim(),
           street_address: streetAddress.trim(),
           city: city.trim(),
+          county: county.trim(),
+          state: state.trim(),
           delivery_format: deliveryFormat,
+          day: day || undefined,
           status,
           is_featured: false,
           tags: [],
@@ -507,6 +565,15 @@ export function AddResourceModal({
           </FormField>
 
           <div className="flex flex-wrap gap-[14px]">
+            <div className="min-w-[180px] flex-1">
+              <FormField label="Day">
+                <SelectInput
+                  options={["No specific day", ...DAY_OPTIONS.map((item) => item.label)]}
+                  value={DAY_OPTIONS.find((item) => item.value === day)?.label ?? "No specific day"}
+                  onChange={(label) => setDay(DAY_OPTIONS.find((item) => item.label === label)?.value ?? "")}
+                />
+              </FormField>
+            </div>
             <div className="min-w-[180px] flex-1">
               <FormField
                 label="Category"
@@ -625,6 +692,27 @@ export function AddResourceModal({
               onChange={setCity}
             />
           </FormField>
+
+          <div className="flex flex-wrap gap-[14px]">
+            <div className="min-w-[180px] flex-1">
+              <FormField label="County">
+                <TextInput
+                  placeholder="Bucks or Philadelphia"
+                  value={county}
+                  onChange={setCounty}
+                />
+              </FormField>
+            </div>
+            <div className="min-w-[180px] flex-1">
+              <FormField label="State">
+                <TextInput
+                  placeholder="PA"
+                  value={state}
+                  onChange={setState}
+                />
+              </FormField>
+            </div>
+          </div>
 
           <div className="flex flex-wrap gap-[14px]">
             <div className="min-w-[180px] flex-1">
