@@ -416,16 +416,6 @@ export function AddResourceModal({
       return;
     }
 
-    if (!description.trim()) {
-      setError("Description is required.");
-      return;
-    }
-
-    if (!url.trim()) {
-      setError("URL is required.");
-      return;
-    }
-
     if (!deliveryFormat) {
       setError("Format is required.");
       return;
@@ -568,7 +558,6 @@ export function AddResourceModal({
 
           <FormField
             label="Description"
-            required
           >
             <TextArea
               placeholder="Brief description of the resource (1-2 sentences)"
@@ -580,7 +569,6 @@ export function AddResourceModal({
 
           <FormField
             label="Link (URL)"
-            required
           >
             <TextInput
               placeholder="https://..."
