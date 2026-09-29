@@ -14,6 +14,7 @@ import {
   SelectInput,
 } from "@/components/common/FormFields";
 import { FileDropzone } from "@/components/common/FileDropzone";
+import { Toggle } from "@/components/common/Toggle";
 
 import { ApiError } from "@/lib/api";
 import {
@@ -326,6 +327,7 @@ export function AddResourceModal({
   const [day, setDay] = useState<ResourceDay | "">("");
   const [status, setStatus] =
     useState<ResourceStatus>("published");
+  const [featured, setFeatured] = useState(false);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
@@ -392,6 +394,7 @@ export function AddResourceModal({
           : ""
       );
       setStatus(validStatus);
+      setFeatured(resource.is_featured ?? false);
       setThumbnail(null);
       setError(null);
       return;
@@ -412,6 +415,7 @@ export function AddResourceModal({
     setDeliveryFormat("in_person");
     setDay("");
     setStatus("published");
+    setFeatured(false);
     setThumbnail(null);
     setError(null);
   }, [open, resource]);
@@ -494,7 +498,7 @@ export function AddResourceModal({
           delivery_format: deliveryFormat,
           day: day || undefined,
           status,
-          is_featured: resource.is_featured ?? false,
+          is_featured: featured,
           tags: resource.tags ?? [],
           ...(thumbnail ? { thumbnail } : {}),
         });
@@ -516,7 +520,7 @@ export function AddResourceModal({
           delivery_format: deliveryFormat,
           day: day || undefined,
           status,
-          is_featured: false,
+          is_featured: featured,
           tags: [],
           thumbnail,
         };
@@ -653,6 +657,22 @@ export function AddResourceModal({
               compact
               previewUrl={resource?.thumbnail || resource?.thumbnail_url}
             />
+          </FormField>
+
+          <FormField label="Featured Status">
+            <div className="relative h-[44px] rounded-[10px] bg-[var(--app-surface)]">
+              <div className="pointer-events-none absolute inset-0 rounded-[10px] border border-[var(--app-border)]" />
+              <button
+                type="button"
+                onClick={() => setFeatured((value) => !value)}
+                className="flex h-full w-full items-center justify-between px-[14px]"
+              >
+                <span className="font-['Figtree'] text-[14px] text-[var(--app-text)]">
+                  Show in featured resources
+                </span>
+                <Toggle on={featured} />
+              </button>
+            </div>
           </FormField>
 
           <div className="flex flex-wrap gap-[14px]">
