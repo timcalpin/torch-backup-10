@@ -29,6 +29,8 @@ export const RESOURCE_SUBCATEGORIES = {
     "smart",
     "recovery_dharma",
     "celebrate_recovery",
+    "refuge_recovery",
+    "al_anon",
   ],
 
   mental_health: [
@@ -39,6 +41,9 @@ export const RESOURCE_SUBCATEGORIES = {
     "couples_therapy",
     "anxiety",
     "depression",
+    "addiction",
+    "grief",
+    "dual_diagnosis",
   ],
 
   physical_health: [
@@ -46,6 +51,7 @@ export const RESOURCE_SUBCATEGORIES = {
     "gym",
     "doctors",
     "mat",
+    "massage_bodywork",
   ],
 
   additional_support: [
@@ -64,6 +70,7 @@ export const RESOURCE_SUBCATEGORIES = {
     "live_events",
     "parks_nature",
     "animal_assisted",
+    "volunteering",
   ],
 } as const;
 
@@ -81,6 +88,18 @@ export const DELIVERY_FORMATS = [
 
 export type DeliveryFormat =
   (typeof DELIVERY_FORMATS)[number];
+
+export const RESOURCE_DAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
+
+export type ResourceDay = (typeof RESOURCE_DAYS)[number];
 
 /* =========================================================
    RESOURCE STATUS
@@ -139,7 +158,7 @@ export interface ApiResource {
   zip_code?: string;
   country?: string;
 
-  day?: string;
+  day?: ResourceDay | "";
   start_time?: string | null;
   end_time?: string | null;
 
