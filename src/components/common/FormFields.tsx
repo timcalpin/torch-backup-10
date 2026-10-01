@@ -20,6 +20,7 @@ export function TextInput({
   onChange,
   type = "text",
   required,
+  disabled,
 }: {
   placeholder?: string;
   name?: string;
@@ -28,9 +29,10 @@ export function TextInput({
   onChange?: (value: string) => void;
   type?: "text" | "email" | "url" | "date" | "number" | "time";
   required?: boolean;
+  disabled?: boolean;
 }) {
   return (
-    <div className="relative bg-[var(--app-surface)] h-[44px] rounded-[10px]">
+    <div className={`relative h-[44px] rounded-[10px] ${disabled ? "bg-[var(--app-bg)]" : "bg-[var(--app-surface)]"}`}>
       <div className="absolute inset-0 rounded-[10px] border border-[var(--app-border)] pointer-events-none" />
       <input
         type={type}
@@ -40,7 +42,8 @@ export function TextInput({
         value={onChange ? value : undefined}
         onChange={onChange ? (event) => onChange(event.target.value) : undefined}
         required={required}
-        className="w-full h-full bg-transparent px-[14px] font-['Figtree'] font-normal text-[var(--app-text)] text-[14px] placeholder-[var(--app-muted)] outline-none"
+        disabled={disabled}
+        className="w-full h-full bg-transparent px-[14px] font-['Figtree'] font-normal text-[var(--app-text)] text-[14px] placeholder-[var(--app-muted)] outline-none disabled:cursor-not-allowed disabled:text-[var(--app-muted)]"
       />
     </div>
   );
