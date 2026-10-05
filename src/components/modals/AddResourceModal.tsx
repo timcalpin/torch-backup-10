@@ -13,6 +13,8 @@ import {
   TextArea,
   SelectInput,
 } from "@/components/common/FormFields";
+import { FileDropzone } from "@/components/common/FileDropzone";
+import { Toggle } from "@/components/common/Toggle";
 
 import { ApiError } from "@/lib/api";
 import { FileDropzone } from "@/components/common/FileDropzone";
@@ -21,6 +23,7 @@ import {
   updateResource,
   type CreateResourcePayload,
   type DeliveryFormat,
+  type ResourceDay,
   type ResourceCategory,
   type ResourceStatus,
 } from "@/lib/resources";
@@ -64,6 +67,14 @@ const CATEGORY_OPTIONS: {
         value: "celebrate_recovery",
         label: "Celebrate Recovery",
       },
+      {
+        value: "refuge_recovery",
+        label: "Refuge Recovery",
+      },
+      {
+        value: "al_anon",
+        label: "Al-Anon / Alateen",
+      },
     ],
   },
 
@@ -99,6 +110,18 @@ const CATEGORY_OPTIONS: {
         value: "depression",
         label: "Depression",
       },
+      {
+        value: "addiction",
+        label: "Addiction / Substance Use",
+      },
+      {
+        value: "grief",
+        label: "Grief & Bereavement",
+      },
+      {
+        value: "dual_diagnosis",
+        label: "Dual Diagnosis / Co-Occurring",
+      },
     ],
   },
 
@@ -121,6 +144,10 @@ const CATEGORY_OPTIONS: {
       {
         value: "mat",
         label: "M.A.T. (Medically Assisted Treatment)",
+      },
+      {
+        value: "massage_bodywork",
+        label: "Massage & Bodywork",
       },
     ],
   },
@@ -184,6 +211,10 @@ const CATEGORY_OPTIONS: {
         value: "animal_assisted",
         label: "Animal-Assisted",
       },
+      {
+        value: "volunteering",
+        label: "Volunteering",
+      },
     ],
   },
 ];
@@ -216,6 +247,16 @@ const FORMAT_OPTIONS: {
     value: "not_applicable",
     label: "Not Applicable",
   },
+];
+
+const DAY_OPTIONS: { value: ResourceDay; label: string }[] = [
+  { value: "monday", label: "Monday" },
+  { value: "tuesday", label: "Tuesday" },
+  { value: "wednesday", label: "Wednesday" },
+  { value: "thursday", label: "Thursday" },
+  { value: "friday", label: "Friday" },
+  { value: "saturday", label: "Saturday" },
+  { value: "sunday", label: "Sunday" },
 ];
 
 /* ============================================================================
@@ -280,10 +321,14 @@ export function AddResourceModal({
   const [venue, setVenue] = useState("");
   const [streetAddress, setStreetAddress] = useState("");
   const [city, setCity] = useState("");
+  const [county, setCounty] = useState("");
+  const [state, setState] = useState("");
   const [deliveryFormat, setDeliveryFormat] =
     useState<DeliveryFormat>("in_person");
+  const [day, setDay] = useState<ResourceDay | "">("");
   const [status, setStatus] =
     useState<ResourceStatus>("published");
+  const [featured, setFeatured] = useState(false);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
@@ -341,8 +386,16 @@ export function AddResourceModal({
       setVenue(resource.venue ?? "");
       setStreetAddress(resource.street_address ?? "");
       setCity(resource.city ?? "");
+      setCounty(resource.county ?? "");
+      setState(resource.state ?? "");
       setDeliveryFormat(validFormat);
+      setDay(
+        DAY_OPTIONS.some((item) => item.value === resource.day)
+          ? (resource.day as ResourceDay)
+          : ""
+      );
       setStatus(validStatus);
+      setFeatured(resource.is_featured ?? false);
       setThumbnail(null);
       setError(null);
       return;
@@ -358,8 +411,12 @@ export function AddResourceModal({
     setVenue("");
     setStreetAddress("");
     setCity("");
+    setCounty("");
+    setState("");
     setDeliveryFormat("in_person");
+    setDay("");
     setStatus("published");
+    setFeatured(false);
     setThumbnail(null);
     setError(null);
   }, [open, resource]);
@@ -416,16 +473,6 @@ export function AddResourceModal({
       return;
     }
 
-    if (!description.trim()) {
-      setError("Description is required.");
-      return;
-    }
-
-    if (!url.trim()) {
-      setError("URL is required.");
-      return;
-    }
-
     if (!deliveryFormat) {
       setError("Format is required.");
       return;
@@ -447,9 +494,12 @@ export function AddResourceModal({
           venue: venue.trim(),
           street_address: streetAddress.trim(),
           city: city.trim(),
+          county: county.trim(),
+          state: state.trim(),
           delivery_format: deliveryFormat,
+          day: day || undefined,
           status,
-          is_featured: resource.is_featured ?? false,
+          is_featured: featured,
           tags: resource.tags ?? [],
           ...(thumbnail ? { thumbnail } : {}),
         });
@@ -466,9 +516,12 @@ export function AddResourceModal({
           venue: venue.trim(),
           street_address: streetAddress.trim(),
           city: city.trim(),
+          county: county.trim(),
+          state: state.trim(),
           delivery_format: deliveryFormat,
+          day: day || undefined,
           status,
-          is_featured: false,
+          is_featured: featured,
           tags: [],
           thumbnail,
         };
@@ -517,6 +570,15 @@ export function AddResourceModal({
           </FormField>
 
           <div className="flex flex-wrap gap-[14px]">
+            <div className="min-w-[180px] flex-1">
+              <FormField label="Day">
+                <SelectInput
+                  options={["No specific day", ...DAY_OPTIONS.map((item) => item.label)]}
+                  value={DAY_OPTIONS.find((item) => item.value === day)?.label ?? "No specific day"}
+                  onChange={(label) => setDay(DAY_OPTIONS.find((item) => item.label === label)?.value ?? "")}
+                />
+              </FormField>
+            </div>
             <div className="min-w-[180px] flex-1">
               <FormField
                 label="Category"
@@ -568,7 +630,6 @@ export function AddResourceModal({
 
           <FormField
             label="Description"
-            required
           >
             <TextArea
               placeholder="Brief description of the resource (1-2 sentences)"
@@ -597,13 +658,39 @@ export function AddResourceModal({
 
           <FormField
             label="Link (URL)"
-            required
           >
             <TextInput
               placeholder="https://..."
               value={url}
               onChange={setUrl}
             />
+          </FormField>
+
+          <FormField label="Thumbnail / Cover">
+            <FileDropzone
+              label={resource?.thumbnail || resource?.thumbnail_url ? "Replace Thumbnail" : "Upload Thumbnail"}
+              file={thumbnail}
+              onChange={setThumbnail}
+              accept="image/*"
+              compact
+              previewUrl={resource?.thumbnail || resource?.thumbnail_url}
+            />
+          </FormField>
+
+          <FormField label="Featured Status">
+            <div className="relative h-[44px] rounded-[10px] bg-[var(--app-surface)]">
+              <div className="pointer-events-none absolute inset-0 rounded-[10px] border border-[var(--app-border)]" />
+              <button
+                type="button"
+                onClick={() => setFeatured((value) => !value)}
+                className="flex h-full w-full items-center justify-between px-[14px]"
+              >
+                <span className="font-['Figtree'] text-[14px] text-[var(--app-text)]">
+                  Show in featured resources
+                </span>
+                <Toggle on={featured} />
+              </button>
+            </div>
           </FormField>
 
           <div className="flex flex-wrap gap-[14px]">
@@ -643,6 +730,27 @@ export function AddResourceModal({
               onChange={setCity}
             />
           </FormField>
+
+          <div className="flex flex-wrap gap-[14px]">
+            <div className="min-w-[180px] flex-1">
+              <FormField label="County">
+                <TextInput
+                  placeholder="Bucks or Philadelphia"
+                  value={county}
+                  onChange={setCounty}
+                />
+              </FormField>
+            </div>
+            <div className="min-w-[180px] flex-1">
+              <FormField label="State">
+                <TextInput
+                  placeholder="PA"
+                  value={state}
+                  onChange={setState}
+                />
+              </FormField>
+            </div>
+          </div>
 
           <div className="flex flex-wrap gap-[14px]">
             <div className="min-w-[180px] flex-1">
