@@ -190,3 +190,15 @@ export function deleteContentItem(id: number): Promise<void> {
     method: "DELETE",
   });
 }
+
+export interface BulkDeleteContentResponse {
+  deleted: number;
+  requested: number;
+}
+
+export function deleteContentItems(ids: number[]): Promise<BulkDeleteContentResponse> {
+  return apiFetch<BulkDeleteContentResponse>("/api/v1/admin/content/bulk-delete/", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
+}

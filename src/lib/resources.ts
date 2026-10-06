@@ -453,6 +453,18 @@ export function deleteResource(
   );
 }
 
+export interface BulkDeleteResourceResponse {
+  deleted: number;
+  requested: number;
+}
+
+export function deleteResources(ids: number[]): Promise<BulkDeleteResourceResponse> {
+  return apiFetch<BulkDeleteResourceResponse>("/api/v1/admin/resources/bulk-delete/", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
+}
+
 export function listEvents(query: AdminQuery = {}): Promise<PaginatedResponse<ApiResource>> {
   return apiFetch<PaginatedResponse<ApiResource>>(withAdminQuery("/api/v1/admin/events/", query));
 }
