@@ -7,6 +7,7 @@ import {
   Plus,
   RotateCw,
   Search,
+  Trash2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -39,6 +40,7 @@ import {
   getUserStats,
   createUser,
   updateUser,
+  deleteUser,
   refreshSobriety,
   type ApiUser,
   type UserStats,
@@ -1357,9 +1359,78 @@ function ReloadSobrietyModal({
 }
 
 
-/* ==========================================================================
+/* ============================================================================
+   DELETE USER MODAL
+   ============================================================================ */
+
+function DeleteUserModal({
+  user,
+  onClose,
+  onDeleted,
+}: {
+  user: DisplayUser;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [deleteCognitoUser, setDeleteCognitoUser] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      await deleteUser(user.id, { deleteCognitoUser });
+      onDeleted();
+      onClose();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Unable to delete this user. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <ModalOverlay onClose={() => !submitting && onClose()}>
+      <div className="relative w-full max-w-[480px] rounded-[24px] bg-[var(--app-bg)] p-[32px] shadow-[0_32px_64px_rgba(0,0,0,0.5)]">
+        <div className="pointer-events-none absolute inset-0 rounded-[24px] border border-[var(--app-border)]" />
+        <div className="flex items-start gap-[12px]">
+          <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-[rgba(239,68,68,0.12)] text-[#ef4444]"><Trash2 size={18} /></div>
+          <div>
+            <p className="font-['Figtree'] text-[20px] font-bold text-[var(--app-text)]">Delete user data?</p>
+            <p className="mt-[5px] font-['Figtree'] text-[13px] text-[var(--app-muted)]">This permanently deletes all application data related to {user.name} ({user.email}).</p>
+          </div>
+        </div>
+
+        <label className="mt-[22px] flex cursor-pointer items-start gap-[10px] rounded-[10px] border border-[var(--app-border)] bg-[var(--app-surface)] p-[12px]">
+          <input type="checkbox" checked={deleteCognitoUser} onChange={(event) => setDeleteCognitoUser(event.target.checked)} disabled={submitting} className="mt-[2px] h-[15px] w-[15px] accent-[#ef4444]" />
+          <span>
+            <span className="block font-['Figtree'] text-[13px] font-semibold text-[var(--app-text)]">Also delete this user from Amazon Cognito</span>
+            <span className="mt-[3px] block font-['Figtree'] text-[11px] leading-relaxed text-[var(--app-muted)]">{deleteCognitoUser ? "The application data and the Cognito account will both be deleted." : "Only application/backend data will be deleted; the Cognito account will remain."}</span>
+          </span>
+        </label>
+
+        <p className="mt-[14px] rounded-[8px] border border-[#ef4444]/30 bg-[#ef4444]/[0.08] px-[11px] py-[9px] font-['Figtree'] text-[11px] leading-relaxed text-[#ef8b8b]">Final confirmation: this action cannot be undone.</p>
+        {error && <p role="alert" className="mt-[14px] font-['Figtree'] text-[12px] text-red-500">{error}</p>}
+
+        <div className="mt-[24px] flex items-center gap-[12px]">
+          <button type="button" onClick={onClose} disabled={submitting} className="flex-1 rounded-[12px] border border-[var(--app-border)] py-[11px] font-['Figtree'] text-[14px] font-semibold text-[var(--app-muted)] transition-colors hover:text-[var(--app-text)] disabled:cursor-not-allowed disabled:opacity-60">Cancel</button>
+          <button type="button" onClick={handleConfirm} disabled={submitting} className="flex-1 rounded-[12px] bg-[#b72e32] py-[11px] font-['Figtree'] text-[14px] font-semibold text-white shadow-[0_4px_8px_rgba(183,46,50,0.25)] transition-colors hover:bg-[#9f292d] disabled:cursor-not-allowed disabled:opacity-60">{submitting ? "Deleting..." : "Delete permanently"}</button>
+        </div>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+
+/* ============================================================================
    USERS PAGE
-   ========================================================================== */
+   ============================================================================ */
 
 export function UsersPage() {
   const {
@@ -1386,6 +1457,9 @@ export function UsersPage() {
     useState<string | null>(null);
 
   const [sobrietyUser, setSobrietyUser] =
+    useState<DisplayUser | null>(null);
+
+  const [deleteUserTarget, setDeleteUserTarget] =
     useState<DisplayUser | null>(null);
 
   const [users, setUsers] =
@@ -2521,6 +2595,16 @@ export function UsersPage() {
                               <RotateCw size={13} strokeWidth={1.5} />
                             </button>
 
+                            <button
+                              type="button"
+                              title={`Delete ${u.name}`}
+                              aria-label={`Delete ${u.name}`}
+                              onClick={() => setDeleteUserTarget(u)}
+                              className="flex h-[25px] w-[25px] items-center justify-center rounded-[5px] text-[var(--app-muted)] transition-colors hover:bg-[rgba(239,68,68,0.12)] hover:text-[#ef4444]"
+                            >
+                              <Trash2 size={13} strokeWidth={1.5} />
+                            </button>
+
                           </div>
 
                         </div>
@@ -2683,6 +2767,17 @@ export function UsersPage() {
               onConfirmed={
                 bumpUsersVersion
               }
+            />
+          )}
+
+          {deleteUserTarget && (
+            <DeleteUserModal
+              user={deleteUserTarget}
+              onClose={() => setDeleteUserTarget(null)}
+              onDeleted={() => {
+                bumpUsersVersion();
+                bumpDataRefreshVersion();
+              }}
             />
           )}
 
