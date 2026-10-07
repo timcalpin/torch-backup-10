@@ -51,12 +51,12 @@ export function TableToolbar({
   );
 }
 
-export function TableHead({ cols }: { cols: { label: string; w?: string }[] }) {
+export function TableHead({ cols }: { cols: { label: React.ReactNode; w?: string }[] }) {
   return (
     <div className="border-b border-[var(--app-border)]">
       <div className="flex items-center px-[18px] py-[11px] font-['JetBrains_Mono'] font-bold text-[var(--app-muted)] text-[10px] uppercase tracking-wide">
-        {cols.map((c) => (
-          <div key={c.label} className={c.w ?? "flex-1 min-w-0"}>
+        {cols.map((c, index) => (
+          <div key={index} className={c.w ?? "flex-1 min-w-0"}>
             {c.label}
           </div>
         ))}

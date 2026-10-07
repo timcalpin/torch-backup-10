@@ -17,6 +17,7 @@ import {
   getSupportGroup,
   getSupportGroupStats,
   deleteSupportGroup,
+  updateSupportGroup,
   listSupportGroupMembers,
   type ApiSupportGroup,
   type SupportGroupStats,
@@ -279,7 +280,7 @@ function GroupDetailModal({ groupId, onClose }: { groupId: string; onClose: () =
   );
 }
 
-function EditGroupModal({ group, onClose, onSaved }: { group: DisplayGroup; onClose: () => void; onSaved: () => void }) {
+function EditGroupModal({ groupId, onClose, onSaved }: { groupId: string; onClose: () => void; onSaved: () => void }) {
   const [detail, setDetail] = useState<ApiSupportGroup | null>(null);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
@@ -295,7 +296,7 @@ function EditGroupModal({ group, onClose, onSaved }: { group: DisplayGroup; onCl
 
   useEffect(() => {
     let cancelled = false;
-    getSupportGroup(group.id)
+    getSupportGroup(groupId)
       .then((response) => {
         if (cancelled) return;
         setDetail(response);
@@ -315,7 +316,7 @@ function EditGroupModal({ group, onClose, onSaved }: { group: DisplayGroup; onCl
     return () => {
       cancelled = true;
     };
-  }, [group.id]);
+  }, [groupId]);
 
   const handleSubmit = async () => {
     const parsed = Number(maxCapacity);
@@ -330,7 +331,7 @@ function EditGroupModal({ group, onClose, onSaved }: { group: DisplayGroup; onCl
     setSubmitting(true);
     setError(null);
     try {
-      await updateSupportGroup(group.id, {
+      await updateSupportGroup(groupId, {
         name: name.trim(),
         description: description.trim(),
         category: category.toLowerCase(),
@@ -352,7 +353,7 @@ function EditGroupModal({ group, onClose, onSaved }: { group: DisplayGroup; onCl
   return (
     <ModalOverlay onClose={onClose}>
       <ModalCard>
-        <ModalHeader title={`Edit ${group.name}`} onClose={onClose} />
+        <ModalHeader title={`Edit ${detail?.name ?? "Support group"}`} onClose={onClose} />
         {loading && <p className="font-['Figtree'] text-[13px] text-[var(--app-muted)]">Loading group details...</p>}
         {!loading && detail && <div className="flex flex-col gap-[16px]">
           <div className="flex gap-[16px] flex-wrap">
