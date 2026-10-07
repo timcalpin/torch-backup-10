@@ -1410,8 +1410,7 @@ function DeleteUserModal({
         <label className="mt-[22px] flex cursor-pointer items-start gap-[10px] rounded-[10px] border border-[var(--app-border)] bg-[var(--app-surface)] p-[12px]">
           <input type="checkbox" checked={deleteCognitoUser} onChange={(event) => setDeleteCognitoUser(event.target.checked)} disabled={submitting} className="mt-[2px] h-[15px] w-[15px] accent-[#ef4444]" />
           <span>
-            <span className="block font-['Figtree'] text-[13px] font-semibold text-[var(--app-text)]">Also delete this user from Amazon Cognito</span>
-            <span className="mt-[3px] block font-['Figtree'] text-[11px] leading-relaxed text-[var(--app-muted)]">{deleteCognitoUser ? "The application data and the Cognito account will both be deleted." : "Only application/backend data will be deleted; the Cognito account will remain."}</span>
+            <span className="block font-['Figtree'] text-[13px] font-semibold text-[var(--app-text)]">Delete this user from Amazon Cognito too</span>
           </span>
         </label>
 
