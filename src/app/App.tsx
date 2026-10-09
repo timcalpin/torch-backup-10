@@ -23,6 +23,9 @@ import {
   RecoveryPage,
   MetricsDebugPage,
   MetricsDebugDetailPage,
+  IntakeTestPage,
+  IntakeTestDetailPage,
+  IntakeUploadLogsPage,
   PayloadInspectorPage,
   PushNotificationsPage,
   CreateNotificationPage,
@@ -53,6 +56,9 @@ function renderPage(pageKey: AppPageKey) {
     case "profile":          return <ProfilePage />;
     case "metrics-debug":         return <MetricsDebugPage />;
     case "metrics-debug-detail":  return <MetricsDebugDetailPage />;
+    case "intake-test":            return <IntakeTestPage />;
+    case "intake-test-detail":     return <IntakeTestDetailPage />;
+    case "intake-upload-logs":     return <IntakeUploadLogsPage />;
     case "payload-inspector":     return <PayloadInspectorPage />;
     case "push-notifications": return <PushNotificationsPage />;
     case "create-notification": return <CreateNotificationPage />;

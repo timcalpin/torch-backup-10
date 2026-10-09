@@ -17,7 +17,6 @@ import { FileDropzone } from "@/components/common/FileDropzone";
 import { Toggle } from "@/components/common/Toggle";
 
 import { ApiError } from "@/lib/api";
-import { FileDropzone } from "@/components/common/FileDropzone";
 import {
   createResource,
   updateResource,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, Lightbulb, SlidersHorizontal, FileText, Target, UserIcon, ClipboardList, Database } from "lucide-react";
+import { Bell, Lightbulb, SlidersHorizontal, FileText, Target, UserIcon, ClipboardList, Database, ClipboardCheck } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   TorchFlame,
@@ -160,6 +160,7 @@ export function Sidebar({ pathname, lightMode }: SidebarProps) {
             <NavItem to="/settings" icon={<SlidersHorizontal size={14} strokeWidth={1.7} color={iconColor("/settings")} />} label="Settings" active={is("/settings")} lightMode={lightMode} />
             <NavItem to="/privacy" icon={<CircleXIcon color={iconColor("/privacy")} />} label="Privacy & Compliance" active={is("/privacy")} lightMode={lightMode} />
             <NavItem to="/test-data" icon={<Database size={14} strokeWidth={1.7} color={iconColor("/test-data")} />} label="Test Data" active={is("/test-data") || is("/testdata")} lightMode={lightMode} />
+            <NavItem to="/admin/intake-tests" icon={<ClipboardCheck size={14} strokeWidth={1.7} color={iconColor("/admin/intake-tests")} />} label="Intake Test" active={pathname.startsWith("/admin/intake-tests") || pathname.startsWith("/intake-test")} lightMode={lightMode} />
           </NavSection>
         </div>
       </div>
