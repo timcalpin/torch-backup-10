@@ -9,7 +9,7 @@ import { MetricCard } from "@/components/common/MetricCard";
 import { TableCard, TableHead, TableRow } from "@/components/common/Table";
 import { Toggle } from "@/components/common/Toggle";
 import { ActionBtn } from "@/components/common/ActionBtn";
-import { FileIcon } from "@/components/icons";
+import { Thumbnail } from "@/components/common/Thumbnail";
 import { ApiError } from "@/lib/api";
 import { getResourceStats, importResources, listResources, updateResource, deleteResource, deleteResources, type ApiResource, type ResourceStats } from "@/lib/resources";
 import { ExcelImportModal } from "@/components/common/ExcelImportModal";
@@ -174,17 +174,7 @@ export function RealWorldResourcesPage() {
     setImportMessage(null);
     setActionError(null);
     try {
-      const rows = await readExcelRows(file);
-      if (!rows.length) {
-        setActionError("The Excel file does not contain any data rows.");
-        return false;
-      }
-      const csvFile = excelRowsToCsvFile(
-        RESOURCE_IMPORT_HEADERS,
-        rows,
-        file.name.replace(/\.xlsx$/i, ".csv")
-      );
-      const result = await importResources(csvFile);
+      const result = await importResources(file);
       setImportMessage(`Imported ${result.created} resources${result.failed ? `; ${result.failed} rows failed.` : "."}`);
       if (result.errors?.length) setActionError(result.errors.slice(0, 3).map((item) => `Row ${item.row ?? "?"}: ${item.message}`).join(" · "));
       bumpResourcesVersion();
@@ -262,17 +252,7 @@ export function RealWorldResourcesPage() {
                     <input type="checkbox" aria-label={`Select ${item.title}`} checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-[16px] w-[16px] accent-[#f37422] cursor-pointer" />
                   </div>
                   <div className="flex items-center gap-[10px] flex-1 min-w-[220px]">
-                    <div className="w-[32px] h-[32px] rounded-full bg-[rgba(107,138,176,0.2)] flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {(item.thumbnail || item.thumbnail_url) ? (
-                        <img
-                          src={item.thumbnail || item.thumbnail_url}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <FileIcon color="#6b8ab0" />
-                      )}
-                    </div>
+                    <Thumbnail url={item.thumbnail} alt={`${item.title} thumbnail`} />
                     <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[13px]">{item.title}</p>
                   </div>
                   <div className="w-[140px] font-['Figtree'] font-normal text-[var(--app-text)] text-[12px]">

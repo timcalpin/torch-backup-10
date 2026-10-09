@@ -2,11 +2,20 @@ import * as XLSX from "xlsx";
 
 export type ExcelRow = Record<string, string>;
 
+export function downloadS3Template(filename: string) {
+  const s3MediaUrl = import.meta.env.VITE_S3_MEDIA_URL as string | undefined;
+  if (s3MediaUrl) {
+    const url = `${s3MediaUrl.replace(/\/$/, "")}/templates/${filename}`;
+    window.open(url, "_blank");
+    return;
+  }
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) || "";
+  const url = `${apiBaseUrl.replace(/\/$/, "")}/api/v1/admin/templates/${encodeURIComponent(filename)}/download/`;
+  window.open(url, "_blank");
+}
+
 export function downloadExcelTemplate(headers: readonly string[], filename: string) {
-  const worksheet = XLSX.utils.aoa_to_sheet([headers]);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
-  XLSX.writeFile(workbook, filename);
+  downloadS3Template(filename);
 }
 
 export async function readExcelRows(file: File): Promise<ExcelRow[]> {

@@ -80,14 +80,13 @@ async function refreshAccessToken(): Promise<string | null> {
 
 function buildRequest(path: string, options: RequestInit, token: string | null): Promise<Response> {
   const isFormData = options.body instanceof FormData;
+  const headers = new Headers(options.headers);
+  if (isFormData) headers.delete("Content-Type");
+  else headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
   return fetch(`${API_BASE_URL}${path}`, {
     ...options,
-    headers: {
-      // FormData sets its own multipart boundary — let the browser fill it in.
-      ...(isFormData ? {} : { "Content-Type": "application/json" }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
+    headers,
   });
 }
 

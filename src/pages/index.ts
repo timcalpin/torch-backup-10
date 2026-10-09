@@ -20,6 +20,10 @@ export { GoalsPage } from "./GoalsPage"; // 1. Added Export
 export { RecoveryPage } from "./RecoveryPage";
 export { MetricsDebugPage } from "./MetricsDebugPage";
 export { MetricsDebugDetailPage } from "./MetricsDebugDetailPage";
+export { IntakeTestPage } from "./IntakeTestPage";
+export { IntakeTestDetailPage } from "./IntakeTestDetailPage";
+export { IntakeUploadLogsPage } from "./IntakeUploadLogsPage";
+export { IntakeTestsPage } from "./admin/IntakeTestsPage";
 export { PayloadInspectorPage } from "./PayloadInspectorPage";
 export { PushNotificationsPage } from "./PushNotificationsPage";
 export { CreateNotificationPage } from "./CreateNotificationPage";

@@ -288,7 +288,6 @@ export interface CreateResourcePayload {
 
   tags?: string[];
 
-  /** Uploaded image file for the resource API. */
   thumbnail?: File | null;
 
   status: ResourceStatus;
@@ -316,17 +315,15 @@ function withLegacyFormat(payload: CreateResourcePayload | UpdateResourcePayload
   return { ...rest, format: delivery_format ?? _format };
 }
 
-function toResourceFormData(payload: CreateResourcePayload | UpdateResourcePayload): FormData {
+function toResourceFormData(
+  payload: CreateResourcePayload | UpdateResourcePayload,
+  useLegacyFormat = false,
+): FormData {
   const form = new FormData();
+  const { thumbnail, delivery_format, format, tags, ...fields } = payload;
 
-  Object.entries(payload).forEach(([key, value]) => {
+  Object.entries(fields).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
-    if (key === "thumbnail") {
-      if (value instanceof File) {
-        form.append("thumbnail_upload", value);
-      }
-      return;
-    }
     if (Array.isArray(value)) {
       form.append(key, JSON.stringify(value));
       return;
@@ -334,11 +331,11 @@ function toResourceFormData(payload: CreateResourcePayload | UpdateResourcePaylo
     form.append(key, String(value));
   });
 
+  const selectedFormat = useLegacyFormat ? format ?? delivery_format : delivery_format ?? format;
+  if (selectedFormat) form.append(useLegacyFormat ? "format" : "delivery_format", selectedFormat);
+  if (tags !== undefined) form.append("tags", JSON.stringify(tags));
+  if (thumbnail) form.append("thumbnail_upload", thumbnail);
   return form;
-}
-
-function hasThumbnailUpload(payload: CreateResourcePayload | UpdateResourcePayload): boolean {
-  return payload.thumbnail instanceof File;
 }
 
 /* =========================================================
@@ -388,16 +385,14 @@ export function createResource(
 
   return apiFetch<ApiResource>("/api/v1/admin/resources/", {
     method: "POST",
-    body,
+    body: toResourceFormData(payload),
   }).catch((error) => {
     if (!(error instanceof Error) || !("status" in error) || !isFormatValidationError(error)) throw error;
     const status = (error as { status?: number }).status;
     if (status !== 400) throw error;
     return apiFetch<ApiResource>("/api/v1/admin/resources/", {
       method: "POST",
-      body: hasThumbnailUpload(payload)
-        ? toResourceFormData({ ...payload, delivery_format: undefined, format: payload.delivery_format })
-        : JSON.stringify(withLegacyFormat(payload)),
+      body: toResourceFormData(withLegacyFormat(payload), true),
     });
   });
 }
@@ -418,20 +413,20 @@ export function updateResource(
 
   return apiFetch<ApiResource>(path, {
     method: "PATCH",
-    body,
+    body: toResourceFormData(payload),
   }).catch((error) => {
     if (!(error instanceof Error) || !("status" in error)) throw error;
     const status = (error as { status?: number }).status;
     if (status === 400 && isFormatValidationError(error)) {
       return apiFetch<ApiResource>(path, {
         method: "PATCH",
-        body: toResourceFormData({ ...payload, delivery_format: undefined, format: payload.delivery_format }),
+        body: toResourceFormData(withLegacyFormat(payload), true),
       });
     }
     if (status === 405) {
       return apiFetch<ApiResource>(path, {
         method: "PUT",
-        body,
+        body: toResourceFormData(payload),
       });
     }
     throw error;

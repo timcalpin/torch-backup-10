@@ -638,6 +638,23 @@ export function AddResourceModal({
             />
           </FormField>
 
+          <FormField label="Thumbnail / Cover Image">
+            {resource?.thumbnail && !thumbnail && (
+              <img
+                src={resource.thumbnail}
+                alt="Current resource thumbnail"
+                className="mb-[8px] h-[64px] w-[64px] rounded-[8px] object-cover"
+              />
+            )}
+            <FileDropzone
+              label={resource?.thumbnail ? "Replace Thumbnail" : "Upload Thumbnail"}
+              file={thumbnail}
+              onChange={setThumbnail}
+              accept="image/*"
+              compact
+            />
+          </FormField>
+
           <FormField
             label="Link (URL)"
           >

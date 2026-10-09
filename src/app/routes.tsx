@@ -22,6 +22,9 @@ export type AppPageKey =
   | "recovery"
   | "metrics-debug"
   | "metrics-debug-detail"
+  | "intake-test"
+  | "intake-test-detail"
+  | "intake-upload-logs"
   | "payload-inspector"
   | "push-notifications"
   | "create-notification";
@@ -89,6 +92,11 @@ export function createAppRouter({ AdminLayout, LoginPage, renderPage }: RouterOp
         { path: "recovery/:userId", element: <PageRoute pageKey="recovery" renderPage={renderPage} /> },
         { path: "metrics-debug", element: <PageRoute pageKey="metrics-debug" renderPage={renderPage} /> },
         { path: "metrics-debug/:userId", element: <PageRoute pageKey="metrics-debug-detail" renderPage={renderPage} /> },
+        { path: "intake-test", element: <PageRoute pageKey="intake-test" renderPage={renderPage} /> },
+        { path: "intake-test/:intakeId", element: <PageRoute pageKey="intake-test-detail" renderPage={renderPage} /> },
+        { path: "admin/intake-tests", element: <PageRoute pageKey="intake-test" renderPage={renderPage} /> },
+        { path: "admin/intake-tests/:intakeSessionId", element: <PageRoute pageKey="intake-test-detail" renderPage={renderPage} /> },
+        { path: "admin/intake-tests/:intakeSessionId/uploads/:uploadId/logs", element: <PageRoute pageKey="intake-upload-logs" renderPage={renderPage} /> },
         {
           path: "metrics-debug/:userId/payload-inspector",
           element: <PageRoute pageKey="payload-inspector" renderPage={renderPage} />,

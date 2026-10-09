@@ -12,6 +12,7 @@ import { ActionBtn } from "@/components/common/ActionBtn";
 import { ModalOverlay, ModalCard, ModalHeader, ModalFooter, SectionLabel } from "@/components/common/Modal";
 import { FormField, TextInput, TextArea, SelectInput } from "@/components/common/FormFields";
 import { FileDropzone } from "@/components/common/FileDropzone";
+import { Thumbnail } from "@/components/common/Thumbnail";
 import { ExcelImportModal } from "@/components/common/ExcelImportModal";
 import { EditIcon, MicIcon, VideoIcon, BookIcon, SparklesIcon, FileIcon } from "@/components/icons";
 import { ApiError } from "@/lib/api";
@@ -21,6 +22,7 @@ import {
   createContentItem,
   updateContentItem,
   deleteContentItem,
+  importContentItems,
   deleteContentItems,
   CONTENT_CATEGORIES,
   CONTENT_CATEGORY_LABELS,
@@ -575,9 +577,13 @@ export function ResourcesAppPage() {
       setImportMessage(`Imported ${created} of ${rows.length} rows${errors.length ? `; ${errors.length} failed.` : "."}`);
       if (errors.length) setActionError(errors.slice(0, 3).join(" · "));
       if (created) bumpContentVersion();
+      const result = await importContentItems(file);
+      setImportMessage(`Imported ${result.created} content items${result.failed ? `; ${result.failed} rows failed.` : "."}`);
+      if (result.errors?.length) setActionError(result.errors.slice(0, 3).map((item) => `Row ${item.row ?? "?"}: ${item.message}`).join(" · "));
+      bumpContentVersion();
       setImportModalOpen(false);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Unable to import content.");
+      setActionError(error instanceof ApiError ? error.message : "Unable to import content.");
       return false;
     } finally {
       setImporting(false);
@@ -699,13 +705,13 @@ export function ResourcesAppPage() {
                       <input type="checkbox" aria-label={`Select ${item.title}`} checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-[16px] w-[16px] accent-[#f37422] cursor-pointer" />
                     </div>
                     <div className="flex items-center gap-[10px] flex-1 min-w-[220px]">
-                      <div className="w-[32px] h-[32px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: tc.bg }}>
+                      {item.thumbnail ? <Thumbnail url={item.thumbnail} alt={`${item.title} thumbnail`} /> : <div className="w-[32px] h-[32px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: tc.bg }}>
                         {typeLabel === "Audio" && <MicIcon color={tc.color} />}
                         {typeLabel === "Video" && <VideoIcon color={tc.color} />}
                         {typeLabel === "Meditation" && <SparklesIcon color={tc.color} />}
                         {isDoc && <BookIcon color={tc.color} />}
                         {!["Audio", "Video", "Meditation"].includes(typeLabel) && !isDoc && <FileIcon color={tc.color} />}
-                      </div>
+                      </div>}
                       <div>
                         <p className="font-['Figtree'] font-semibold text-[var(--app-text)] text-[13px] leading-tight">{item.title}</p>
                         <div className="flex items-center gap-[6px] mt-[2px]">

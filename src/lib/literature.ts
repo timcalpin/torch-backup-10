@@ -83,7 +83,7 @@ export function createLiterature(payload: LiteraturePayload): Promise<ApiLiterat
     content_type: "text",
     content_file: payload.pdf_file,
     book_url: payload.book_url,
-    thumbnail: payload.thumbnail,
+    thumbnail_upload: payload.thumbnail_upload,
     is_featured: payload.is_featured,
     status: "published",
   }).then((item) => ({
@@ -107,7 +107,7 @@ export function updateLiterature(id: number, payload: Partial<LiteraturePayload>
     ...(payload.is_featured !== undefined ? { is_featured: payload.is_featured } : {}),
     ...(payload.pdf_file !== undefined ? { content_file: payload.pdf_file } : {}),
     ...(payload.book_url !== undefined ? { book_url: payload.book_url } : {}),
-    ...(payload.thumbnail !== undefined ? { thumbnail: payload.thumbnail } : {}),
+    ...(payload.thumbnail_upload !== undefined ? { thumbnail_upload: payload.thumbnail_upload } : {}),
   }).then((item) => ({
     id: item.id,
     title: item.title,

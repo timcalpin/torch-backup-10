@@ -114,6 +114,7 @@ export interface ContentPayload {
   content_file?: File | null;
   book_url?: string;
   thumbnail?: File | null;
+  thumbnail_upload?: File | null;
   duration_seconds?: number;
   is_featured: boolean;
   status: ContentStatus;
@@ -152,7 +153,8 @@ function toContentFormData(payload: ContentPayload): FormData {
     form.append("duration_seconds", String(payload.duration_seconds));
   }
 
-  if (payload.thumbnail) form.append("thumbnail_upload", payload.thumbnail);
+  const thumbnail = payload.thumbnail_upload ?? payload.thumbnail;
+  if (thumbnail) form.append("thumbnail_upload", thumbnail);
   if (payload.content_file) form.append("content_file_upload", payload.content_file);
   return form;
 }
@@ -169,7 +171,7 @@ export function updateContentItem(id: number, payload: Partial<ContentPayload>):
   Object.entries(payload).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
     if (typeof value === "string" && value.trim() === "" && key !== "title") return;
-    if (key === "thumbnail") {
+    if (key === "thumbnail" || key === "thumbnail_upload") {
       if (value) form.append("thumbnail_upload", value as File);
       return;
     }
@@ -188,6 +190,22 @@ export function updateContentItem(id: number, payload: Partial<ContentPayload>):
 export function deleteContentItem(id: number): Promise<void> {
   return apiFetch<void>(`/api/v1/admin/content/${id}/`, {
     method: "DELETE",
+  });
+}
+
+export interface ContentImportResult {
+  created: number;
+  updated: number;
+  failed: number;
+  errors: Array<{ row?: number; field?: string; message: string }>;
+}
+
+export function importContentItems(file: File): Promise<ContentImportResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<ContentImportResult>("/api/v1/admin/content/import/", {
+    method: "POST",
+    body: formData,
   });
 }
 
