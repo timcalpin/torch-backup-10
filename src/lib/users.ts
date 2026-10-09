@@ -307,12 +307,16 @@ export function updateUser(
 }
 
 export function deleteUser(
-  id: string
+  id: string,
+  options: { deleteCognitoUser?: boolean } = {}
 ): Promise<void> {
   return apiFetch<void>(
     `/api/v1/admin/users/${id}/`,
     {
       method: "DELETE",
+      body: JSON.stringify({
+        delete_cognito_user: options.deleteCognitoUser ?? false,
+      }),
     }
   );
 }

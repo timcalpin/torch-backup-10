@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, ExternalLink, Trash2 } from "lucide-react";
 import { useAppContext } from "@/app/app-context";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -23,6 +23,7 @@ import {
   updateContentItem,
   deleteContentItem,
   importContentItems,
+  deleteContentItems,
   CONTENT_CATEGORIES,
   CONTENT_CATEGORY_LABELS,
   CONTENT_DIFFICULTIES,
@@ -404,6 +405,16 @@ export function ResourcesAppPage() {
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleteSelectionOpen, setDeleteSelectionOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const selectedItems = useMemo(
+    () => content.filter((item) => selectedIds.has(item.id)),
+    [content, selectedIds],
+  );
+  const allVisibleSelected = content.length > 0 && selectedItems.length === content.length;
 
   useEffect(() => {
     let cancelled = false;
@@ -443,6 +454,7 @@ export function ResourcesAppPage() {
       setContentTotal(filtered.length);
       setContentHasNext(false);
       setContentHasPrev(false);
+      setSelectedIds(new Set());
     };
 
     loadAllContent()
@@ -479,14 +491,40 @@ export function ResourcesAppPage() {
   };
 
   const handleDeleteContent = async (item: ApiContentItem) => {
-    if (!window.confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
+    setSelectedIds(new Set([item.id]));
+    setDeleteSelectionOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
     setActionError(null);
+    setDeleting(true);
     try {
-      await deleteContentItem(item.id);
+      const result = ids.length === 1
+        ? await deleteContentItem(ids[0]).then(() => ({ deleted: 1 }))
+        : await deleteContentItems(ids);
+      setDeleteSelectionOpen(false);
+      setSelectedIds(new Set());
+      setSuccessMessage(`${result.deleted} resource${result.deleted === 1 ? "" : "s"} deleted successfully. They are no longer available in the app.`);
       bumpContentVersion();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Unable to delete content.");
+    } finally {
+      setDeleting(false);
     }
+  };
+
+  const toggleSelected = (id: number) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllSelected = () => {
+    setSelectedIds(allVisibleSelected ? new Set() : new Set(content.map((item) => item.id)));
   };
 
   const handleImport = async (file: File) => {
@@ -567,6 +605,12 @@ export function ResourcesAppPage() {
         {contentError && <p className="font-['Figtree'] text-[13px] text-red-500">{contentError}</p>}
         {actionError && <p className="font-['Figtree'] text-[13px] text-red-500">{actionError}</p>}
         {importMessage && <p className="font-['Figtree'] text-[13px] text-[#35d47b]">{importMessage}</p>}
+        {successMessage && (
+          <div className="flex items-center justify-between rounded-[10px] border border-[#1d6b41] bg-[rgba(20,92,51,0.16)] px-[16px] py-[13px] font-['Figtree'] text-[13px] text-[var(--app-text)]">
+            <span><span className="mr-[10px] text-[#35d47b]">✓</span>{successMessage}</span>
+            <button type="button" aria-label="Dismiss message" onClick={() => setSuccessMessage(null)} className="text-[var(--app-muted)] hover:text-[var(--app-text)]">×</button>
+          </div>
+        )}
 
         <div className="flex gap-[10px] flex-wrap">
           <MetricCard label="TOTAL CONTENT" value={stats ? String(stats.total_content) : "-"} delta="Live from server" deltaColor="#8a8073" accentColor="#f37422" />
@@ -622,9 +666,20 @@ export function ResourcesAppPage() {
         </div>
 
         <TableCard>
+          {selectedItems.length > 0 && (
+            <div className="flex items-center justify-between border-b border-[var(--app-border)] bg-[rgba(243,116,34,0.08)] px-[16px] py-[10px]">
+              <div className="flex items-center gap-[16px] font-['Figtree'] text-[12px] text-[var(--app-text)]">
+                <span className="font-semibold">{selectedItems.length} selected</span>
+                <button type="button" onClick={() => setSelectedIds(new Set())} className="text-[var(--app-muted)] hover:text-[var(--app-text)]">Clear selection</button>
+                {!allVisibleSelected && <button type="button" onClick={() => setSelectedIds(new Set(content.map((item) => item.id)))} className="text-[#f37422] hover:underline">Select all {content.length} resources</button>}
+              </div>
+              <button type="button" onClick={() => setDeleteSelectionOpen(true)} className="rounded-[10px] bg-[#ef4444] px-[22px] py-[10px] font-['Figtree'] text-[12px] font-semibold text-white hover:bg-[#dc2626]">Delete selected</button>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <div className="min-w-[860px]">
               <TableHead cols={[
+                { label: <button type="button" aria-label="Select all resources" onClick={toggleAllSelected} className="flex items-center"><input type="checkbox" tabIndex={-1} readOnly checked={allVisibleSelected} ref={(input) => { if (input) input.indeterminate = selectedItems.length > 0 && !allVisibleSelected; }} className="h-[16px] w-[16px] accent-[#f37422] cursor-pointer" /></button>, w: "w-[52px]" },
                 { label: "CONTENT", w: "flex-1 min-w-[220px]" },
                 { label: "TYPE", w: "w-[110px]" },
                 { label: "CATEGORY", w: "w-[110px]" },
@@ -646,6 +701,9 @@ export function ResourcesAppPage() {
                 const isDoc = item.category === "literature" || item.category === "books";
                 return (
                   <TableRow key={item.id}>
+                    <div className="w-[52px] flex-shrink-0">
+                      <input type="checkbox" aria-label={`Select ${item.title}`} checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-[16px] w-[16px] accent-[#f37422] cursor-pointer" />
+                    </div>
                     <div className="flex items-center gap-[10px] flex-1 min-w-[220px]">
                       {item.thumbnail ? <Thumbnail url={item.thumbnail} alt={`${item.title} thumbnail`} /> : <div className="w-[32px] h-[32px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: tc.bg }}>
                         {typeLabel === "Audio" && <MicIcon color={tc.color} />}
@@ -726,6 +784,29 @@ export function ResourcesAppPage() {
             onClose={() => setEditContentItem(null)}
             onSaved={bumpContentVersion}
           />
+        )}
+        {deleteSelectionOpen && selectedItems.length > 0 && (
+          <ModalOverlay onClose={() => !deleting && setDeleteSelectionOpen(false)}>
+            <ModalCard className="w-[520px] max-w-[calc(100vw-32px)]">
+              <div className="mb-[22px] flex items-start justify-between">
+                <div>
+                  <div className="mb-[14px] flex h-[42px] w-[42px] items-center justify-center rounded-[12px] bg-[rgba(243,116,34,0.15)] text-[#f37422]"><Trash2 size={20} /></div>
+                  <p className="font-['Figtree'] text-[24px] font-bold text-[var(--app-text)]">Delete {selectedItems.length} resource{selectedItems.length === 1 ? "" : "s"}?</p>
+                  <p className="mt-[8px] font-['Figtree'] text-[13px] leading-[1.4] text-[var(--app-muted)]">These resources will be removed from the app. This action cannot be undone.</p>
+                </div>
+                <button type="button" disabled={deleting} onClick={() => setDeleteSelectionOpen(false)} className="text-[22px] text-[var(--app-muted)] hover:text-[var(--app-text)]">×</button>
+              </div>
+              <div className="max-h-[180px] overflow-y-auto rounded-[10px] bg-[var(--app-bg)] px-[14px] py-[12px]">
+                <p className="mb-[8px] font-['JetBrains_Mono'] text-[10px] font-bold uppercase text-[var(--app-muted)]">{selectedItems.length} selected resources</p>
+                {selectedItems.slice(0, 8).map((item) => <div key={item.id} className="flex items-center gap-[8px] py-[4px] font-['Figtree'] text-[13px] text-[var(--app-text)]"><FileIcon color="#8a8073" />{item.title}</div>)}
+                {selectedItems.length > 8 && <p className="pt-[5px] font-['Figtree'] text-[12px] text-[var(--app-muted)]">+ {selectedItems.length - 8} more</p>}
+              </div>
+              <div className="mt-[22px] flex justify-end gap-[10px]">
+                <button type="button" disabled={deleting} onClick={() => setDeleteSelectionOpen(false)} className="rounded-[10px] border border-[var(--app-border)] px-[20px] py-[10px] font-['Figtree'] text-[12px] text-[var(--app-muted)]">Cancel</button>
+                <button type="button" disabled={deleting} onClick={handleConfirmDelete} className="rounded-[10px] bg-[#f37422] px-[20px] py-[10px] font-['Figtree'] text-[12px] font-semibold text-white disabled:opacity-60">{deleting ? "Deleting..." : `Delete ${selectedItems.length} resource${selectedItems.length === 1 ? "" : "s"}`}</button>
+              </div>
+            </ModalCard>
+          </ModalOverlay>
         )}
       </div>
       {importModalOpen && (

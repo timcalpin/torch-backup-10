@@ -208,3 +208,15 @@ export function importContentItems(file: File): Promise<ContentImportResult> {
     body: formData,
   });
 }
+
+export interface BulkDeleteContentResponse {
+  deleted: number;
+  requested: number;
+}
+
+export function deleteContentItems(ids: number[]): Promise<BulkDeleteContentResponse> {
+  return apiFetch<BulkDeleteContentResponse>("/api/v1/admin/content/bulk-delete/", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
+}
